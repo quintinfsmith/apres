@@ -1,0 +1,10 @@
+[package]
+name = "RustMidiLib"
+version = "0.1.0"
+authors = ["Quintin Smith <smith.f.quintin@gmail.com>"]
+
+[lib]
+name = "RustMidiLib"
+crate-type = ["dylib"]
+
+[dependencies]
