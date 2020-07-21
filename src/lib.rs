@@ -17,49 +17,456 @@ mod tests {
     }
 }
 
-pub enum MIDIEvent {
-    // Meta Events ///////////////////////////
-//    SequenceNumberEvent(u32),
-//    TextEvent(Vec<u8>), // 2
-//    CopyRightNoticeEvent(Vec<u8>), // 3
-//    TrackNameEvent(Vec<u8>), // 4
-//    InstrumentNameEvent(Vec<u8>), // 5
-//    LyricEvent(Vec<u8>),
-//    MarkerEvent(Vec<u8>),
-//    CuePointEvent(Vec<u8>),
-//// TODO; figure out what prefix is, u8 for now
-//    ChannelPrefixEvent(u8),
-    EndOfTrackEvent,
-    SetTempoEvent(u32),
-////TODO: Figure out what ff/fr are, u16 for now
-    //SMPTEOffsetEvent((u32, u32, u32, u16, u16)),
-    TimeSignatureEvent((u8, u8, u8, u8)),
-    KeySignatureEvent((u8, u8)), // 'mi', 'number of sharps'
-//    SequencerSpecificEvent(Vec<u8>),
-    //////////////////////////////////////////
-
-    // ChannelEvents /////////////////////////
-    NoteOnEvent((u8, u8, u8)),
-    NoteOffEvent((u8, u8, u8)),
-    PolyphonicKeyPressureEvent((u8, u8, u8)),
-    ControlChangeEvent((u8, u8, u8)),
-    ProgramChangeEvent((u8, u8)),
-    ChannelPressureEvent((u8, u8)),
-    PitchWheelChangeEvent((u8, u8, u8))
-    //////////////////////////////////////////
-
-    //CommonEvent(Vec<u8>),
+trait MIDIEvent {
+    fn get_bytes(&self) -> Vec<u8>;
+    //fn get_eid(&self) -> Vec<u8>;
 }
 
-// System Common Events //////////////////
-// TODO: All System RealTime Events
-//////////////////////////////////////////
+impl MIDIEvent {
+}
+
+struct SequenceNumberEvent {
+    sequence: u16
+}
+impl MIDIEvent for SequenceNumberEvent {
+    fn get_bytes(&self) -> Vec<u8> {
+        vec![
+            0xFF, 0x00, 0x02,
+            (self.sequence / 256) as u8,
+            (self.sequence % 256) as u8,
+        ]
+    }
+}
+struct TextEvent {
+    text: String
+}
+impl MIDIEvent for TextEvent {
+    fn get_bytes(&self) -> Vec<u8> {
+        let text_bytes = self.text.as_bytes();
+        let mut length_bytes = to_variable_length_bytes(text_bytes.len());
+
+        let mut output = vec![0xFF, 0x01];
+        output.push(0xFF);
+        output.extend(length_bytes.iter().copied());
+        output.extend(text_bytes.iter().copied());
+
+        output
+    }
+}
+struct CopyRightNoticeEvent {
+    text: String
+}
+impl MIDIEvent for CopyRightNoticeEvent {
+    fn get_bytes(&self) -> Vec<u8> {
+        let text_bytes = self.text.as_bytes();
+        let mut length_bytes = to_variable_length_bytes(text_bytes.len());
+
+        let mut output = vec![0xFF, 0x02];
+        output.push(0xFF);
+        output.extend(length_bytes.iter().copied());
+        output.extend(text_bytes.iter().copied());
+
+        output
+    }
+}
+struct TrackNameEvent {
+    track_name: String
+}
+impl MIDIEvent for TrackNameEvent {
+    fn get_bytes(&self) -> Vec<u8> {
+        let text_bytes = self.track_name.as_bytes();
+        let mut length_bytes = to_variable_length_bytes(text_bytes.len());
+
+        let mut output = vec![0xFF, 0x03];
+        output.push(0xFF);
+        output.extend(length_bytes.iter().copied());
+        output.extend(text_bytes.iter().copied());
+
+        output
+    }
+}
+struct InstrumentNameEvent {
+    instrument_name: String
+}
+impl MIDIEvent for InstrumentNameEvent {
+    fn get_bytes(&self) -> Vec<u8> {
+        let text_bytes = self.instrument_name.as_bytes();
+        let mut length_bytes = to_variable_length_bytes(text_bytes.len());
+
+        let mut output = vec![0xFF, 0x04];
+        output.push(0xFF);
+        output.extend(length_bytes.iter().copied());
+        output.extend(text_bytes.iter().copied());
+
+        output
+    }
+}
+struct LyricEvent {
+    lyric: String
+}
+impl MIDIEvent for LyricEvent {
+    fn get_bytes(&self) -> Vec<u8> {
+        let text_bytes = self.lyric.as_bytes();
+        let mut length_bytes = to_variable_length_bytes(text_bytes.len());
+
+        let mut output = vec![0xFF, 0x05];
+        output.push(0xFF);
+        output.extend(length_bytes.iter().copied());
+        output.extend(text_bytes.iter().copied());
+
+        output
+    }
+}
+struct MarkerEvent {
+    text: String
+}
+impl MIDIEvent for MarkerEvent {
+    fn get_bytes(&self) -> Vec<u8> {
+        let text_bytes = self.text.as_bytes();
+        let mut length_bytes = to_variable_length_bytes(text_bytes.len());
+
+        let mut output = vec![0xFF, 0x06];
+        output.push(0xFF);
+        output.extend(length_bytes.iter().copied());
+        output.extend(text_bytes.iter().copied());
+
+        output
+    }
+}
+struct CuePointEvent {
+    text: String
+}
+impl MIDIEvent for CuePointEvent {
+    fn get_bytes(&self) -> Vec<u8> {
+        let text_bytes = self.text.as_bytes();
+        let mut length_bytes = to_variable_length_bytes(text_bytes.len());
+
+        let mut output = vec![0xFF, 0x07];
+        output.push(0xFF);
+        output.extend(length_bytes.iter().copied());
+        output.extend(text_bytes.iter().copied());
+
+        output
+    }
+}
+
+struct EndOfTrackEvent { }
+impl MIDIEvent for EndOfTrackEvent {
+    fn get_bytes(&self) -> Vec<u8> {
+        vec![0xFF, 0x2F, 00]
+    }
+}
+
+struct ChannelPrefixEvent {
+    channel: u8
+}
+impl MIDIEvent for ChannelPrefixEvent {
+    fn get_bytes(&self) -> Vec<u8> {
+        vec![0xFF, 0x20, 0x01, self.channel]
+    }
+}
+
+struct SetTempoEvent {
+    // Note: Stored in u32 but is a 3 byte value
+    us_per_quarter_note: u32
+}
+impl SetTempoEvent {
+    fn new(us_per_quarter_note: u32) -> SetTempoEvent {
+        SetTempoEvent {
+            us_per_quarter_note: us_per_quarter_note
+        }
+    }
+}
+impl MIDIEvent for SetTempoEvent {
+    fn get_bytes(&self) -> Vec<u8> {
+        vec![
+            0xFF, 0x51, 0x03,
+            ((self.us_per_quarter_note / 256u32.pow(2)) % 256) as u8,
+            ((self.us_per_quarter_note / 256u32.pow(1)) % 256) as u8,
+            (self.us_per_quarter_note % 256) as u8,
+        ]
+    }
+}
+//TODO: Figure out what ff/fr are, u16 for now
+struct SMPTEOffsetEvent {
+    hour: u8,
+    minute: u8,
+    second: u8,
+    ff: u8,
+    fr: u8
+}
+impl MIDIEvent for SMPTEOffsetEvent {
+    fn get_bytes(&self) -> Vec<u8> {
+        vec![0xFF, 0x54, 05, self.hour, self.minute, self.second, self.ff, self.fr]
+    }
+}
+struct TimeSignatureEvent {
+    numerator: u8,
+    denominator: u8,
+    clocks_per_metronome: u8,
+    thirtysecondths_per_quarter: u8
+}
+impl TimeSignatureEvent {
+    fn new(numerator: u8, denominator: u8, cpm: u8, tspq: u8) -> TimeSignatureEvent {
+        TimeSignatureEvent {
+            numerator: numerator,
+            denominator: denominator,
+            clocks_per_metronome: cpm,
+            thirtysecondths_per_quarter: tspq
+        }
+    }
+}
+impl MIDIEvent for TimeSignatureEvent {
+    fn get_bytes(&self) -> Vec<u8> {
+        vec![0xFF, 0x58, 04, self.numerator, self.denominator, self.clocks_per_metronome, self.thirtysecondths_per_quarter]
+    }
+}
+
+// TODO: Constructor based on actual name and calculate sf and mn based on that, maybe
+struct KeySignatureEvent {
+    key: String
+}
+impl KeySignatureEvent {
+    fn get_mi_sf(&mut self) -> (u8, u8) {
+        match self.key.as_str() {
+            "A" => (0, 3),
+            "A#" | "Bb" => (0, 8 & 2),
+            "B" => (0, 5),
+            "C" => (0, 0),
+            "C#" | "Db" => (0, 7),
+            "D" => (0, 2),
+            "D#" | "Eb" => (0, 8 & 3),
+            "E" => (0, 4),
+            "F" => (0, 8 & 1),
+            "F#" | "Gb" => (0, 6),
+            "G" => (0, 1),
+            "Am" => (1, 0),
+            "A#m" | "Bbm" => (1, 7),
+            "Bm" => (1, 2),
+            "Cm" => (1, 8 & 3),
+            "C#m" | "Dbm" => (1, 4),
+            "Dm" => (1, 8 & 1),
+            "D#m" | "Ebm" => (1, 6),
+            "Em" => (1, 1),
+            "Fm" => (1, 8 & 4),
+            "F#m" | "Gbm" => (1, 3),
+            "Gm" => (1, 8 & 2),
+            _ => {
+                (0, 0) // Default to C
+            }
+        }
+    }
+    fn get_key_from_mi_sf(mi: u8, sf: u8) -> String {
+        let map = vec![
+            vec![
+                "C", "G", "D", "A",
+                "E", "B", "F#", "C#",
+                "C", "F", "Bb", "Eb",
+                "Ab", "Db", "Gb", "Cb"
+            ],
+            vec![
+                "Am", "Em", "Bm", "F#m",
+                "C#m", "G#m", "D#m", "A#m",
+                "Am", "Dm", "Gm", "Cm",
+                "Fm", "Bbm", "Ebm", "Abm"
+            ]
+        ];
+
+        map[mi as usize][sf as usize].to_string()
+    }
+}
+
+impl MIDIEvent for KeySignatureEvent {
+    fn get_bytes(&self) -> Vec<u8> {
+        let (mi, sf) = self.get_mi_sf();
+        vec![0xFF, 0x59, 0x02, sf, mi]
+    }
+}
+
+struct SequencerSpecificEvent {
+    data: Vec<u8>
+}
+impl MIDIEvent for SequencerSpecificEvent {
+    fn get_bytes(&self) -> Vec<u8> {
+        let mut length_bytes = to_variable_length_bytes(self.data.len());
+
+        let mut output = vec![0xFF, 0x7F];
+        output.push(0xFF);
+        output.extend(length_bytes.iter().copied());
+        output.extend(self.data.iter().copied());
+
+        output
+    }
+}
+
+// ChannelEvents /////////////////////////
+struct NoteOnEvent {
+    channel: u8,
+    note: u8,
+    velocity: u8
+}
+impl NoteOnEvent {
+    fn new(channel: u8, note: u8, velocity: u8) -> NoteOnEvent {
+        NoteOnEvent {
+            channel: channel,
+            note: note,
+            velocity: velocity
+        }
+    }
+}
+impl MIDIEvent for NoteOnEvent {
+    fn get_bytes(&self) -> Vec<u8> {
+        vec![
+            0x90 | self.channel,
+            self.note,
+            self.velocity
+        ]
+    }
+}
+
+struct NoteOffEvent{
+	channel: u8,
+	note: u8,
+	velocity: u8
+}
+impl NoteOffEvent {
+    fn new(channel: u8, note: u8, velocity: u8) -> NoteOffEvent {
+        NoteOffEvent {
+            channel: channel,
+            note: note,
+            velocity: velocity
+        }
+    }
+}
+impl MIDIEvent for NoteOffEvent {
+    fn get_bytes(&self) -> Vec<u8> {
+        vec![
+            0x90 | self.channel,
+            self.note,
+            self.velocity
+        ]
+    }
+}
+
+struct PolyphonicKeyPressureEvent {
+	channel: u8,
+	note: u8,
+	pressure: u8
+}
+impl PolyphonicKeyPressureEvent {
+    fn new(channel: u8, note: u8, pressure: u8) -> PolyphonicKeyPressureEvent {
+        PolyphonicKeyPressureEvent {
+            channel: channel,
+            note: note,
+            pressure: pressure
+        }
+    }
+}
+impl MIDIEvent for PolyphonicKeyPressureEvent {
+    fn get_bytes(&self) -> Vec<u8> {
+        vec![
+            0xA0 | self.channel,
+            self.note,
+            self.pressure
+        ]
+    }
+}
+
+struct ControlChangeEvent {
+	channel: u8,
+	controller: u8,
+	value: u8
+}
+impl ControlChangeEvent {
+    fn new(channel: u8, controller: u8, value:u8) -> ControlChangeEvent {
+        ControlChangeEvent {
+            channel: channel,
+            controller: controller,
+            value: value
+        }
+    }
+}
+impl MIDIEvent for ControlChangeEvent {
+    fn get_bytes(&self) -> Vec<u8> {
+        vec![
+            0xB0 | self.channel,
+            self.controller,
+            self.value
+        ]
+    }
+}
+
+struct ProgramChangeEvent {
+    channel: u8,
+    program: u8,
+}
+impl ProgramChangeEvent {
+    fn new(channel: u8, program: u8) -> ProgramChangeEvent {
+        ProgramChangeEvent {
+            channel: channel,
+            program: program
+        }
+    }
+}
+impl MIDIEvent for ProgramChangeEvent {
+    fn get_bytes(&self) -> Vec<u8> {
+        vec![
+            0xC0 | self.channel,
+            self.program
+        ]
+    }
+}
+
+struct ChannelPressureEvent {
+    channel: u8,
+    pressure: u8
+}
+impl ChannelPressureEvent {
+    fn new(channel: u8, pressure: u8) -> ChannelPressureEvent {
+        ChannelPressureEvent {
+            channel: channel,
+            pressure: pressure
+        }
+    }
+}
+impl MIDIEvent for ChannelPressureEvent {
+    fn get_bytes(&self) -> Vec<u8> {
+        vec![
+            0xD0 | self.channel,
+            self.pressure
+        ]
+    }
+}
+
+struct PitchWheelChangeEvent {
+	channel: u8,
+	least: u8,
+	most: u8
+}
+impl PitchWheelChangeEvent {
+    fn new(channel: u8, least: u8, most: u8) -> PitchWheelChangeEvent {
+        PitchWheelChangeEvent {
+            channel: channel,
+            least: least,
+            most: most
+        }
+    }
+}
+impl MIDIEvent for PitchWheelChangeEvent {
+    fn get_bytes(&self) -> Vec<u8> {
+        vec![
+            0xE0 | self.channel,
+            self.least,
+            self.most
+        ]
+    }
+}
 
 pub struct MIDILike {
     ppqn: u32,
-    midi_format: u16, // 16 because the format is store in 2 bytes, even though it's 0-2
+    midi_format: u16, // 16 because the format stores in 2 bytes, even though it only requires 2 bits (0,1,2)
     tracks: Vec<HashMap<usize, Vec<u64>>>, // Outer Vector is list of track, not every tick in a track has an event, some have many
-    events: HashMap<u64, MIDIEvent>,
+    events: HashMap<u64, Box<dyn MIDIEvent>>,
     event_id_gen: u64
 }
 
@@ -140,9 +547,9 @@ impl MIDILike {
         self.midi_format = new_format;
     }
 
-    fn add_event(&mut self, track: usize, tick: usize, event: MIDIEvent) {
+    fn add_event(&mut self, track: usize, tick: usize, event: dyn MIDIEvent) {
         let new_event_id = self.event_id_gen;
-        self.events.insert(new_event_id, event);
+        self.events.insert(new_event_id, Box::new(event));
         while track >= self.tracks.len() {
             self.tracks.push(HashMap::new());
         }
@@ -202,6 +609,27 @@ fn get_variable_length_number(bytes: &mut Vec<u8>) -> u64 {
     n
 }
 
+fn to_variable_length_bytes(number: usize) -> Vec<u8> {
+    let mut output = Vec::new();
+    let mut first_pass = true;
+    let mut working_number = number;
+    let mut tmp;
+    while working_number > 0 || first_pass {
+        tmp = working_number & 0x7F;
+        working_number >>= 7;
+        if first_pass {
+            tmp |= 0x00;
+        } else {
+            tmp |= 0x80;
+        }
+        output.push(tmp as u8);
+        first_pass = false;
+    }
+    output.reverse();
+
+    output
+}
+
 
 fn process_mtrk_event(leadbyte: u8, bytes: &mut Vec<u8>, current_deltatime: &mut usize, mlo: &mut MIDILike, track: usize, fallback_cmd: &mut u8) {
     let mut channel: u8;
@@ -235,16 +663,16 @@ fn process_mtrk_event(leadbyte: u8, bytes: &mut Vec<u8>, current_deltatime: &mut
             a = leadbyte;
         }
         if leadnibble == 8 {
-            mlo.add_event(track, *current_deltatime, MIDIEvent::NoteOffEvent((a, b, c)));
+            mlo.add_event(track, *current_deltatime, NoteOffEvent::new(channel, b, c));
         } else if leadnibble == 9 {
-            mlo.add_event(track, *current_deltatime, MIDIEvent::NoteOnEvent((a, b, c)));
+            mlo.add_event(track, *current_deltatime, NoteOnEvent::new(channel, b, c));
         } else if leadnibble == 10 {
-            mlo.add_event(track, *current_deltatime, MIDIEvent::PolyphonicKeyPressureEvent((a, b, c)));
+            mlo.add_event(track, *current_deltatime, PolyphonicKeyPressureEvent::new(channel, b, c));
 
         } else if leadnibble == 11 {
-            mlo.add_event(track, *current_deltatime, MIDIEvent::ControlChangeEvent((a, b, c)));
+            mlo.add_event(track, *current_deltatime, ControlChangeEvent::new(channel, b, c));
         } else if leadnibble == 14 {
-            mlo.add_event(track, *current_deltatime, MIDIEvent::PitchWheelChangeEvent((a, b, c)));
+            mlo.add_event(track, *current_deltatime, PitchWheelChangeEvent::new(channel, b, c));
         }
 
     } else if leadnibble == 12 || leadnibble == 13 {
@@ -252,10 +680,9 @@ fn process_mtrk_event(leadbyte: u8, bytes: &mut Vec<u8>, current_deltatime: &mut
         channel = leadbyte & 0x0F;
         b = bytes.pop().unwrap();
         if leadnibble == 12 {
-            mlo.add_event(track, *current_deltatime, MIDIEvent::ProgramChangeEvent((leadbyte, b)));
+            mlo.add_event(track, *current_deltatime, ProgramChangeEvent::new(channel, b));
         } else if leadnibble == 13 {
-            mlo.add_event(track, *current_deltatime, MIDIEvent::ChannelPressureEvent((leadbyte, b)));
-
+            mlo.add_event(track, *current_deltatime, ChannelPressureEvent::new(channel, b));
         }
     } else if leadbyte == 0xF0 {
         // System Common
@@ -295,7 +722,7 @@ fn process_mtrk_event(leadbyte: u8, bytes: &mut Vec<u8>, current_deltatime: &mut
         a = bytes.pop().unwrap(); // Meta Type
         varlength = get_variable_length_number(bytes);
         if (a == 0x51) {
-            mlo.add_event(track, *current_deltatime, MIDIEvent::SetTempoEvent(pop_n(bytes, varlength as usize)));
+            mlo.add_event(track, *current_deltatime, SetTempoEvent::new(pop_n(bytes, varlength as usize)));
         } else {
             dump = Vec::new();
             for _ in 0..varlength {
@@ -314,10 +741,10 @@ fn process_mtrk_event(leadbyte: u8, bytes: &mut Vec<u8>, current_deltatime: &mut
             } else if a == 4 {
             } else if a == 5 {
             } else if a == 0x2F {
-                mlo.add_event(track, *current_deltatime, MIDIEvent::EndOfTrackEvent);
+                mlo.add_event(track, *current_deltatime, EndOfTrackEvent {} );
             } else if a == 0x51 {
             } else if a == 0x58 {
-                mlo.add_event(track, *current_deltatime, MIDIEvent::TimeSignatureEvent((dump[0], dump[1],dump[2], dump[3])));
+                mlo.add_event(track, *current_deltatime, TimeSignatureEvent::new(dump[0], dump[1],dump[2], dump[3]));
             } else if a == 0x59 {
             }
         }
