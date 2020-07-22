@@ -46,7 +46,6 @@ impl MIDIEvent for TextEvent {
         let mut length_bytes = to_variable_length_bytes(text_bytes.len());
 
         let mut output = vec![0xFF, 0x01];
-        output.push(0xFF);
         output.extend(length_bytes.iter().copied());
         output.extend(text_bytes.iter().copied());
 
@@ -62,7 +61,6 @@ impl MIDIEvent for CopyRightNoticeEvent {
         let mut length_bytes = to_variable_length_bytes(text_bytes.len());
 
         let mut output = vec![0xFF, 0x02];
-        output.push(0xFF);
         output.extend(length_bytes.iter().copied());
         output.extend(text_bytes.iter().copied());
 
@@ -78,7 +76,6 @@ impl MIDIEvent for TrackNameEvent {
         let mut length_bytes = to_variable_length_bytes(text_bytes.len());
 
         let mut output = vec![0xFF, 0x03];
-        output.push(0xFF);
         output.extend(length_bytes.iter().copied());
         output.extend(text_bytes.iter().copied());
 
@@ -94,7 +91,6 @@ impl MIDIEvent for InstrumentNameEvent {
         let mut length_bytes = to_variable_length_bytes(text_bytes.len());
 
         let mut output = vec![0xFF, 0x04];
-        output.push(0xFF);
         output.extend(length_bytes.iter().copied());
         output.extend(text_bytes.iter().copied());
 
@@ -110,7 +106,6 @@ impl MIDIEvent for LyricEvent {
         let mut length_bytes = to_variable_length_bytes(text_bytes.len());
 
         let mut output = vec![0xFF, 0x05];
-        output.push(0xFF);
         output.extend(length_bytes.iter().copied());
         output.extend(text_bytes.iter().copied());
 
@@ -126,7 +121,6 @@ impl MIDIEvent for MarkerEvent {
         let mut length_bytes = to_variable_length_bytes(text_bytes.len());
 
         let mut output = vec![0xFF, 0x06];
-        output.push(0xFF);
         output.extend(length_bytes.iter().copied());
         output.extend(text_bytes.iter().copied());
 
@@ -142,7 +136,6 @@ impl MIDIEvent for CuePointEvent {
         let mut length_bytes = to_variable_length_bytes(text_bytes.len());
 
         let mut output = vec![0xFF, 0x07];
-        output.push(0xFF);
         output.extend(length_bytes.iter().copied());
         output.extend(text_bytes.iter().copied());
 
@@ -153,7 +146,7 @@ impl MIDIEvent for CuePointEvent {
 struct EndOfTrackEvent { }
 impl MIDIEvent for EndOfTrackEvent {
     fn get_bytes(&self) -> Vec<u8> {
-        vec![0xFF, 0x2F, 00]
+        vec![0xFF, 0x2F, 0x00]
     }
 }
 
@@ -230,27 +223,27 @@ impl KeySignatureEvent {
     fn get_mi_sf(&mut self) -> (u8, u8) {
         match self.key.as_str() {
             "A" => (0, 3),
-            "A#" | "Bb" => (0, 8 & 2),
+            "A#" | "Bb" => (0, 8 | 2),
             "B" => (0, 5),
             "C" => (0, 0),
             "C#" | "Db" => (0, 7),
             "D" => (0, 2),
-            "D#" | "Eb" => (0, 8 & 3),
+            "D#" | "Eb" => (0, 8 | 3),
             "E" => (0, 4),
-            "F" => (0, 8 & 1),
+            "F" => (0, 8 | 1),
             "F#" | "Gb" => (0, 6),
             "G" => (0, 1),
             "Am" => (1, 0),
             "A#m" | "Bbm" => (1, 7),
             "Bm" => (1, 2),
-            "Cm" => (1, 8 & 3),
+            "Cm" => (1, 8 | 3),
             "C#m" | "Dbm" => (1, 4),
-            "Dm" => (1, 8 & 1),
+            "Dm" => (1, 8 | 1),
             "D#m" | "Ebm" => (1, 6),
             "Em" => (1, 1),
-            "Fm" => (1, 8 & 4),
+            "Fm" => (1, 8 | 4),
             "F#m" | "Gbm" => (1, 3),
-            "Gm" => (1, 8 & 2),
+            "Gm" => (1, 8 | 2),
             _ => {
                 (0, 0) // Default to C
             }
@@ -291,7 +284,6 @@ impl MIDIEvent for SequencerSpecificEvent {
         let mut length_bytes = to_variable_length_bytes(self.data.len());
 
         let mut output = vec![0xFF, 0x7F];
-        output.push(0xFF);
         output.extend(length_bytes.iter().copied());
         output.extend(self.data.iter().copied());
 
@@ -452,6 +444,7 @@ impl PitchWheelChangeEvent {
         }
     }
 }
+
 impl MIDIEvent for PitchWheelChangeEvent {
     fn get_bytes(&self) -> Vec<u8> {
         vec![
@@ -917,5 +910,4 @@ pub extern fn get_nth_event_in_tick(midilike_ptr: *mut MIDILike, track: usize, t
 
     event_id
 }
-
 
