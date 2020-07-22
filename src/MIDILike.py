@@ -22,6 +22,7 @@ class MIDILike:
                 uint32_t get_track_count(MIDILike);
                 uint32_t get_tick_length(MIDILike, uint32_t, uint32_t);
                 uint32_t get_nth_event_in_tick(MIDILike, uint32_t, uint32_t, uint32_t);
+                void set_event_property(MIDILIKE, uint32_t, const char*);
                 """)
         self.lib = ffi.dlopen(self.SO_PATH)
         self.path = path
@@ -32,7 +33,6 @@ class MIDILike:
         for i in range(self._get_track_count()):
             new_track = MIDILikeTrack(i, self)
             self.tracks.append(new_track)
-
 
     def _get_track_length(self, n):
         return self.lib.get_track_length(self.pointer, n)
@@ -50,6 +50,10 @@ class MIDILike:
 
     def _get_events_in_tick(self, track, tick):
         return self.lib.get_events_in_tick(self.pointer, track, tick)
+
+    def _set_event_property(self, n, somevalue):
+        self.lib.set_event_property(self.pointer, n, somevalue)
+
     ##########################################################
 
 
@@ -87,7 +91,6 @@ class MIDIEvent:
     def __init__(self, uuid, midilike):
         self._midilike = midilike
         self.uuid = uuid
-
 
 
 ml = MIDILike(sys.argv[1])

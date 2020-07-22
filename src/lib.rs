@@ -19,7 +19,9 @@ mod tests {
 
 trait MIDIEvent {
     fn get_bytes(&self) -> Vec<u8>;
-    //fn get_eid(&self) -> Vec<u8>;
+    fn get_eid(&self) -> u8;
+    fn is_meta(&self) -> bool;
+    fn set_property(&mut self, argument: u8, bytes: Vec<u8>);
 }
 
 impl MIDIEvent {
@@ -33,10 +35,20 @@ impl MIDIEvent for SequenceNumberEvent {
         vec![
             0xFF, 0x00, 0x02,
             (self.sequence / 256) as u8,
-            (self.sequence % 256) as u8,
+            (self.sequence % 256) as u8
         ]
     }
+    fn is_meta(&self) -> bool {
+        true
+    }
+    fn get_eid(&self) -> u8 {
+        0x00
+    }
+    fn set_property(&mut self, argument: u8, bytes: Vec<u8>) {
+        self.sequence = (bytes[1] as u16 * 256) + (bytes[0] as u16);
+    }
 }
+
 struct TextEvent {
     text: String
 }
@@ -51,6 +63,15 @@ impl MIDIEvent for TextEvent {
         output.extend(text_bytes.iter().copied());
 
         output
+    }
+    fn is_meta(&self) -> bool {
+        true
+    }
+    fn get_eid(&self) -> u8 {
+        0x01
+    }
+    fn set_property(&mut self, argument: u8, bytes: Vec<u8>) {
+        self.text = std::str::from_utf8(bytes.as_slice()).unwrap().to_string();
     }
 }
 struct CopyRightNoticeEvent {
@@ -68,6 +89,15 @@ impl MIDIEvent for CopyRightNoticeEvent {
 
         output
     }
+    fn is_meta(&self) -> bool {
+        true
+    }
+    fn get_eid(&self) -> u8 {
+        0x02
+    }
+    fn set_property(&mut self, argument: u8, bytes: Vec<u8>) {
+        self.text = std::str::from_utf8(bytes.as_slice()).unwrap().to_string();
+    }
 }
 struct TrackNameEvent {
     track_name: String
@@ -83,6 +113,15 @@ impl MIDIEvent for TrackNameEvent {
         output.extend(text_bytes.iter().copied());
 
         output
+    }
+    fn is_meta(&self) -> bool {
+        true
+    }
+    fn get_eid(&self) -> u8 {
+        0x03
+    }
+    fn set_property(&mut self, argument: u8, bytes: Vec<u8>) {
+        self.track_name = std::str::from_utf8(bytes.as_slice()).unwrap().to_string();
     }
 }
 struct InstrumentNameEvent {
@@ -100,6 +139,15 @@ impl MIDIEvent for InstrumentNameEvent {
 
         output
     }
+    fn is_meta(&self) -> bool {
+        true
+    }
+    fn get_eid(&self) -> u8 {
+        0x04
+    }
+    fn set_property(&mut self, argument: u8, bytes: Vec<u8>) {
+        self.instrument_name = std::str::from_utf8(bytes.as_slice()).unwrap().to_string();
+    }
 }
 struct LyricEvent {
     lyric: String
@@ -115,6 +163,15 @@ impl MIDIEvent for LyricEvent {
         output.extend(text_bytes.iter().copied());
 
         output
+    }
+    fn is_meta(&self) -> bool {
+        true
+    }
+    fn get_eid(&self) -> u8 {
+        0x05
+    }
+    fn set_property(&mut self, argument: u8, bytes: Vec<u8>) {
+        self.lyric = std::str::from_utf8(bytes.as_slice()).unwrap().to_string();
     }
 }
 struct MarkerEvent {
@@ -132,6 +189,15 @@ impl MIDIEvent for MarkerEvent {
 
         output
     }
+    fn is_meta(&self) -> bool {
+        true
+    }
+    fn get_eid(&self) -> u8 {
+        0x06
+    }
+    fn set_property(&mut self, argument: u8, bytes: Vec<u8>) {
+        self.text = std::str::from_utf8(bytes.as_slice()).unwrap().to_string();
+    }
 }
 struct CuePointEvent {
     text: String
@@ -148,12 +214,30 @@ impl MIDIEvent for CuePointEvent {
 
         output
     }
+    fn is_meta(&self) -> bool {
+        true
+    }
+    fn get_eid(&self) -> u8 {
+        0x07
+    }
+    fn set_property(&mut self, argument: u8, bytes: Vec<u8>) {
+        self.text = std::str::from_utf8(bytes.as_slice()).unwrap().to_string();
+    }
 }
 
 struct EndOfTrackEvent { }
 impl MIDIEvent for EndOfTrackEvent {
     fn get_bytes(&self) -> Vec<u8> {
         vec![0xFF, 0x2F, 00]
+    }
+    fn is_meta(&self) -> bool {
+        true
+    }
+    fn get_eid(&self) -> u8 {
+        0x2F
+    }
+    fn set_property(&mut self, argument: u8, bytes: Vec<u8>) {
+        // non-applicable
     }
 }
 
@@ -163,6 +247,15 @@ struct ChannelPrefixEvent {
 impl MIDIEvent for ChannelPrefixEvent {
     fn get_bytes(&self) -> Vec<u8> {
         vec![0xFF, 0x20, 0x01, self.channel]
+    }
+    fn is_meta(&self) -> bool {
+        true
+    }
+    fn get_eid(&self) -> u8 {
+        0x20
+    }
+    fn set_property(&mut self, argument: u8, bytes: Vec<u8>) {
+        self.channel = bytes[0];
     }
 }
 
@@ -176,6 +269,9 @@ impl SetTempoEvent {
             us_per_quarter_note: us_per_quarter_note
         }
     }
+    fn newbox(us_per_quarter_note: u32) -> Box<SetTempoEvent> {
+        Box::new(SetTempoEvent::new(us_per_quarter_note))
+    }
 }
 impl MIDIEvent for SetTempoEvent {
     fn get_bytes(&self) -> Vec<u8> {
@@ -185,6 +281,15 @@ impl MIDIEvent for SetTempoEvent {
             ((self.us_per_quarter_note / 256u32.pow(1)) % 256) as u8,
             (self.us_per_quarter_note % 256) as u8,
         ]
+    }
+    fn is_meta(&self) -> bool {
+        true
+    }
+    fn get_eid(&self) -> u8 {
+        0x51
+    }
+    fn set_property(&mut self, argument: u8, bytes: Vec<u8>) {
+        self.us_per_quarter_note = (bytes[2] as u32 * 256u32.pow(2)) + (bytes[1] as u32 * 256) + (bytes[0] as u32);
     }
 }
 //TODO: Figure out what ff/fr are, u16 for now
@@ -198,6 +303,32 @@ struct SMPTEOffsetEvent {
 impl MIDIEvent for SMPTEOffsetEvent {
     fn get_bytes(&self) -> Vec<u8> {
         vec![0xFF, 0x54, 05, self.hour, self.minute, self.second, self.ff, self.fr]
+    }
+    fn is_meta(&self) -> bool {
+        true
+    }
+    fn get_eid(&self) -> u8 {
+        0x54
+    }
+    fn set_property(&mut self, argument: u8, bytes: Vec<u8>) {
+        match argument {
+            0 => {
+                self.hour = bytes[0];
+            }
+            1 => {
+                self.minute = bytes[0];
+            }
+            2 => {
+                self.second = bytes[0];
+            }
+            3 => {
+                self.ff = bytes[0];
+            }
+            4 => {
+                self.fr = bytes[0];
+            }
+            _ => ()
+        };
     }
 }
 struct TimeSignatureEvent {
@@ -215,10 +346,37 @@ impl TimeSignatureEvent {
             thirtysecondths_per_quarter: tspq
         }
     }
+
+    fn newbox(numerator: u8, denominator: u8, cpm: u8, tspq: u8) -> Box<TimeSignatureEvent> {
+        Box::new(TimeSignatureEvent::new(numerator, denominator, cpm, tspq))
+    }
 }
 impl MIDIEvent for TimeSignatureEvent {
     fn get_bytes(&self) -> Vec<u8> {
         vec![0xFF, 0x58, 04, self.numerator, self.denominator, self.clocks_per_metronome, self.thirtysecondths_per_quarter]
+    }
+    fn is_meta(&self) -> bool {
+        true
+    }
+    fn get_eid(&self) -> u8 {
+        0x58
+    }
+    fn set_property(&mut self, argument: u8, bytes: Vec<u8>) {
+        match argument {
+            0 => {
+                self.numerator = bytes[0];
+            }
+            1 => {
+                self.denominator = bytes[0];
+            }
+            2 => {
+                self.clocks_per_metronome = bytes[0];
+            }
+            3 => {
+                self.thirtysecondths_per_quarter = bytes[0];
+            }
+            _ => ()
+        };
     }
 }
 
@@ -227,7 +385,7 @@ struct KeySignatureEvent {
     key: String
 }
 impl KeySignatureEvent {
-    fn get_mi_sf(&mut self) -> (u8, u8) {
+    fn get_mi_sf(&self) -> (u8, u8) {
         match self.key.as_str() {
             "A" => (0, 3),
             "A#" | "Bb" => (0, 8 & 2),
@@ -281,6 +439,15 @@ impl MIDIEvent for KeySignatureEvent {
         let (mi, sf) = self.get_mi_sf();
         vec![0xFF, 0x59, 0x02, sf, mi]
     }
+    fn is_meta(&self) -> bool {
+        true
+    }
+    fn get_eid(&self) -> u8 {
+        0x59
+    }
+    fn set_property(&mut self, argument: u8, bytes: Vec<u8>) {
+        self.key = std::str::from_utf8(bytes.as_slice()).unwrap().to_string();
+    }
 }
 
 struct SequencerSpecificEvent {
@@ -296,6 +463,15 @@ impl MIDIEvent for SequencerSpecificEvent {
         output.extend(self.data.iter().copied());
 
         output
+    }
+    fn is_meta(&self) -> bool {
+        true
+    }
+    fn get_eid(&self) -> u8 {
+        0x7F
+    }
+    fn set_property(&mut self, argument: u8, bytes: Vec<u8>) {
+        self.data = bytes.clone();
     }
 }
 
@@ -313,6 +489,10 @@ impl NoteOnEvent {
             velocity: velocity
         }
     }
+
+    fn newbox(channel: u8, note: u8, velocity: u8) -> Box<NoteOnEvent> {
+        Box::new(NoteOnEvent::new(channel, note, velocity))
+    }
 }
 impl MIDIEvent for NoteOnEvent {
     fn get_bytes(&self) -> Vec<u8> {
@@ -321,6 +501,27 @@ impl MIDIEvent for NoteOnEvent {
             self.note,
             self.velocity
         ]
+    }
+    fn is_meta(&self) -> bool {
+        false
+    }
+    fn get_eid(&self) -> u8 {
+        0x90
+    }
+
+    fn set_property(&mut self, argument: u8, bytes: Vec<u8>) {
+        match argument {
+            0 => {
+                self.channel = bytes[0];
+            }
+            1 => {
+                self.note = bytes[0];
+            }
+            2 => {
+                self.velocity = bytes[0];
+            }
+            _ => ()
+        };
     }
 }
 
@@ -337,14 +538,37 @@ impl NoteOffEvent {
             velocity: velocity
         }
     }
+    fn newbox(channel: u8, note: u8, velocity: u8) -> Box<NoteOffEvent> {
+        Box::new(NoteOffEvent::new(channel, note, velocity))
+    }
 }
 impl MIDIEvent for NoteOffEvent {
     fn get_bytes(&self) -> Vec<u8> {
         vec![
-            0x90 | self.channel,
+            0x80 | self.channel,
             self.note,
             self.velocity
         ]
+    }
+    fn is_meta(&self) -> bool {
+        false
+    }
+    fn get_eid(&self) -> u8 {
+        0x80
+    }
+    fn set_property(&mut self, argument: u8, bytes: Vec<u8>) {
+        match argument {
+            0 => {
+                self.channel = bytes[0];
+            }
+            1 => {
+                self.note = bytes[0];
+            }
+            2 => {
+                self.velocity = bytes[0];
+            }
+            _ => ()
+        };
     }
 }
 
@@ -361,6 +585,9 @@ impl PolyphonicKeyPressureEvent {
             pressure: pressure
         }
     }
+    fn newbox(channel: u8, note: u8, pressure: u8) -> Box<PolyphonicKeyPressureEvent> {
+        Box::new(PolyphonicKeyPressureEvent::new(channel, note, pressure))
+    }
 }
 impl MIDIEvent for PolyphonicKeyPressureEvent {
     fn get_bytes(&self) -> Vec<u8> {
@@ -369,6 +596,26 @@ impl MIDIEvent for PolyphonicKeyPressureEvent {
             self.note,
             self.pressure
         ]
+    }
+    fn is_meta(&self) -> bool {
+        false
+    }
+    fn get_eid(&self) -> u8 {
+        0xA0
+    }
+    fn set_property(&mut self, argument: u8, bytes: Vec<u8>) {
+        match argument {
+            0 => {
+                self.channel = bytes[0];
+            }
+            1 => {
+                self.note = bytes[0];
+            }
+            2 => {
+                self.pressure = bytes[0];
+            }
+            _ => ()
+        };
     }
 }
 
@@ -385,6 +632,9 @@ impl ControlChangeEvent {
             value: value
         }
     }
+    fn newbox(channel: u8, controller: u8, value: u8) -> Box<ControlChangeEvent> {
+        Box::new(ControlChangeEvent::new(channel, controller, value))
+    }
 }
 impl MIDIEvent for ControlChangeEvent {
     fn get_bytes(&self) -> Vec<u8> {
@@ -393,6 +643,26 @@ impl MIDIEvent for ControlChangeEvent {
             self.controller,
             self.value
         ]
+    }
+    fn is_meta(&self) -> bool {
+        false
+    }
+    fn get_eid(&self) -> u8 {
+        0xB0
+    }
+    fn set_property(&mut self, argument: u8, bytes: Vec<u8>) {
+        match argument {
+            0 => {
+                self.channel = bytes[0];
+            }
+            1 => {
+                self.controller = bytes[0];
+            }
+            2 => {
+                self.value = bytes[0];
+            }
+            _ => ()
+        };
     }
 }
 
@@ -407,6 +677,9 @@ impl ProgramChangeEvent {
             program: program
         }
     }
+    fn newbox(channel: u8, program: u8) -> Box<ProgramChangeEvent> {
+        Box::new(ProgramChangeEvent::new(channel, program))
+    }
 }
 impl MIDIEvent for ProgramChangeEvent {
     fn get_bytes(&self) -> Vec<u8> {
@@ -414,6 +687,23 @@ impl MIDIEvent for ProgramChangeEvent {
             0xC0 | self.channel,
             self.program
         ]
+    }
+    fn is_meta(&self) -> bool {
+        false
+    }
+    fn get_eid(&self) -> u8 {
+        0xC0
+    }
+    fn set_property(&mut self, argument: u8, bytes: Vec<u8>) {
+        match argument {
+            0 => {
+                self.channel = bytes[0];
+            }
+            1 => {
+                self.program = bytes[0];
+            }
+            _ => ()
+        };
     }
 }
 
@@ -428,13 +718,34 @@ impl ChannelPressureEvent {
             pressure: pressure
         }
     }
+    fn newbox(channel: u8, pressure: u8) -> Box<ChannelPressureEvent> {
+        Box::new(ChannelPressureEvent::new(channel, pressure))
+    }
 }
+
 impl MIDIEvent for ChannelPressureEvent {
     fn get_bytes(&self) -> Vec<u8> {
         vec![
             0xD0 | self.channel,
             self.pressure
         ]
+    }
+    fn is_meta(&self) -> bool {
+        false
+    }
+    fn get_eid(&self) -> u8 {
+        0xD0
+    }
+    fn set_property(&mut self, argument: u8, bytes: Vec<u8>) {
+        match argument {
+            0 => {
+                self.channel = bytes[0];
+            }
+            1 => {
+                self.pressure = bytes[0];
+            }
+            _ => ()
+        };
     }
 }
 
@@ -443,6 +754,7 @@ struct PitchWheelChangeEvent {
 	least: u8,
 	most: u8
 }
+
 impl PitchWheelChangeEvent {
     fn new(channel: u8, least: u8, most: u8) -> PitchWheelChangeEvent {
         PitchWheelChangeEvent {
@@ -451,7 +763,11 @@ impl PitchWheelChangeEvent {
             most: most
         }
     }
+    fn newbox(channel: u8, least: u8, most: u8) -> Box<PitchWheelChangeEvent> {
+        Box::new(PitchWheelChangeEvent::new(channel, least, most))
+    }
 }
+
 impl MIDIEvent for PitchWheelChangeEvent {
     fn get_bytes(&self) -> Vec<u8> {
         vec![
@@ -459,6 +775,26 @@ impl MIDIEvent for PitchWheelChangeEvent {
             self.least,
             self.most
         ]
+    }
+    fn is_meta(&self) -> bool {
+        false
+    }
+    fn get_eid(&self) -> u8 {
+        0xE0
+    }
+    fn set_property(&mut self, argument: u8, bytes: Vec<u8>) {
+        match argument {
+            0 => {
+                self.channel = bytes[0];
+            }
+            1 => {
+                self.least = bytes[0];
+            }
+            2 => {
+                self.most = bytes[0];
+            }
+            _ => ()
+        };
     }
 }
 
@@ -470,7 +806,6 @@ pub struct MIDILike {
     event_id_gen: u64
 }
 
-
 impl MIDILike {
     fn new() -> MIDILike {
         MIDILike {
@@ -480,6 +815,78 @@ impl MIDILike {
             tracks: Vec::new(),
             events: HashMap::new()
         }
+    }
+
+    fn from_bytes(file_bytes: Vec<u8>) -> MIDILike {
+        let mut bytes = &mut file_bytes.clone();
+        bytes.reverse();
+        let mut mlo: MIDILike = MIDILike::new();
+        let mut sub_bytes: Vec<u8>;
+        let mut chunkcount: HashMap<(u8, u8,u8, u8), u16> = HashMap::new();
+        let mut current_track: usize = 0;
+        let mut current_deltatime: usize = 0;
+
+        let mut chunk_type: (u8, u8, u8, u8);
+
+
+        // TODO: These Probably don't need to be 32
+        let mut divword: u32;
+        let mut smpte: u32;
+        let mut tpf: u32;
+        let mut midi_format: u16;
+
+        let mut track_length: u32;
+
+        let mut ppqn = 120;
+        let mut fallback_byte = 0x90u8;
+        while bytes.len() > 0 {
+            chunk_type = (
+                bytes.pop().unwrap(),
+                bytes.pop().unwrap(),
+                bytes.pop().unwrap(),
+                bytes.pop().unwrap()
+            );
+
+            let val = chunkcount.entry(chunk_type).or_insert(0);
+            *val += 1;
+
+            current_deltatime = 0;
+            if chunk_type == ('M' as u8, 'T' as u8, 'h' as u8, 'd' as u8) {
+                pop_n(bytes, 4); // Get Size
+                midi_format = pop_n(bytes, 2) as u16; // Midi Format
+                pop_n(bytes, 2); // Get Number of tracks
+                divword = pop_n(bytes, 2);
+                if divword & 0x8000 > 0 {
+                    smpte = from_twos_complement(((divword & 0x7F00) >> 8) as u32, 7);
+                    tpf = divword & 0x00FF;
+
+                } else {
+                    ppqn = divword & 0x7FFF;
+                }
+                mlo.set_ppqn(ppqn);
+                mlo.set_format(midi_format);
+            } else if chunk_type == ('M' as u8, 'T' as u8, 'r' as u8, 'k' as u8) {
+                track_length = pop_n(bytes, 4);
+                sub_bytes = Vec::new();
+                for _ in 0..track_length {
+                    sub_bytes.push(bytes.pop().unwrap())
+                }
+                sub_bytes.reverse();
+                while sub_bytes.len() > 0 {
+                    current_deltatime += get_variable_length_number(&mut sub_bytes) as usize;
+                    match sub_bytes.pop() {
+                        Some(byte) => {
+                            process_mtrk_event(byte, &mut sub_bytes, &mut current_deltatime, &mut mlo, current_track, &mut fallback_byte);
+                        },
+                        None => {}
+                    }
+                }
+                current_track += 1;
+            } else {
+                break;
+            }
+        }
+        mlo
     }
 
     fn get_track_length(&self, track: usize) -> usize {
@@ -543,13 +950,14 @@ impl MIDILike {
     fn set_ppqn(&mut self, new_ppqn: u32) {
         self.ppqn = new_ppqn;
     }
+
     fn set_format(&mut self, new_format: u16) {
         self.midi_format = new_format;
     }
 
-    fn add_event(&mut self, track: usize, tick: usize, event: dyn MIDIEvent) {
+    fn add_event(&mut self, track: usize, tick: usize, event: Box<dyn MIDIEvent>) {
         let new_event_id = self.event_id_gen;
-        self.events.insert(new_event_id, Box::new(event));
+        self.events.insert(new_event_id, event);
         while track >= self.tracks.len() {
             self.tracks.push(HashMap::new());
         }
@@ -561,8 +969,8 @@ impl MIDILike {
 
         self.event_id_gen += 1;
     }
-}
 
+}
 
 fn pop_n(bytes: &mut Vec<u8>, n: usize) -> u32 {
     let mut tn: u32 = 0;
@@ -589,7 +997,6 @@ fn from_twos_complement(value: u32, bits: u8) -> u32 {
     (value - 1) ^ complement
 }
 
-// TODO: may need to be longer or shorter than 32
 fn get_variable_length_number(bytes: &mut Vec<u8>) -> u64 {
     let mut n = 0u64;
     loop {
@@ -663,16 +1070,16 @@ fn process_mtrk_event(leadbyte: u8, bytes: &mut Vec<u8>, current_deltatime: &mut
             a = leadbyte;
         }
         if leadnibble == 8 {
-            mlo.add_event(track, *current_deltatime, NoteOffEvent::new(channel, b, c));
+            mlo.add_event(track, *current_deltatime, NoteOffEvent::newbox(channel, b, c));
         } else if leadnibble == 9 {
-            mlo.add_event(track, *current_deltatime, NoteOnEvent::new(channel, b, c));
+            mlo.add_event(track, *current_deltatime, NoteOnEvent::newbox(channel, b, c));
         } else if leadnibble == 10 {
-            mlo.add_event(track, *current_deltatime, PolyphonicKeyPressureEvent::new(channel, b, c));
+            mlo.add_event(track, *current_deltatime, PolyphonicKeyPressureEvent::newbox(channel, b, c));
 
         } else if leadnibble == 11 {
-            mlo.add_event(track, *current_deltatime, ControlChangeEvent::new(channel, b, c));
+            mlo.add_event(track, *current_deltatime, ControlChangeEvent::newbox(channel, b, c));
         } else if leadnibble == 14 {
-            mlo.add_event(track, *current_deltatime, PitchWheelChangeEvent::new(channel, b, c));
+            mlo.add_event(track, *current_deltatime, PitchWheelChangeEvent::newbox(channel, b, c));
         }
 
     } else if leadnibble == 12 || leadnibble == 13 {
@@ -680,9 +1087,9 @@ fn process_mtrk_event(leadbyte: u8, bytes: &mut Vec<u8>, current_deltatime: &mut
         channel = leadbyte & 0x0F;
         b = bytes.pop().unwrap();
         if leadnibble == 12 {
-            mlo.add_event(track, *current_deltatime, ProgramChangeEvent::new(channel, b));
+            mlo.add_event(track, *current_deltatime, ProgramChangeEvent::newbox(channel, b));
         } else if leadnibble == 13 {
-            mlo.add_event(track, *current_deltatime, ChannelPressureEvent::new(channel, b));
+            mlo.add_event(track, *current_deltatime, ChannelPressureEvent::newbox(channel, b));
         }
     } else if leadbyte == 0xF0 {
         // System Common
@@ -722,7 +1129,7 @@ fn process_mtrk_event(leadbyte: u8, bytes: &mut Vec<u8>, current_deltatime: &mut
         a = bytes.pop().unwrap(); // Meta Type
         varlength = get_variable_length_number(bytes);
         if (a == 0x51) {
-            mlo.add_event(track, *current_deltatime, SetTempoEvent::new(pop_n(bytes, varlength as usize)));
+            mlo.add_event(track, *current_deltatime, SetTempoEvent::newbox(pop_n(bytes, varlength as usize)));
         } else {
             dump = Vec::new();
             for _ in 0..varlength {
@@ -741,10 +1148,10 @@ fn process_mtrk_event(leadbyte: u8, bytes: &mut Vec<u8>, current_deltatime: &mut
             } else if a == 4 {
             } else if a == 5 {
             } else if a == 0x2F {
-                mlo.add_event(track, *current_deltatime, EndOfTrackEvent {} );
+                mlo.add_event(track, *current_deltatime, Box::new(EndOfTrackEvent {}) );
             } else if a == 0x51 {
             } else if a == 0x58 {
-                mlo.add_event(track, *current_deltatime, TimeSignatureEvent::new(dump[0], dump[1],dump[2], dump[3]));
+                mlo.add_event(track, *current_deltatime, TimeSignatureEvent::newbox(dump[0], dump[1],dump[2], dump[3]));
             } else if a == 0x59 {
             }
         }
@@ -762,79 +1169,6 @@ fn process_mtrk_event(leadbyte: u8, bytes: &mut Vec<u8>, current_deltatime: &mut
     }
 }
 
-
-fn _interpret(bytes: &mut Vec<u8>) -> MIDILike {
-    bytes.reverse();
-    let mut mlo: MIDILike = MIDILike::new();
-    let mut sub_bytes: Vec<u8>;
-    let mut chunkcount: HashMap<(u8, u8,u8, u8), u16> = HashMap::new();
-    let mut current_track: usize = 0;
-    let mut current_deltatime: usize = 0;
-
-    let mut chunk_type: (u8, u8, u8, u8);
-
-
-    // TODO: These Probably don't need to be 32
-    let mut divword: u32;
-    let mut smpte: u32;
-    let mut tpf: u32;
-    let mut midi_format: u16;
-
-    let mut track_length: u32;
-
-    let mut ppqn = 120;
-    let mut fallback_byte = 0x90u8;
-    while bytes.len() > 0 {
-        chunk_type = (
-            bytes.pop().unwrap(),
-            bytes.pop().unwrap(),
-            bytes.pop().unwrap(),
-            bytes.pop().unwrap()
-        );
-
-        let val = chunkcount.entry(chunk_type).or_insert(0);
-        *val += 1;
-
-        current_deltatime = 0;
-        if chunk_type == ('M' as u8, 'T' as u8, 'h' as u8, 'd' as u8) {
-            pop_n(bytes, 4); // Get Size
-            midi_format = pop_n(bytes, 2) as u16; // Midi Format
-            pop_n(bytes, 2); // Get Number of tracks
-            divword = pop_n(bytes, 2);
-            if divword & 0x8000 > 0 {
-                smpte = from_twos_complement(((divword & 0x7F00) >> 8) as u32, 7);
-                tpf = divword & 0x00FF;
-
-            } else {
-                ppqn = divword & 0x7FFF;
-            }
-            mlo.set_ppqn(ppqn);
-            mlo.set_format(midi_format);
-        } else if chunk_type == ('M' as u8, 'T' as u8, 'r' as u8, 'k' as u8) {
-            track_length = pop_n(bytes, 4);
-            sub_bytes = Vec::new();
-            for _ in 0..track_length {
-                sub_bytes.push(bytes.pop().unwrap())
-            }
-            sub_bytes.reverse();
-            while sub_bytes.len() > 0 {
-                current_deltatime += get_variable_length_number(&mut sub_bytes) as usize;
-                match sub_bytes.pop() {
-                    Some(byte) => {
-                        process_mtrk_event(byte, &mut sub_bytes, &mut current_deltatime, &mut mlo, current_track, &mut fallback_byte);
-                    },
-                    None => {}
-                }
-            }
-            current_track += 1;
-        } else {
-            break;
-        }
-    }
-    mlo
-}
-
-
 #[no_mangle]
 pub extern fn interpret(path: *const c_char) -> *mut MIDILike {
     let cstr_path = unsafe {
@@ -846,7 +1180,7 @@ pub extern fn interpret(path: *const c_char) -> *mut MIDILike {
     let mut file = File::open(clean_path).expect("Unable to open the file");
     file.read_to_end(&mut bytes).expect("Unable to read file");
 
-   Box::into_raw(Box::new( _interpret(&mut bytes) ))
+   Box::into_raw(Box::new( MIDILike::from_bytes(bytes) ))
 }
 
 #[no_mangle]
@@ -870,7 +1204,6 @@ pub extern fn get_active_tick_count(midilike_ptr: *mut MIDILike, track: usize) -
 
     length
 }
-
 
 #[no_mangle]
 pub extern fn get_track_count(midilike_ptr: *mut MIDILike) -> usize {
@@ -918,4 +1251,22 @@ pub extern fn get_nth_event_in_tick(midilike_ptr: *mut MIDILike, track: usize, t
     event_id
 }
 
+#[no_mangle]
+pub extern fn set_event_property(midilike_ptr: *mut MIDILike, event_id: u64, argument: u8, value: *const c_char) {
+    let mut midilike = unsafe { Box::from_raw(midilike_ptr) };
+
+    let cstr_value = unsafe {
+        CStr::from_ptr(value)
+    };
+    let value_vector = cstr_value.to_bytes().to_vec();
+
+    match midilike.events.get_mut(&event_id) {
+        Some(midievent) => {
+            midievent.set_property(argument, value_vector.clone());
+        }
+        None => ()
+    };
+
+    Box::into_raw(midilike);
+}
 
