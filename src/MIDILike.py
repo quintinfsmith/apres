@@ -66,7 +66,7 @@ class MIDILike:
 
     def _get_event_value(self, event_uuid, event_property):
         return self.lib.get_event_value(event_uuid, event_property)
->>>>>>> Stashed changes
+
     ##########################################################
 
 
