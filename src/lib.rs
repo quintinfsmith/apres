@@ -1264,3 +1264,22 @@ pub extern fn set_event_property(midilike_ptr: *mut MIDILike, event_id: u64, arg
     Box::into_raw(midilike);
 }
 
+#[no_mangle]
+pub extern fn get_event_property(midilike_ptr: *mut MIDILike, event_id: u64, argument: u8) -> *const c_char {
+    let mut midilike = unsafe { Box::from_raw(midilike_ptr) };
+
+    let mut value = Vec::new();
+    match midilike.events.get_mut(&event_id) {
+        Some(midievent) => {
+            value = midievent.get_property(argument);
+        }
+        None => ()
+    };
+
+    Box::into_raw(midilike);
+
+    let cstr_ptr = unsafe {
+        CStr::to_ptr(value)
+    };
+}
+

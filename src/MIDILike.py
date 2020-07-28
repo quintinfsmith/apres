@@ -26,8 +26,8 @@ class MIDILike:
                 uint32_t get_track_count(MIDILike);
                 uint32_t get_tick_length(MIDILike, uint32_t, uint32_t);
                 uint32_t get_nth_event_in_tick(MIDILike, uint32_t, uint32_t, uint32_t);
+                char* get_event_property(MIDILike, uint32_t, uint32_t);
                 void set_event_property(MIDILIKE, uint32_t, const char*);
-                uint32_t get_event_value(MIDILike, uint32_t, uint32_t);
                 """)
 
         self.lib = ffi.dlopen(self.SO_PATH)
@@ -43,29 +43,29 @@ class MIDILike:
     def get_tracks(self):
         return self.tracks
 
-    def _get_track_length(self, n):
+    def _track_get_length(self, n):
         return self.lib.get_track_length(self.pointer, n)
 
-    def _get_active_tick_count(self, track):
+    def _track_get_tick_count(self, track):
         return self.lib.get_active_tick_count(self.pointer, track)
 
-    def _get_nth_active_tick(self, track, n):
+    def _track_get_tick(self, track, n):
         return self.lib.get_nth_active_tick(self.pointer, track, n)
 
-    def _get_tick_length(self, track, tick):
+    def _tick_get_event_count(self, track, tick):
         return self.lib.get_tick_length(self.pointer, track, tick)
 
-    def _get_nth_event_in_tick(self, track, tick, n):
+    def _tick_get_event(self, track, tick, n):
         return self.lib.get_nth_event_in_tick(self.pointer, track, tick, n)
 
-    def _get_events_in_tick(self, track, tick):
+    def _tick_get_events(self, track, tick):
         return self.lib.get_events_in_tick(self.pointer, track, tick)
 
-    def _set_event_property(self, n, somevalue):
+    def _event_set_property(self, n, somevalue):
         self.lib.set_event_property(self.pointer, n, somevalue)
 
-    def _get_event_value(self, event_uuid, event_property):
-        return self.lib.get_event_value(event_uuid, event_property)
+    def _event_get_property(self, event_uuid, event_property):
+        return self.lib.get_event_property(event_uuid, event_property)
 
     ##########################################################
 
@@ -77,37 +77,37 @@ class MIDILikeTrack:
         self._midilike = midilike
         self._ticks = {}
 
-        for i in range(self._get_active_tick_count()):
-            tick = self._get_nth_active_tick(i)
+        for i in range(self._track_get_tick_count()):
+            tick = self._track_get_tick(i)
             self._ticks[tick] = []
-            for j in range(self._get_tick_length(tick)):
-                uuid = self._get_nth_event_in_tick(tick, j)
+            for j in range(self._tick_get_event_count(tick)):
+                uuid = self._tick_get_event(tick, j)
                 self._ticks[tick].append(MIDIEvent(uuid, self._midilike))
 
     def get_ticks(self):
         return self._ticks
 
-    def _get_nth_event_in_tick(self, tick, n):
-        return self._midilike._get_nth_event_in_tick(self.track_number, tick, n)
+    def _tick_get_event(self, tick, n):
+        return self._midilike._tick_get_event(self.track_number, tick, n)
 
-    def _get_nth_active_tick(self, n):
-        return self._midilike._get_nth_active_tick(self.track_number, n)
+    def _track_get_tick(self, n):
+        return self._midilike._track_get_tick(self.track_number, n)
 
-    def _get_tick_length(self, tick):
-        return self._midilike._get_tick_length(self.track_number, tick)
+    def _tick_get_event_count(self, tick):
+        return self._midilike._tick_get_event_count(self.track_number, tick)
 
-    def _get_active_tick_count(self):
-        return self._midilike._get_active_tick_count(self.track_number)
+    def _track_get_tick_count(self):
+        return self._midilike._track_get_tick_count(self.track_number)
 
     def __len__(self):
-        return self._midilike._get_track_length(self.track_number)
+        return self._midilike._track_get_length(self.track_number)
 
     def add_event(self, constructor, **kwargs):
         tick = 0
         if "tick" in kwargs.keys():
             tick = kwargs["tick"]
         elif "wait" in kwargs.keys():
-            tick = self._get_active_tick_count() + kwargs['wait']
+            tick = self._track_get_tick_count() + kwargs['wait']
         else:
             raise NoTickException
 
@@ -119,6 +119,11 @@ class MIDIEvent:
         self._midilike = midilike
         self.uuid = self._midilike.create_new_event(self.__repr__())
 
+    def set_event_property(self, event_number, event_value):
+        self._midilike.set_event_property(self.uuid, event_number, event_value)
+
+    def get_event_property(self, event_number):
+        return self._midilike.get_event_property(event_number)
 
 class SequenceNumberEvent(MIDIEvent):
     sequence = 0
@@ -133,8 +138,17 @@ class SequenceNumberEvent(MIDIEvent):
         return bytes(output)
 
     def __init__(self, midilike, **kwargs):
-        self.sequence = kwards['sequence']
+        self.sequence = kwargs['sequence']
         super().__init__(midilike)
+
+    def get_sequence(self):
+        return self.sequence
+        #return self._midilike.get_event_property(self.uuid, 0)
+
+    def set_sequence(self, sequence):
+        self.sequence = sequence
+        self.set_event_property(0, bytes([sequence]))
+
 
 class TextEvent(MIDIEvent):
     text = ''
@@ -148,6 +162,13 @@ class TextEvent(MIDIEvent):
         self.text = kwargs['text']
         super().__init__(midilike)
 
+    def get_text(self):
+        return self.text
+
+    def set_text(self, text):
+        self.text = text
+        self.set_event_property(0, self.text)
+
 class CopyRightNoticeEvent(MIDIEvent):
     text = ""
     def __repr__(self):
@@ -159,6 +180,13 @@ class CopyRightNoticeEvent(MIDIEvent):
     def __init__(self, midilike, **kwargs):
         self.text = kwargs["text"]
         super().__init__(midilike)
+
+    def get_text(self):
+        return self.text
+
+    def set_text(self, text):
+        self.text = text
+        self.set_event_property(0, self.text)
 
 class TrackNameEvent(MIDIEvent):
     name = ""
@@ -172,6 +200,13 @@ class TrackNameEvent(MIDIEvent):
         self.name = kwargs["name"]
         super().__init__(midilike)
 
+    def get_name(self):
+        return self.name
+
+    def set_name(self, name):
+        self.name = name
+        self.set_event_property(0, self.name)
+
 class InstrumentNameEvent(MIDIEvent):
     name = ""
     def __repr__(self):
@@ -183,6 +218,13 @@ class InstrumentNameEvent(MIDIEvent):
     def __init__(self, midilike, **kwargs):
         self.name = kwargs["name"]
         super().__init__(midilike)
+
+    def get_name(self):
+        return self.name
+
+    def set_name(self, name):
+        self.name = name
+        self.set_event_property(0, self.name)
 
 class LyricEvent(MIDIEvent):
     lyric = ""
@@ -196,6 +238,13 @@ class LyricEvent(MIDIEvent):
         self.lyric = kwargs["lyric"]
         super().__init__(midilike)
 
+    def get_lyric(self):
+        return self.lyric
+
+    def set_lyric(self, lyric):
+        self.lyric = lyric
+        self.set_event_property(0, self.lyric)
+
 class MarkerEvent(MIDIEvent):
     text = ""
     def __repr__(self):
@@ -208,6 +257,13 @@ class MarkerEvent(MIDIEvent):
         self.text = kwargs["text"]
         super().__init__(midilike)
 
+    def get_text(self):
+        return self.text
+
+    def set_text(self, text):
+        self.text = text
+        self.set_event_property(0, self.text)
+
 class CuePointEvent(MIDIEvent):
     text = ""
     def __repr__(self):
@@ -219,6 +275,13 @@ class CuePointEvent(MIDIEvent):
     def __init__(self, midilike, **kwargs):
         self.text = kwargs["text"]
         super().__init__(midilike)
+
+    def get_text(self):
+        return self.text
+
+    def set_text(self, text):
+        self.text = text
+        self.set_event_property(0, self.text)
 
 class EndOfTrackEvent(MIDIEvent):
     def __repr__(self):
@@ -235,6 +298,13 @@ class ChannelPrefixEvent(MIDIEvent):
     def __init__(self, midilike, **kwargs):
         self.channel = kwargs["channel"]
         super().__init__(midilike)
+
+    def get_channel(self):
+        return self.channel
+
+    def set_channel(self, channel):
+        self.channel = channel
+        self.set_event_property(0, self.channel)
 
 class SetTempoEvent(MIDIEvent):
     us_per_quarter_note = 500000
@@ -255,6 +325,19 @@ class SetTempoEvent(MIDIEvent):
 
         super().__init__(midilike)
 
+    def get_bpm(self):
+        return 60000000 / self.us_per_quarter_note
+
+    def get_us_per_quarter_note(self):
+        return self.us_per_quarter_note
+
+    def set_bpm(self, bpm):
+        self.set_us_per_quarter_note(60000000 // bpm)
+
+    def set_us_per_quarter_note(self, uspqn):
+        self.us_per_quarter_note = uspqn
+        self.set_event_property(0, self.us_per_quarter_note)
+
 class SMPTEOffsetEvent(MIDIEvent)
     def __repr__(self):
         return bytes([
@@ -271,6 +354,42 @@ class SMPTEOffsetEvent(MIDIEvent)
         self.fr = kwargs["fr"]
         super().__init__(midilike)
 
+    def get_hour(self):
+        return self.hour
+
+    def get_minute(self):
+        return self.minute
+
+    def get_second(self):
+        return self.second
+
+    def get_ff(self):
+        return self.ff
+
+    def get_fr(self):
+        return self.fr
+
+    def set_hour(self, hour):
+        self.hour = hour
+        self.set_event_property(0, hour)
+
+    def set_minute(self, minute):
+        self.minute = minute
+        self.set_event_property(1, minute)
+
+    def set_second(self, second):
+        self.second = second
+        self.set_event_property(2, second)
+
+    def set_ff(self, ff):
+        self.ff = ff
+        self.set_event_property(3, ff)
+
+    def set_fr(self, fr):
+        self.fr = fr
+        self.set_event_property(4, fr)
+
+
 class TimeSignatureEvent(MIDIEvent):
     def __repr__(self):
         return bytes([
@@ -286,6 +405,35 @@ class TimeSignatureEvent(MIDIEvent):
         self.clocks_per_metronome = kwargs["cpm"]
         self.thirtysecondths_per_quarter = kwargs["tspqn"]
         super().__init__(midilike)
+
+    def get_numerator(self):
+        return self.numerator
+
+    def get_denominator(self):
+        return self.denominator
+
+    def get_clocks_per_metronome(self):
+        return self.clocks_per_metronome
+
+    def get_thirtysecondths_per_quarter_note(self):
+        return self.thirtysecondths_per_quarter
+
+
+    def set_numerator(self, numerator):
+        self.numerator = numerator
+        self.set_event_property(0, numerator)
+
+    def set_denominator(self, denominator):
+        self.denominator = denominator
+        self.set_event_property(1, denominator)
+
+    def set_clocks_per_metronome(self, cpm):
+        self.clocks_per_metronome = cpm
+        self.set_event_property(3, cpm)
+
+    def set_thirtysecondths_per_quarter_note(self, tspqn):
+        self.thirtysecondths_per_quarter_note = tspqn
+        self.set_event_property(4, tspqn)
 
 class KeySignatureEvent(MIDIEvent):
     misf_map = {
@@ -328,6 +476,14 @@ class KeySignatureEvent(MIDIEvent):
         self.key = kwargs["key"]
         super().__init__(midilike)
 
+    def get_key(self):
+        return self.key
+
+    def set_key(self, key):
+        self.key = key
+        self.set_event_property(0, key)
+
+
 class SequencerEvent(MIDIEvent):
     data = b''
     def __repr__(self):
@@ -339,6 +495,14 @@ class SequencerEvent(MIDIEvent):
     def __init__(self, midilike, **kwargs):
         self.data = kwargs["data"]
         super().__init__(midilike)
+
+    def get_data(self):
+        return self.data
+
+    def set_data(self, data):
+        self.data = data
+        self.set_event_property(0, self.data)
+
 
 class NoteOnEvent(MIDIEvent):
     def __repr__(self):
@@ -352,6 +516,27 @@ class NoteOnEvent(MIDIEvent):
         self.note = kwargs["note"]
         self.velocity = kwargs["velocity"]
         super().__init__(midilike)
+
+    def get_channel(self):
+        return self.channel
+
+    def get_note(self):
+        return self.note
+
+    def get_velocity(self):
+        return self.velocity
+
+    def set_channel(self, channel):
+        self.channel = channel
+        self.set_event_property(0, channel)
+
+    def set_note(self, note):
+        self.note = note
+        self.set_event_property(1, note)
+
+    def set_velocity(self, velocity):
+        self.velocity = velocity
+        self.set_event_property(2, velocity)
 
 class NoteOffEvent(MIDIEvent):
     def __repr__(self):
@@ -367,6 +552,27 @@ class NoteOffEvent(MIDIEvent):
         self.velocity = kwargs["velocity"]
         super().__init__(midilike)
 
+    def get_channel(self):
+        return self.channel
+
+    def get_note(self):
+        return self.note
+
+    def get_velocity(self):
+        return self.velocity
+
+    def set_channel(self, channel):
+        self.channel = channel
+        self.set_event_property(0, channel)
+
+    def set_note(self, note):
+        self.note = note
+        self.set_event_property(1, note)
+
+    def set_velocity(self, velocity):
+        self.velocity = velocity
+        self.set_event_property(2, velocity)
+
 class PolyphonicKeyPressureEvent(MIDIEvent):
     def __repr__(self):
         return bytes([
@@ -379,6 +585,27 @@ class PolyphonicKeyPressureEvent(MIDIEvent):
         self.note = kwargs["note"]
         self.pressure = kwargs["pressure"]
         super().__init__(midilike)
+
+    def get_channel(self):
+        return self.channel
+
+    def get_note(self):
+        return self.note
+
+    def get_pressure(self):
+        return self.pressure
+
+    def set_channel(self, channel):
+        self.channel = channel
+        self.set_event_property(0, channel)
+
+    def set_note(self, note):
+        self.note = note
+        self.set_event_property(1, note)
+
+    def set_pressure(self, pressure):
+        self.pressure = pressure
+        self.set_event_property(2, pressure)
 
 class ControlChangeEvent(MIDIEvent):
     def __repr__(self):
@@ -394,6 +621,27 @@ class ControlChangeEvent(MIDIEvent):
         self.value = kwargs["value"]
         super().__init__(midilike)
 
+    def get_channel(self):
+        return self.channel
+
+    def get_controller(self):
+        return self.controller
+
+    def get_value(self):
+        return self.value
+
+    def set_channel(self, channel):
+        self.channel = channel
+        self.set_event_property(0, channel)
+
+    def set_controller(self, controller):
+        self.controller = controller
+        self.set_event_property(1, controller)
+
+    def set_value(self, value):
+        self.value = value
+        self.set_event_property(2, value)
+
 class ProgramChangeEvent(MIDIEvent):
     def __repr__(self):
         return bytes([
@@ -405,6 +653,21 @@ class ProgramChangeEvent(MIDIEvent):
         self.channel = kwargs["channel"]
         self.program = kwargs["program"]
         super().__init__(midilike)
+
+    def get_channel(self):
+        return self.channel
+
+    def get_program(self):
+        return self.program
+
+    def set_channel(self, channel):
+        self.channel = channel
+        self.set_event_property(0, channel)
+
+    def set_program(self, program):
+        self.program = program
+        self.set_event_property(1, program)
+
 
 class ChannelPressureEvent(MIDIEvent):
     def __repr__(self):
@@ -418,6 +681,20 @@ class ChannelPressureEvent(MIDIEvent):
         self.pressure = kwargs["pressure"]
         super().__init__(midilike)
 
+    def get_channel(self):
+        return self.channel
+
+    def get_pressure(self):
+        return self.pressure
+
+    def set_channel(self, channel):
+        self.channel = channel
+        self.set_event_property(0, channel)
+
+    def set_pressure(self, pressure):
+        self.pressure = pressure
+        self.set_event_property(1, pressure)
+
 class PitchWheelChangeEvent(MIDIEvent):
     def __repr__(self):
         return bytes([(0xE0 | self.channel), least, most])
@@ -427,6 +704,28 @@ class PitchWheelChangeEvent(MIDIEvent):
         self.least = kwargs["least"]
         self.most = kwargs["most"]
         super().__init__(midilike)
+
+    def get_channel(self):
+        return self.channel
+
+    def get_least(self):
+        return self.least
+
+    def get_most(self):
+        return self.most
+
+    def set_channel(self, channel):
+        self.channel = channel
+        self.set_event_property(0, channel)
+
+    def set_least(self, least):
+        self.least = least
+        self.set_event_property(1, least)
+
+    def set_most(self, most):
+        self.most = most
+        sel.set_event_property(2, most)
+
 
 ml = MIDILike(sys.argv[1])
 print(ml.tracks[0]._ticks.keys())
