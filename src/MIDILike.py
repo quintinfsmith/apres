@@ -27,7 +27,9 @@ class MIDILike:
                 uint32_t get_tick_length(MIDILike, uint32_t, uint32_t);
                 uint32_t get_nth_event_in_tick(MIDILike, uint32_t, uint32_t, uint32_t);
                 void set_event_property(MIDILIKE, uint32_t, const char*);
+                uint32_t get_event_value(MIDILike, uint32_t, uint32_t);
                 """)
+
         self.lib = ffi.dlopen(self.SO_PATH)
         self.path = path
         fmt_path = bytes(self.path, 'utf-8')
@@ -38,11 +40,15 @@ class MIDILike:
             new_track = MIDILikeTrack(i, self)
             self.tracks.append(new_track)
 
+    def get_tracks(self):
+        return self.tracks
+
     def _get_track_length(self, n):
         return self.lib.get_track_length(self.pointer, n)
 
     def _get_active_tick_count(self, track):
         return self.lib.get_active_tick_count(self.pointer, track)
+
     def _get_nth_active_tick(self, track, n):
         return self.lib.get_nth_active_tick(self.pointer, track, n)
 
@@ -58,6 +64,9 @@ class MIDILike:
     def _set_event_property(self, n, somevalue):
         self.lib.set_event_property(self.pointer, n, somevalue)
 
+    def _get_event_value(self, event_uuid, event_property):
+        return self.lib.get_event_value(event_uuid, event_property)
+>>>>>>> Stashed changes
     ##########################################################
 
 
@@ -74,6 +83,9 @@ class MIDILikeTrack:
             for j in range(self._get_tick_length(tick)):
                 uuid = self._get_nth_event_in_tick(tick, j)
                 self._ticks[tick].append(MIDIEvent(uuid, self._midilike))
+
+    def get_ticks(self):
+        return self._ticks
 
     def _get_nth_event_in_tick(self, tick, n):
         return self._midilike._get_nth_event_in_tick(self.track_number, tick, n)
@@ -106,6 +118,7 @@ class MIDIEvent:
     def __init__(self, midilike):
         self._midilike = midilike
         self.uuid = self._midilike.create_new_event(self.__repr__())
+
 
 class SequenceNumberEvent(MIDIEvent):
     sequence = 0

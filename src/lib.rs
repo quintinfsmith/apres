@@ -407,6 +407,7 @@ impl KeySignatureEvent {
             }
         }
     }
+
     fn get_key_from_mi_sf(mi: u8, sf: u8) -> String {
         let map = vec![
             vec![
@@ -473,6 +474,7 @@ struct NoteOnEvent {
     note: u8,
     velocity: u8
 }
+
 impl NoteOnEvent {
     fn new(channel: u8, note: u8, velocity: u8) -> NoteOnEvent {
         NoteOnEvent {
