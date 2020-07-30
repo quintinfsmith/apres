@@ -29,16 +29,15 @@ class MIDILike:
             uint32_t get_track_count(MIDILike);
             uint32_t get_tick_length(MIDILike, uint32_t, uint32_t);
             uint32_t get_nth_event_in_tick(MIDILike, uint32_t, uint32_t, uint32_t);
-            uint8_t* get_event_property(MIDILike, uint32_t, uint32_t);
+            uint8_t* get_event_property(MIDILike, uint64_t, uint8_t);
             void set_event_property(MIDILike, uint32_t, const char*);
-            uint32_t get_event_type(MIDILike, uint32_t);
+            uint8_t get_event_type(MIDILike, uint64_t);
         """)
 
         self.lib = ffi.dlopen(self.SO_PATH)
         self.path = path
         fmt_path = bytes(self.path, 'utf-8')
         self.pointer = self.lib.interpret(fmt_path)
-
         self.events = {}
         self.tracks = []
         for i in range(self._get_track_count()):
@@ -68,6 +67,7 @@ class MIDILike:
         return self.lib.get_events_in_tick(self.pointer, track, tick)
 
     def _event_get_type(self, uuid):
+        print(self.pointer, uuid)
         return self.lib.get_event_type(self.pointer, uuid)
 
     def _event_set_property(self, n, somevalue):
@@ -80,13 +80,24 @@ class MIDILike:
             somevalue = somevalue.encode("utf8")
         elif class_name == "int":
             somevalue = bytes([somevalue])
+
         self.lib.set_event_property(self.pointer, n, somevalue)
 
     def _event_get_property(self, event_uuid, event_property):
-        return self.lib.get_event_property(self.pointer, event_uuid, event_property)
+        array_pointer = self.lib.get_event_property(self.pointer, event_uuid, event_property)
+        print(dir(array_pointer))
+        for i in array_pointer:
+            print(i)
+        print(array_pointer)
+        return array_pointer
 
     def _get_event(self, event_uuid):
+        print("A")
         type_num = self._event_get_type(event_uuid)
+        print(type_num)
+        type_num = self._event_get_type(event_uuid)
+        print(type_num)
+        print("python", event_uuid)
         if type_num == 0:
             raise EventNotFound()
         constructor = {
@@ -116,10 +127,8 @@ class MIDILike:
         }[type_num]
 
         # passing uuid will cause it to sync on init
-        print("!!!xx")
-        print(constructor)
+        print("B")
         event = constructor(self, uuid=event_uuid)
-        print('----------')
 
         return event
 

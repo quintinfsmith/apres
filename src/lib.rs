@@ -1,4 +1,4 @@
-use std::ffi::CStr;
+use std::ffi::{CStr, CString};
 use std::os::raw::c_char;
 use std::fs::File;
 use std::io::prelude::*;
@@ -1305,6 +1305,7 @@ impl MIDILike {
     pub fn get_event(&self, event_id: u64) -> Option<&Box<dyn MIDIEvent>> {
         match self.events.get(&event_id) {
             Some(event) => {
+                println!("DOOP");
                 Some(event)
             }
             None => {
@@ -1534,7 +1535,7 @@ pub extern fn interpret(path: *const c_char) -> *mut MIDILike {
     let mut bytes: Vec<u8> = Vec::new();
     let clean_path = cstr_path.to_str().expect("Not a valid UTF-8 string");
     let midilike = MIDILike::from_path(clean_path.to_string());
-   Box::into_raw(Box::new( midilike ))
+    Box::into_raw(Box::new( midilike ))
 }
 
 #[no_mangle]
@@ -1624,26 +1625,32 @@ pub extern fn set_event_property(midilike_ptr: *mut MIDILike, event_id: u64, arg
 }
 
 #[no_mangle]
-pub extern fn get_event_property(midilike_ptr: *mut MIDILike, event_id: u64, argument: u8) -> Vec<u8> {
-    println!("SS");
+pub extern fn get_event_property(midilike_ptr: *mut MIDILike, event_id: u64, argument: u8) -> *mut u8 {
+    println!("DERASAS");
     let mut midilike = unsafe { Box::from_raw(midilike_ptr) };
-    println!("SSxx");
-    let mut value = midilike.get_event_property(event_id, argument);
-    println!("---");
+    println!("DERASAS2");
+    let mut value = Vec::new();
+    match midilike.get_event(event_id) {
+        Some(midievent) => {
+            println!("Ok");
+            value = midievent.get_property(argument).clone();
+        }
+        None => ()
+    };
 
     Box::into_raw(midilike);
 
-    Vec::new()
+    Box::into_raw(Box::new(value)) as *mut _
 }
 
 #[no_mangle]
-pub extern fn get_event_type(midilike_ptr: *mut MIDILike, event_id: u64) -> u32 {
+pub extern fn get_event_type(midilike_ptr: *mut MIDILike, event_id: u64) -> u8 {
     let mut midilike = unsafe { Box::from_raw(midilike_ptr) };
 
     let mut output = 0;
-    match midilike.events.get_mut(&event_id) {
+    match midilike.events.get(&event_id) {
         Some(midievent) => {
-            output = midievent.get_type() as u32;
+            output = midievent.get_type() as u8;
         }
         None => ()
     };
