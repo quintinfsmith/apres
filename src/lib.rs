@@ -45,7 +45,7 @@ enum MIDIEventType {
 }
 
 trait MIDIEvent {
-    fn get_bytes(&self) -> Vec<u8>;
+    fn to_bytes(&self) -> Vec<u8>;
     fn get_eid(&self) -> u8;
     fn is_meta(&self) -> bool;
     fn set_property(&mut self, argument: u8, bytes: Vec<u8>);
@@ -60,7 +60,7 @@ struct SequenceNumberEvent {
 }
 
 impl MIDIEvent for SequenceNumberEvent {
-    fn get_bytes(&self) -> Vec<u8> {
+    fn to_bytes(&self) -> Vec<u8> {
         vec![
             0xFF, 0x00, 0x02,
             (self.sequence / 256) as u8,
@@ -91,7 +91,7 @@ struct TextEvent {
     text: String
 }
 impl MIDIEvent for TextEvent {
-    fn get_bytes(&self) -> Vec<u8> {
+    fn to_bytes(&self) -> Vec<u8> {
         let text_bytes = self.text.as_bytes();
         let mut length_bytes = to_variable_length_bytes(text_bytes.len());
 
@@ -121,7 +121,7 @@ struct CopyRightNoticeEvent {
     text: String
 }
 impl MIDIEvent for CopyRightNoticeEvent {
-    fn get_bytes(&self) -> Vec<u8> {
+    fn to_bytes(&self) -> Vec<u8> {
         let text_bytes = self.text.as_bytes();
         let mut length_bytes = to_variable_length_bytes(text_bytes.len());
 
@@ -151,7 +151,7 @@ struct TrackNameEvent {
     track_name: String
 }
 impl MIDIEvent for TrackNameEvent {
-    fn get_bytes(&self) -> Vec<u8> {
+    fn to_bytes(&self) -> Vec<u8> {
         let text_bytes = self.track_name.as_bytes();
         let mut length_bytes = to_variable_length_bytes(text_bytes.len());
 
@@ -181,7 +181,7 @@ struct InstrumentNameEvent {
     instrument_name: String
 }
 impl MIDIEvent for InstrumentNameEvent {
-    fn get_bytes(&self) -> Vec<u8> {
+    fn to_bytes(&self) -> Vec<u8> {
         let text_bytes = self.instrument_name.as_bytes();
         let mut length_bytes = to_variable_length_bytes(text_bytes.len());
 
@@ -211,7 +211,7 @@ struct LyricEvent {
     lyric: String
 }
 impl MIDIEvent for LyricEvent {
-    fn get_bytes(&self) -> Vec<u8> {
+    fn to_bytes(&self) -> Vec<u8> {
         let text_bytes = self.lyric.as_bytes();
         let mut length_bytes = to_variable_length_bytes(text_bytes.len());
 
@@ -241,7 +241,7 @@ struct MarkerEvent {
     text: String
 }
 impl MIDIEvent for MarkerEvent {
-    fn get_bytes(&self) -> Vec<u8> {
+    fn to_bytes(&self) -> Vec<u8> {
         let text_bytes = self.text.as_bytes();
         let mut length_bytes = to_variable_length_bytes(text_bytes.len());
 
@@ -271,7 +271,7 @@ struct CuePointEvent {
     text: String
 }
 impl MIDIEvent for CuePointEvent {
-    fn get_bytes(&self) -> Vec<u8> {
+    fn to_bytes(&self) -> Vec<u8> {
         let text_bytes = self.text.as_bytes();
         let mut length_bytes = to_variable_length_bytes(text_bytes.len());
 
@@ -299,8 +299,13 @@ impl MIDIEvent for CuePointEvent {
 }
 
 struct EndOfTrackEvent { }
+impl EndOfTrackEvent {
+    fn new() -> EndOfTrackEvent {
+        EndOfTrackEvent {}
+    }
+}
 impl MIDIEvent for EndOfTrackEvent {
-    fn get_bytes(&self) -> Vec<u8> {
+    fn to_bytes(&self) -> Vec<u8> {
         vec![0xFF, 0x2F, 0x00]
     }
     fn is_meta(&self) -> bool {
@@ -324,7 +329,7 @@ struct ChannelPrefixEvent {
     channel: u8
 }
 impl MIDIEvent for ChannelPrefixEvent {
-    fn get_bytes(&self) -> Vec<u8> {
+    fn to_bytes(&self) -> Vec<u8> {
         vec![0xFF, 0x20, 0x01, self.channel]
     }
     fn is_meta(&self) -> bool {
@@ -359,7 +364,7 @@ impl SetTempoEvent {
     }
 }
 impl MIDIEvent for SetTempoEvent {
-    fn get_bytes(&self) -> Vec<u8> {
+    fn to_bytes(&self) -> Vec<u8> {
         vec![
             0xFF, 0x51, 0x03,
             ((self.us_per_quarter_note / 256u32.pow(2)) % 256) as u8,
@@ -395,8 +400,9 @@ struct SMPTEOffsetEvent {
     ff: u8,
     fr: u8
 }
+
 impl MIDIEvent for SMPTEOffsetEvent {
-    fn get_bytes(&self) -> Vec<u8> {
+    fn to_bytes(&self) -> Vec<u8> {
         vec![0xFF, 0x54, 05, self.hour, self.minute, self.second, self.ff, self.fr]
     }
     fn is_meta(&self) -> bool {
@@ -460,6 +466,7 @@ struct TimeSignatureEvent {
     clocks_per_metronome: u8,
     thirtysecondths_per_quarter: u8
 }
+
 impl TimeSignatureEvent {
     fn new(numerator: u8, denominator: u8, cpm: u8, tspq: u8) -> TimeSignatureEvent {
         TimeSignatureEvent {
@@ -475,7 +482,7 @@ impl TimeSignatureEvent {
     }
 }
 impl MIDIEvent for TimeSignatureEvent {
-    fn get_bytes(&self) -> Vec<u8> {
+    fn to_bytes(&self) -> Vec<u8> {
         vec![0xFF, 0x58, 04, self.numerator, self.denominator, self.clocks_per_metronome, self.thirtysecondths_per_quarter]
     }
     fn is_meta(&self) -> bool {
@@ -583,7 +590,7 @@ impl KeySignatureEvent {
 }
 
 impl MIDIEvent for KeySignatureEvent {
-    fn get_bytes(&self) -> Vec<u8> {
+    fn to_bytes(&self) -> Vec<u8> {
         let (mi, sf) = self.get_mi_sf();
         vec![0xFF, 0x59, 0x02, sf, mi]
     }
@@ -607,8 +614,9 @@ impl MIDIEvent for KeySignatureEvent {
 struct SequencerSpecificEvent {
     data: Vec<u8>
 }
+
 impl MIDIEvent for SequencerSpecificEvent {
-    fn get_bytes(&self) -> Vec<u8> {
+    fn to_bytes(&self) -> Vec<u8> {
         let mut length_bytes = to_variable_length_bytes(self.data.len());
 
         let mut output = vec![0xFF, 0x7F];
@@ -655,7 +663,7 @@ impl NoteOnEvent {
     }
 }
 impl MIDIEvent for NoteOnEvent {
-    fn get_bytes(&self) -> Vec<u8> {
+    fn to_bytes(&self) -> Vec<u8> {
         vec![
             0x90 | self.channel,
             self.note,
@@ -725,7 +733,7 @@ impl NoteOffEvent {
     }
 }
 impl MIDIEvent for NoteOffEvent {
-    fn get_bytes(&self) -> Vec<u8> {
+    fn to_bytes(&self) -> Vec<u8> {
         vec![
             0x80 | self.channel,
             self.note,
@@ -794,7 +802,7 @@ impl PolyphonicKeyPressureEvent {
     }
 }
 impl MIDIEvent for PolyphonicKeyPressureEvent {
-    fn get_bytes(&self) -> Vec<u8> {
+    fn to_bytes(&self) -> Vec<u8> {
         vec![
             0xA0 | self.channel,
             self.note,
@@ -862,7 +870,7 @@ impl ControlChangeEvent {
     }
 }
 impl MIDIEvent for ControlChangeEvent {
-    fn get_bytes(&self) -> Vec<u8> {
+    fn to_bytes(&self) -> Vec<u8> {
         vec![
             0xB0 | self.channel,
             self.controller,
@@ -928,7 +936,7 @@ impl ProgramChangeEvent {
     }
 }
 impl MIDIEvent for ProgramChangeEvent {
-    fn get_bytes(&self) -> Vec<u8> {
+    fn to_bytes(&self) -> Vec<u8> {
         vec![
             0xC0 | self.channel,
             self.program
@@ -988,7 +996,7 @@ impl ChannelPressureEvent {
 }
 
 impl MIDIEvent for ChannelPressureEvent {
-    fn get_bytes(&self) -> Vec<u8> {
+    fn to_bytes(&self) -> Vec<u8> {
         vec![
             0xD0 | self.channel,
             self.pressure
@@ -1050,7 +1058,7 @@ impl PitchWheelChangeEvent {
 }
 
 impl MIDIEvent for PitchWheelChangeEvent {
-    fn get_bytes(&self) -> Vec<u8> {
+    fn to_bytes(&self) -> Vec<u8> {
         vec![
             0xE0 | self.channel,
             self.least,
@@ -1111,12 +1119,57 @@ impl MIDITrack {
             ticks: HashMap::new()
         }
     }
+    fn get_active_tick_count(&self) -> usize {
+        self.ticks.len()
+    }
+
+    fn get_event_count(&self, tick: usize) -> usize {
+        match self.ticks.get(&tick) {
+            Some(event_list) => {
+                event_list.len()
+            }
+            None => {
+                0
+            }
+        }
+    }
     fn add_event(&mut self, tick: usize, event_id: u64) {
         self.ticks.entry(tick)
             .and_modify(|eventlist| {
                 (*eventlist).push(event_id)
             })
             .or_insert(vec![event_id]);
+    }
+
+    // Generate a list of delays, paired with the events to call after each delay (Like a MIDI file)
+    fn get_pair_map(&self) -> Vec<(usize, u64)> {
+        let mut output = Vec::new();
+
+        let mut ticks_ordered: Vec<usize> = Vec::new();
+        for tick in self.ticks.keys() {
+            ticks_ordered.push(*tick);
+        }
+        ticks_ordered.sort();
+
+        let mut event_ids: Vec<u64>;
+        let mut previous_tick = 0;
+        for tick in ticks_ordered.iter() {
+            match self.ticks.get(&tick) {
+                Some(eid_list) => {
+                    for (i, eid) in eid_list.iter().enumerate() {
+                        if i == 0 {
+                            output.push((tick - previous_tick, *eid));
+                        } else {
+                            output.push((0, *eid));
+                        }
+                    }
+                    previous_tick = *tick;
+                }
+                None => ()
+            }
+        }
+
+        output
     }
 
     fn len(&self) -> usize {
@@ -1130,7 +1183,7 @@ impl MIDITrack {
 }
 
 pub struct MIDILike {
-    ppqn: u32,
+    ppqn: u16,
     midi_format: u16, // 16 because the format stores in 2 bytes, even though it only requires 2 bits (0,1,2)
     tracks: Vec<MIDITrack>,
     events: HashMap<u64, Box<dyn MIDIEvent>>,
@@ -1194,7 +1247,7 @@ impl MIDILike {
 
         let mut track_length: u32;
 
-        let mut ppqn = 120;
+        let mut ppqn: u16 = 120;
         let mut fallback_byte = 0x90u8;
         while bytes.len() > 0 {
             chunk_type = (
@@ -1218,7 +1271,7 @@ impl MIDILike {
                     tpf = divword & 0x00FF;
 
                 } else {
-                    ppqn = divword & 0x7FFF;
+                    ppqn = (divword & 0x7FFF) as u16;
                 }
                 mlo.set_ppqn(ppqn);
                 mlo.set_format(midi_format);
@@ -1247,11 +1300,70 @@ impl MIDILike {
     }
 
     pub fn to_bytes(&self) -> Vec<u8> {
-        
+        // First 8  bytes will always be the same
+        let mut output: Vec<u8> = vec!['M' as u8, 'T' as u8, 'h' as u8, 'd' as u8, 0, 0, 0, 6];
+
+        let format: u16 = self.get_format();
+        output.push((format / 256) as u8);
+        output.push((format % 256) as u8);
+
+        let track_count: u16 = self.tracks.len() as u16;
+        output.push((track_count / 256) as u8);
+        output.push((track_count % 256) as u8);
+
+        let ppqn: u16 = self.get_ppqn();
+        output.push((ppqn / 256) as u8);
+        output.push((ppqn % 256) as u8);
+
+        // Tracks (MTrk)
+        let mut track_event_bytes: Vec<u8>;
+        let mut working_event: Box<dyn MIDIEvent>;
+        let mut track_byte_length: u32;
+        for (i, track) in self.tracks.iter().enumerate() {
+            output.push('M' as u8);
+            output.push('T' as u8);
+            output.push('r' as u8);
+            output.push('k' as u8);
+
+
+            track_event_bytes = Vec::new();
+            for (tick_delay, eid) in track.get_pair_map().iter() {
+                match self.get_event(*eid) {
+                    Some(working_event) => {
+                        track_event_bytes.extend(to_variable_length_bytes(*tick_delay).iter().copied());
+                        track_event_bytes.extend(working_event.to_bytes());
+                    }
+                    None => {
+                    }
+                }
+            }
+
+            // Automatically handle EndOfTrackEvent Here instead of requiring it be in the MIDITrack Object
+            track_event_bytes.push(0);
+            track_event_bytes.extend(EndOfTrackEvent::new().to_bytes().iter().copied());
+
+            // track length in bytes
+            track_byte_length = track_event_bytes.len() as u32;
+            output.push((track_byte_length / 256_u32.pow(3)) as u8);
+            output.push(((track_byte_length / 256_u32.pow(2)) % 256) as u8);
+            output.push(((track_byte_length / 256_u32.pow(1)) % 256) as u8);
+            output.push((track_byte_length % 256) as u8);
+
+            output.extend(track_event_bytes.iter().copied());
+        }
+
+        output
     }
 
     pub fn save(&self, path: String) {
-        
+        let bytes = self.to_bytes();
+        match File::create(path) {
+            Ok(mut file) => {
+                file.write_all(bytes.as_slice());
+            }
+            Err(e) => {
+            }
+        }
     }
 
     pub fn get_track_count(&self) -> usize {
@@ -1259,7 +1371,7 @@ impl MIDILike {
     }
 
     fn get_track_length(&self, track: usize) -> usize {
-        match self.tracks.get(&track) {
+        match self.tracks.get(track) {
             Some(miditrack) => {
                 miditrack.len()
             }
@@ -1269,25 +1381,18 @@ impl MIDILike {
         }
     }
 
-    pub fn get_active_tick_count(&self, track: usize) -> usize {
-        if (track >= self.tracks.len() ) {
-            0
-        } else {
-            let n = self.tracks[track].keys().len();
-            n
-        }
-    }
-
     fn get_tick_length(&self, track: usize, tick: usize) -> usize {
         let length: usize;
         if tick >= self.get_track_length(track) {
             length = 0;
         } else {
-            length = match self.tracks[track].get(&tick) {
-                Some(eventlist) => {
-                    eventlist.len()
+            length = match self.tracks.get(track) {
+                Some(miditrack) => {
+                    miditrack.get_event_count(tick)
                 }
-                None => 0
+                None => {
+                    0
+                }
             };
         }
 
@@ -1296,29 +1401,55 @@ impl MIDILike {
 
 
     fn get_nth_event_id_in_tick(&self, track: usize, tick: usize, n: usize) -> Result<u64, u32> {
-        if n < self.get_tick_length(track, tick) {
-            Ok(self.tracks[track][&tick][n])
-        } else {
-            Err(0)
+        match self.tracks.get(track) {
+            Some(miditrack) => {
+                match miditrack.ticks.get(&tick) {
+                    Some(event_id_list) => {
+                        match event_id_list.get(n) {
+                            Some(eid) => {
+                                Ok(*eid)
+                            }
+                            None => {
+                                Err(2)
+                            }
+                        }
+                    }
+                    None => {
+                        Err(1)
+                    }
+                }
+            }
+            None => {
+                Err(0)
+            }
         }
     }
 
-    fn set_ppqn(&mut self, new_ppqn: u32) {
+    fn set_ppqn(&mut self, new_ppqn: u16) {
         self.ppqn = new_ppqn;
+    }
+
+    fn get_ppqn(&self) -> u16 {
+        self.ppqn
     }
 
     fn set_format(&mut self, new_format: u16) {
         self.midi_format = new_format;
     }
 
+    fn get_format(&self) -> u16 {
+        self.midi_format
+    }
+
     fn add_event(&mut self, track: usize, tick: usize, event: Box<dyn MIDIEvent>) {
         let new_event_id = self.event_id_gen;
         self.events.insert(new_event_id, event);
         while track >= self.tracks.len() {
-            self.track.push(MIDITrack::new());
+            self.tracks.push(MIDITrack::new());
         }
 
-        match self.tracks.get_mut(&track) {
+
+        match self.tracks.get_mut(track) {
             Some(miditrack) => {
                 miditrack.add_event(tick, new_event_id)
             }
@@ -1573,17 +1704,6 @@ pub extern fn get_track_length(midilike_ptr: *mut MIDILike, track: usize) -> usi
 }
 
 #[no_mangle]
-pub extern fn get_active_tick_count(midilike_ptr: *mut MIDILike, track: usize) -> usize {
-    let mut midilike = unsafe { Box::from_raw(midilike_ptr) };
-
-    let length = midilike.get_active_tick_count(track);
-
-    Box::into_raw(midilike);
-
-    length
-}
-
-#[no_mangle]
 pub extern fn get_track_count(midilike_ptr: *mut MIDILike) -> usize {
 
     let mut midilike = unsafe { Box::from_raw(midilike_ptr) };
@@ -1690,5 +1810,18 @@ pub extern fn get_event_type(midilike_ptr: *mut MIDILike, event_id: u64) -> u8 {
     Box::into_raw(midilike);
 
     output
+}
+
+#[no_mangle]
+pub extern fn get_active_tick_count(midilike_ptr: *mut MIDILike, track: usize) {
+    let mut midilike = unsafe { Box::from_raw(midilike_ptr) };
+    let output = match midilike.tracks.get(track) {
+        Some(miditrack) => {
+            miditrack.get_active_tick_count()
+        }
+        None => {
+            0
+        }
+    };
 }
 
