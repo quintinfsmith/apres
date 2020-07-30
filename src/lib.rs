@@ -1101,13 +1101,42 @@ impl MIDIEvent for PitchWheelChangeEvent {
     }
 }
 
+pub struct MIDITrack {
+    ticks: HashMap<usize, Vec<u64>>
+}
+
+impl MIDITrack {
+    fn new() -> MIDITrack {
+        MIDITrack {
+            ticks: HashMap::new()
+        }
+    }
+    fn add_event(&mut self, tick: usize, event_id: u64) {
+        self.ticks.entry(tick)
+            .and_modify(|eventlist| {
+                (*eventlist).push(event_id)
+            })
+            .or_insert(vec![event_id]);
+    }
+
+    fn len(&self) -> usize {
+        let mut largest_tick = 0;
+        for key in self.ticks.keys() {
+            largest_tick = max(*key, largest_tick);
+        }
+        largest_tick + 1
+    }
+
+}
+
 pub struct MIDILike {
     ppqn: u32,
     midi_format: u16, // 16 because the format stores in 2 bytes, even though it only requires 2 bits (0,1,2)
-    tracks: Vec<HashMap<usize, Vec<u64>>>, // Outer Vector is list of track, not every tick in a track has an event, some have many
+    tracks: Vec<MIDITrack>,
     events: HashMap<u64, Box<dyn MIDIEvent>>,
     event_id_gen: u64
 }
+
 
 impl MIDILike {
     pub fn new() -> MIDILike {
@@ -1217,23 +1246,27 @@ impl MIDILike {
         mlo
     }
 
+    pub fn to_bytes(&self) -> Vec<u8> {
+        
+    }
+
+    pub fn save(&self, path: String) {
+        
+    }
+
     pub fn get_track_count(&self) -> usize {
         self.tracks.len()
     }
 
     fn get_track_length(&self, track: usize) -> usize {
-        let length: usize;
-        if (track >= self.tracks.len() ) {
-            length = 0;
-        } else {
-            let mut largest_tick = 0;
-            for key in self.tracks[track].keys() {
-                largest_tick = max(*key, largest_tick);
+        match self.tracks.get(&track) {
+            Some(miditrack) => {
+                miditrack.len()
             }
-            length = largest_tick + 1;
+            None => {
+                0
+            }
         }
-
-        length
     }
 
     pub fn get_active_tick_count(&self, track: usize) -> usize {
@@ -1243,15 +1276,6 @@ impl MIDILike {
             let n = self.tracks[track].keys().len();
             n
         }
-    }
-
-    fn get_nth_active_tick(&self, track: usize, n: usize) -> usize {
-        let mut sorted_keys = Vec::new();
-        for key in self.tracks[track].keys() {
-            sorted_keys.push(key);
-        }
-        sorted_keys.sort();
-        *sorted_keys[n]
     }
 
     fn get_tick_length(&self, track: usize, tick: usize) -> usize {
@@ -1291,13 +1315,15 @@ impl MIDILike {
         let new_event_id = self.event_id_gen;
         self.events.insert(new_event_id, event);
         while track >= self.tracks.len() {
-            self.tracks.push(HashMap::new());
+            self.track.push(MIDITrack::new());
         }
-        self.tracks[track].entry(tick)
-            .and_modify(|eventlist| {
-                (*eventlist).push(new_event_id)
-            })
-            .or_insert(vec![new_event_id]);
+
+        match self.tracks.get_mut(&track) {
+            Some(miditrack) => {
+                miditrack.add_event(tick, new_event_id)
+            }
+            None => ()
+        }
 
         self.event_id_gen += 1;
     }
@@ -1305,7 +1331,6 @@ impl MIDILike {
     pub fn get_event(&self, event_id: u64) -> Option<&Box<dyn MIDIEvent>> {
         match self.events.get(&event_id) {
             Some(event) => {
-                println!("DOOP");
                 Some(event)
             }
             None => {
@@ -1315,7 +1340,6 @@ impl MIDILike {
     }
 
     pub fn get_event_property(&self, event_id: u64, arg: u8) -> Vec<u8> {
-        println!("AAA");
         match self.get_event(event_id) {
             Some(event) => {
                 event.get_property(arg)
@@ -1583,17 +1607,6 @@ pub extern fn get_tick_length(midilike_ptr: *mut MIDILike, track: usize, tick: u
 }
 
 #[no_mangle]
-pub extern fn get_nth_active_tick(midilike_ptr: *mut MIDILike, track: usize, n: usize) -> usize {
-    let mut midilike = unsafe { Box::from_raw(midilike_ptr) };
-
-    let tick = midilike.get_nth_active_tick(track, n);
-
-    Box::into_raw(midilike);
-
-    tick
-}
-
-#[no_mangle]
 pub extern fn get_nth_event_in_tick(midilike_ptr: *mut MIDILike, track: usize, tick: usize, n: usize) -> u64 {
     let mut midilike = unsafe { Box::from_raw(midilike_ptr) };
 
@@ -1625,14 +1638,11 @@ pub extern fn set_event_property(midilike_ptr: *mut MIDILike, event_id: u64, arg
 }
 
 #[no_mangle]
-pub extern fn get_event_property(midilike_ptr: *mut MIDILike, event_id: u64, argument: u8) -> *mut u8 {
-    println!("DERASAS");
+pub extern "C" fn get_event_property(midilike_ptr: *mut MIDILike, event_id: u64, argument: u8) -> *mut u8 {
     let mut midilike = unsafe { Box::from_raw(midilike_ptr) };
-    println!("DERASAS2");
     let mut value = Vec::new();
     match midilike.get_event(event_id) {
         Some(midievent) => {
-            println!("Ok");
             value = midievent.get_property(argument).clone();
         }
         None => ()
@@ -1640,7 +1650,29 @@ pub extern fn get_event_property(midilike_ptr: *mut MIDILike, event_id: u64, arg
 
     Box::into_raw(midilike);
 
-    Box::into_raw(Box::new(value)) as *mut _
+
+    let mut boxed_slice: Box<[u8]> = value.into_boxed_slice();
+
+    let array: *mut u8 = boxed_slice.as_mut_ptr();
+    // Prevent the slice from being destroyed (Leak the memory).
+    mem::forget(boxed_slice);
+
+    array
+}
+
+#[no_mangle]
+pub extern fn get_event_property_length(midilike_ptr: *mut MIDILike, event_id: u64, argument: u8) -> u8 {
+    let mut midilike = unsafe { Box::from_raw(midilike_ptr) };
+    let mut value = Vec::new();
+    match midilike.get_event(event_id) {
+        Some(midievent) => {
+            value = midievent.get_property(argument).clone();
+        }
+        None => ()
+    };
+
+    Box::into_raw(midilike);
+    value.len() as u8
 }
 
 #[no_mangle]

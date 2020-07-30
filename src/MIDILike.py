@@ -18,23 +18,24 @@ class MIDILike:
         return self.lib.get_track_count(self.pointer)
 
     def __init__(self, path):
-        ffi = FFI()
-        ffi.cdef("""
+        self.ffi = FFI()
+        self.ffi.cdef("""
             typedef void* MIDILike;
 
             MIDILike interpret(const char*);
+            void save(const char*);
             uint32_t get_track_length(MIDILike, uint32_t);
             uint32_t get_active_tick_count(MIDILike, uint32_t);
-            uint32_t get_nth_active_tick(MIDILike, uint32_t, uint32_t);
             uint32_t get_track_count(MIDILike);
             uint32_t get_tick_length(MIDILike, uint32_t, uint32_t);
             uint32_t get_nth_event_in_tick(MIDILike, uint32_t, uint32_t, uint32_t);
             uint8_t* get_event_property(MIDILike, uint64_t, uint8_t);
+            uint8_t get_event_property_length(MIDILike, uint64_t, uint8_t);
             void set_event_property(MIDILike, uint32_t, const char*);
             uint8_t get_event_type(MIDILike, uint64_t);
         """)
 
-        self.lib = ffi.dlopen(self.SO_PATH)
+        self.lib = self.ffi.dlopen(self.SO_PATH)
         self.path = path
         fmt_path = bytes(self.path, 'utf-8')
         self.pointer = self.lib.interpret(fmt_path)
@@ -54,9 +55,6 @@ class MIDILike:
     def _track_get_tick_count(self, track):
         return self.lib.get_active_tick_count(self.pointer, track)
 
-    def _track_get_tick(self, track, n):
-        return self.lib.get_nth_active_tick(self.pointer, track, n)
-
     def _tick_get_event_count(self, track, tick):
         return self.lib.get_tick_length(self.pointer, track, tick)
 
@@ -67,7 +65,6 @@ class MIDILike:
         return self.lib.get_events_in_tick(self.pointer, track, tick)
 
     def _event_get_type(self, uuid):
-        print(self.pointer, uuid)
         return self.lib.get_event_type(self.pointer, uuid)
 
     def _event_set_property(self, n, somevalue):
@@ -83,21 +80,16 @@ class MIDILike:
 
         self.lib.set_event_property(self.pointer, n, somevalue)
 
+
     def _event_get_property(self, event_uuid, event_property):
+        length = self.lib.get_event_property_length(self.pointer, event_uuid, event_property)
+        bufferlist = bytearray(length)
         array_pointer = self.lib.get_event_property(self.pointer, event_uuid, event_property)
-        print(dir(array_pointer))
-        for i in array_pointer:
-            print(i)
-        print(array_pointer)
-        return array_pointer
+        self.ffi.memmove(bufferlist, array_pointer, length)
+        return bufferlist
 
     def _get_event(self, event_uuid):
-        print("A")
         type_num = self._event_get_type(event_uuid)
-        print(type_num)
-        type_num = self._event_get_type(event_uuid)
-        print(type_num)
-        print("python", event_uuid)
         if type_num == 0:
             raise EventNotFound()
         constructor = {
@@ -127,7 +119,6 @@ class MIDILike:
         }[type_num]
 
         # passing uuid will cause it to sync on init
-        print("B")
         event = constructor(self, uuid=event_uuid)
 
         return event
@@ -198,7 +189,8 @@ class MIDIEvent:
         self._midilike.set_property(self.uuid, event_number, event_value)
 
     def get_property(self, event_number):
-        return self._midilike._event_get_property(self.uuid, event_number)
+        prop = self._midilike._event_get_property(self.uuid, event_number)
+        return prop
 
 
 class SequenceNumberEvent(MIDIEvent):
@@ -433,7 +425,7 @@ class EndOfTrackEvent(MIDIEvent):
     def sync(self):
         pass
 
-    def __init__(self, midilike):
+    def __init__(self, midilike, **kwargs):
         super().__init__(midilike, **kwargs)
 
 class ChannelPrefixEvent(MIDIEvent):
@@ -725,7 +717,8 @@ class NoteOnEvent(MIDIEvent):
         self.get_velocity()
 
     def get_channel(self):
-        self.channel = self.get_property(0)[0]
+        prop = self.get_property(0)
+        self.channel = prop[0]
         return self.channel
 
     def get_note(self):
@@ -849,7 +842,7 @@ class ControlChangeEvent(MIDIEvent):
         if "uuid" not in kwargs.keys():
             self.channel = kwargs["channel"]
             self.controller = kwargs["controller"]
-        self.value = kwargs["value"]
+            self.value = kwargs["value"]
         super().__init__(midilike, **kwargs)
 
     def sync(self):
@@ -991,6 +984,5 @@ class PitchWheelChangeEvent(MIDIEvent):
         self.most = most
         self.set_property(2, most)
 
-
 ml = MIDILike(sys.argv[1])
-print(ml.tracks[0]._ticks.keys())
+#print(ml.tracks[0]._ticks.keys())
