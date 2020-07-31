@@ -180,11 +180,11 @@ class MIDILikeTrack:
         if "tick" in kwargs.keys():
             tick = kwargs["tick"]
         elif "wait" in kwargs.keys():
-            tick = self._track_get_tick_count() + kwargs['wait']
+            tick = self._track_get_tick_count(self.track_number) - 1 + kwargs['wait']
         else:
             raise NoTickException
 
-        new_event = self._midilike.create_new_event(track, event_as_bytes)
+        new_event = self._midilike.create_new_event(self.track_number, event_as_bytes)
 
 
 class MIDIEvent:
@@ -614,7 +614,6 @@ class TimeSignatureEvent(MIDIEvent):
         self.thirtysecondths_per_quarter = self.get_property(4)[0]
         return self.thirtysecondths_per_quarter
 
-
     def set_numerator(self, numerator):
         self.numerator = numerator
         self.set_property(0, numerator)
@@ -630,6 +629,7 @@ class TimeSignatureEvent(MIDIEvent):
     def set_thirtysecondths_per_quarter_note(self, tspqn):
         self.thirtysecondths_per_quarter_note = tspqn
         self.set_property(4, tspqn)
+
 
 class KeySignatureEvent(MIDIEvent):
     _rust_id = 13
@@ -769,6 +769,7 @@ class NoteOffEvent(MIDIEvent):
             self.note = kwargs["note"]
             self.velocity = kwargs["velocity"]
         super().__init__(midilike, **kwargs)
+
     def sync(self):
         self.get_channel()
         self.get_note()
@@ -1110,7 +1111,6 @@ class ResetEvent(MIDIEvent):
     _rust_id = 33
     def __repr__(self):
         return bytes([0xFF])
-
 
 ml = MIDILike(sys.argv[1])
 #print(ml.tracks[0]._ticks.keys())

@@ -1996,15 +1996,16 @@ fn process_mtrk_event(leadbyte: u8, bytes: &mut Vec<u8>, current_deltatime: &mut
             // Song Position Pointer
             b = bytes.pop().unwrap();
             c = bytes.pop().unwrap();
-            dump = vec![b, c];
-            // TODO ADD EVENT
+
+            let beat = (c as u16 << 7) + (b as u16);
+            mlo.insert_event(track, *current_deltatime, SongPositionPointerEvent::new(beat));
         }
         0xF3 => {
             b = bytes.pop().unwrap();
-            // TODO ADD EVENT
+            mlo.insert_event(track, *current_deltatime, SongSelectEvent::new(b & 0x7F));
         }
-        0xF6 => {
-            // TODO ADD EVENT
+        0xF6 | 0xF8 | 0xFA | 0xFB | 0xFC | 0xFE => {
+            // Do Nothing. These are system-realtime and shouldn't be in a file.
         }
         0xF7 => {
             varlength = get_variable_length_number(bytes);
@@ -2033,31 +2034,48 @@ fn process_mtrk_event(leadbyte: u8, bytes: &mut Vec<u8>, current_deltatime: &mut
                 }
                 // TODO: All of this
                 match a {
-                    2 => {
+                    0x02 => {
+                        mlo.insert_event(track, *current_deltatime, CopyRightNoticeEvent::new(dump));
                     }
-                    3 => {
+                    0x03 => {
+                        mlo.insert_event(track, *current_deltatime, TrackNameEvent::new(dump));
                     }
-                    4 => {
+                    0x04 => {
+                        mlo.insert_event(track, *current_deltatime, InstrumentNameEvent::new(dump));
                     }
-                    5 => {
+                    0x05 => {
+                        mlo.insert_event(track, *current_deltatime, LyricEvent::new(dump));
+                    }
+                    0x06 => {
+                        mlo.insert_event(track, *current_deltatime, MarkerEvent::new(dump));
+                    }
+                    0x07 => {
+                        mlo.insert_event(track, *current_deltatime, CuePointEvent::new(dump));
+                    }
+                    0x20 => {
+                        mlo.insert_event(track, *current_deltatime, ChannelPrefixEvent::new(dump[0]));
                     }
                     0x2F => {
                         mlo.insert_event(track, *current_deltatime, EndOfTrackEvent::new() );
                     }
                     0x51 => {
                     }
+                    0x54 => {
+                        mlo.insert_event(track, *current_deltatime, SMPTEOffsetEvent::new(dump[0], dump[1], dump[2], dump[3], dump[4]));
+                    }
                     0x58 => {
                         mlo.insert_event(track, *current_deltatime, TimeSignatureEvent::new(dump[0], dump[1],dump[2], dump[3]));
                     }
                     0x59 => {
+                        mlo.insert_event(track, *current_deltatime, KeySignatureEvent::new(dump[0], dump[1]));
+                    }
+                    0x7F => {
+                        mlo.insert_event(track, *current_deltatime, SequencerSpecifcEvent::new(dump));
                     }
                     _ => {
                     }
                 }
             }
-        }
-        0xF8 => {
-            // ADD EVENT
         }
         _ => {
             // Undefined Behaviour
