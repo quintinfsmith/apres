@@ -23,11 +23,12 @@ class MIDILike:
             typedef void* MIDILike;
 
             MIDILike interpret(const char*);
-            void save(const char*);
+            void save(MIDILike, const char*);
             uint32_t get_track_length(MIDILike, uint32_t);
             uint32_t get_active_tick_count(MIDILike, uint32_t);
             uint32_t get_track_count(MIDILike);
             uint32_t get_tick_length(MIDILike, uint32_t, uint32_t);
+            uint32_t get_active_tick(MIDILike, uint32_t, uint32_t);
             uint32_t get_nth_event_in_tick(MIDILike, uint32_t, uint32_t, uint32_t);
             uint8_t* get_event_property(MIDILike, uint64_t, uint8_t);
             uint8_t get_event_property_length(MIDILike, uint64_t, uint8_t);
@@ -54,6 +55,8 @@ class MIDILike:
 
     def _track_get_tick_count(self, track):
         return self.lib.get_active_tick_count(self.pointer, track)
+    def _track_get_tick(self, track, n):
+        return self.lib.get_active_tick(self.pointer, track, n)
 
     def _tick_get_event_count(self, track, tick):
         return self.lib.get_tick_length(self.pointer, track, tick)
@@ -76,10 +79,16 @@ class MIDILike:
         elif class_name == "str":
             somevalue = somevalue.encode("utf8")
         elif class_name == "int":
-            somevalue = bytes([somevalue])
+            working_bytes = []
+            i = 0
+            while somevalue > 0 or not i:
+                working_byte = somevalue % 256
+                working_bytes.insert(0, working_byte)
+                somevalue //= 256
+                i += 1
+            somevalue = working_bytes
 
         self.lib.set_event_property(self.pointer, n, somevalue)
-
 
     def _event_get_property(self, event_uuid, event_property):
         length = self.lib.get_event_property_length(self.pointer, event_uuid, event_property)
@@ -122,6 +131,10 @@ class MIDILike:
         event = constructor(self, uuid=event_uuid)
 
         return event
+
+    def save(self, path):
+        fmt_path = bytes(path, 'utf-8')
+        self.lib.save(MIDILike, fmt_path)
 
     ##########################################################
 
@@ -946,43 +959,158 @@ class ChannelPressureEvent(MIDIEvent):
 class PitchWheelChangeEvent(MIDIEvent):
     _rust_id = 21
     def __repr__(self):
+        least = self.value & 0x7F
+        most = (self.value >> 7) & 0x7F
         return bytes([(0xE0 | self.channel), least, most])
 
     def __init__(self, midilike, **kwargs):
         if "uuid" not in kwargs.keys():
             self.channel = kwargs["channel"]
-            self.least = kwargs["least"]
-            self.most = kwargs["most"]
+            self.value = kwargs["value"]
         super().__init__(midilike, **kwargs)
 
     def sync(self):
         self.get_channel()
-        self.get_least()
-        self.get_most()
+        self.get_value()
 
     def get_channel(self):
         self.channel = self.get_property(0)[0]
         return self.channel
 
-    def get_least(self):
-        self.least = self.get_property(1)[0]
-        return self.least
-
-    def get_most(self):
-        self.most = self.get_property(2)[0]
-        return self.most
+    def get_value(self):
+        prop = self.get_property(1)
+        self.value = (prop[0] * 256) + prop[1]
+        return self.value
 
     def set_channel(self, channel):
         self.channel = channel
         self.set_property(0, channel)
 
-    def set_least(self, least):
-        self.least = least
-        self.set_property(1, least)
+    def set_value(self, value):
+        self.value = value
+        self.set_property(1, value)
 
-    def set_most(self, most):
-        self.most = most
-        self.set_property(2, most)
+class SystemExclusiveEvent(MIDIEvent):
+    _rust_id = 23
+    data = b''
+    def __repr__(self):
+        output = [0xF0]
+        for b in self.data:
+            output.append(b)
+        output.append(0xF7)
+        return bytes(output)
+
+    def __init__(self, midilike, **kwargs):
+        if "uuid" not in kwargs.keys():
+            self.data = kwargs["data"]
+
+        super().__init__(midilike, **kwargs)
+
+    def sync(self):
+        self.get_data()
+
+    def get_data(self):
+        self.data = bytes(self.get_property(0))
+        return self.data
+
+class MTCQuarterFrameEvent(MIDIEvent):
+    _rust_id = 24
+    time_code = 0
+    def __repr__(self):
+        return bytes([0xF1, time_code])
+
+    def __init__(self, midilike, **kwargs):
+        if "uuid" not in kwargs.keys():
+            self.time_code = kwargs["time_code"] & 0xFF
+        super().__init__(midilike, kwargs)
+
+    def sync(self):
+        self.get_time_code()
+
+    def get_time_code(self):
+        self.time_code = self.get_property(0)[0] & 0xFF
+        return self.time_code
+
+class SongPositionPointerEvent(MIDIEvent):
+    _rust_id = 25
+    def __repr__(self):
+        least = self.beat & 0x7F
+        most = (self.beat >> 7) & 0x7F
+        return bytes([0xF2, least, most])
+
+    def __init__(self, midilike, **kwargs):
+        if "uuid" not in kwargs.keys():
+            self.beat = kwargs["beat"]
+        super().__init__(midilike, **kwargs)
+
+    def sync(self):
+        self.get_beat()
+
+    def get_beat(self):
+        prop = self.get_property(0)
+        self.beat = (prop[0] * 256) + prop[1]
+        return self.beat
+
+    def set_beat(self, beat):
+        self.beat = beat
+        self.set_property(1, beat)
+
+class SongSelectEvent(MIDIEvent):
+    _rust_id = 26
+    def __repr__(self):
+        return bytes([0xF3, self.song& 0xFF])
+
+    def __init__(self, midilike, **kwargs):
+        if "uuid" not in kwrags.keys():
+            self.song = kwargs["song"]
+        super().__init__(midilike, **kwargs)
+
+    def sync(self):
+        self.get_song()
+
+    def get_song(self):
+        self.song = self.get_property(0)[0]
+        return self.song
+
+    def set_song(self, song):
+        self.song = song
+        self.set_property(0, song)
+
+class TuneRequestEvent(MIDIEvent):
+    _rust_id = 27
+    def __repr__(self):
+        return bytes([0xF6])
+
+class MIDIClockEvent(MIDIEvent):
+    _rust_id = 28
+    def __repr__(self):
+        return bytes([0xF8])
+
+class MIDIStartEvent(MIDIEvent):
+    _rust_id = 29
+    def __repr__(self):
+        return bytes([0xFA])
+
+class MIDIContinueEvent(MIDIEvent):
+    _rust_id = 30
+    def __repr__(self):
+        return bytes([0xFB])
+
+class MIDIStopEvent(MIDIEvent):
+    _rust_id = 31
+    def __repr__(self):
+        return bytes([0xFC])
+
+class ActiveSenseEvent(MIDIEvent):
+    _rust_id = 32
+    def __repr__(self):
+        return bytes([0xFE])
+
+class ResetEvent(MIDIEvent):
+    _rust_id = 33
+    def __repr__(self):
+        return bytes([0xFF])
+
 
 ml = MIDILike(sys.argv[1])
 #print(ml.tracks[0]._ticks.keys())
