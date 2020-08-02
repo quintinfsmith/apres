@@ -1,10 +1,10 @@
 [package]
-name = "RustMidiLib"
-version = "0.1.0"
-authors = ["Quintin Smith <smith.f.quintin@gmail.com>"]
+name = "Midas"
+version = "1.0.0"
+authors = ["Quintin Smith <smith.quintin@protonmail.com>"]
 
 [lib]
-name = "RustMidiLib"
+name = "Midas"
 crate-type = ["dylib"]
 
 [dependencies]

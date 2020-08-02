@@ -8,15 +8,6 @@ use std::mem;
 
 use std::collections::{HashMap, HashSet};
 use std::slice;
-
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn it_works() {
-        assert_eq!(2 + 2, 4);
-    }
-}
-
 #[no_mangle]
 pub extern fn save(midi_ptr: *mut MIDI, path: *const c_char) {
     let mut midi = unsafe { Box::from_raw(midi_ptr) };
@@ -1369,11 +1360,11 @@ impl MIDIEvent for ChannelPressureEvent {
 
 pub struct PitchWheelChangeEvent {
 	channel: u8,
-    value: u16
+    value: f64
 }
 
 impl PitchWheelChangeEvent {
-    pub fn new(channel: u8, value: u16) -> Box<PitchWheelChangeEvent> {
+    pub fn new(channel: u8, value: f64) -> Box<PitchWheelChangeEvent> {
         Box::new(
             PitchWheelChangeEvent {
                 channel: channel,
@@ -1381,16 +1372,29 @@ impl PitchWheelChangeEvent {
             }
         )
     }
+    pub fn new_from_lsb_msb(channel: u8, lsb: u8, msb: u8) -> Box<PitchWheelChangeEvent> {
+        let unsigned_value: f64 = (((msb as u16) << 7) + (lsb as u16)) as f64;
+        let new_value: f64 = ((unsigned_value * 2_f64) as f64 / 0x3FFF as f64) - 1_f64;
+        PitchWheelChangeEvent::new(channel, new_value)
+    }
+
+    fn get_unsigned_value(&self) -> u16 {
+        (((((self.value + 1_f64) as u16) * 0x3FFF) / 2) & 0x3FFF) as u16
+    }
 }
 
 impl MIDIEvent for PitchWheelChangeEvent {
     fn to_bytes(&self) -> Vec<u8> {
+        let unsigned_value = self.get_unsigned_value();
+        let lsb: u8 = (unsigned_value & 0x007F) as u8;
+        let msb: u8 = ((unsigned_value >> 7) & 0x007F) as u8;
         vec![
             0xE0 | self.channel,
-            (self.value & 0x7F) as u8,
-            ((self.value >> 7) & 0x7F) as u8
+            lsb,
+            msb
         ]
     }
+
     fn is_meta(&self) -> bool {
         false
     }
@@ -1403,7 +1407,10 @@ impl MIDIEvent for PitchWheelChangeEvent {
                 self.channel = bytes[0];
             }
             1 => {
-                self.value = ((bytes[0] as u16) * 256) + (bytes[1] as u16);
+                let unsigned_value = (((bytes[0] as u16) * 256) + (bytes[1] as u16)) as f64;
+                let new_value: f64 = ((unsigned_value * 2_f64) / 0x3FFF as f64) - 1_f64;
+
+                self.value = new_value;
             }
             _ => ()
         };
@@ -1417,9 +1424,10 @@ impl MIDIEvent for PitchWheelChangeEvent {
                 ]
             }
             1 => {
+                let unsigned_value = self.get_unsigned_value();
                 vec![
-                    (self.value / 256) as u8,
-                    (self.value % 256) as u8
+                    (unsigned_value / 256) as u8,
+                    (unsigned_value % 256) as u8
                 ]
             }
             _ => {
@@ -2034,7 +2042,7 @@ impl MIDI {
         new_event_id
     }
 
-    pub fn push_event(&mut self, track: usize, wait: usize, event: Box<dyn MIDIEvent>) {
+    pub fn push_event(&mut self, track: usize, wait: usize, event: Box<dyn MIDIEvent>) -> u64 {
         let new_event_id = self.event_id_gen;
 
         self.events.insert(new_event_id, event);
@@ -2042,6 +2050,8 @@ impl MIDI {
 
         let last_tick_in_track = self.get_track_length(track) - 1;
         self.move_event(track, last_tick_in_track + wait, new_event_id);
+
+        new_event_id
     }
 
     pub fn get_event_mut(&mut self, event_id: u64) -> Option<&mut Box<dyn MIDIEvent>> {
@@ -2212,7 +2222,7 @@ fn process_mtrk_event(leadbyte: u8, bytes: &mut Vec<u8>, current_deltatime: &mut
                     channel = leadbyte & 0x0F;
                     b = bytes.pop().unwrap();
                     c = bytes.pop().unwrap();
-                    output = Some(mlo.insert_event(track, *current_deltatime, PitchWheelChangeEvent::new(channel, (c << 7 + b) as u16)));
+                    output = Some(mlo.insert_event(track, *current_deltatime, PitchWheelChangeEvent::new_from_lsb_msb(channel, b, c)));
                 }
                 _ => {
                     //undefined behavior
@@ -2363,5 +2373,37 @@ fn process_mtrk_event(leadbyte: u8, bytes: &mut Vec<u8>, current_deltatime: &mut
     }
 
     output
+}
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_initialize_load() {
+        let midi_bytes = vec![
+            0x4D, 0x54, 0x68, 0x64,
+            0x00, 0x00, 0x00, 0x06,
+            0x00, 0x01, 0x00, 0x01,
+            0x4D, 0x54, 0x72, 0x6B
+        ];
+        MIDI::from_path("testmid.mid".to_string());
+    }
+
+    #[test]
+    fn test_add_event() {
+        let mut midi = MIDI::new();
+        let on_event = midi.push_event(0, 0, NoteOnEvent::new(0, 64, 100));
+        let off_event = midi.push_event(0, 119, NoteOffEvent::new(0, 64, 0));
+
+        assert_eq!(on_event, 1);
+        assert_eq!(off_event, 2);
+        assert_eq!(midi.events.len(), 2);
+        assert_eq!(midi.event_positions.len(), 2);
+        assert_eq!(midi.count_tracks(), 1);
+        assert_eq!(midi.get_track_length(0), 120);
+    }
+
 }
 
