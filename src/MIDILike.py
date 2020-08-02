@@ -14,31 +14,6 @@ class MIDILike:
         Events are the same midi files from simplicities sake.
     """
     SO_PATH = "/home/pent/Projects/105/target/release/libRustMidiLib.so"
-    event_constructors = {
-        TextEvent._rust_id: TextEvent,
-        CopyRightNoticeEvent._rust_id: CopyRightNoticeEvent,
-        TrackNameEvent._rust_id: TrackNameEvent,
-        InstrumentNameEvent._rust_id: InstrumentNameEvent,
-        LyricEvent._rust_id: LyricEvent,
-        MarkerEvent._rust_id: MarkerEvent,
-        CuePointEvent._rust_id: CuePointEvent,
-        EndOfTrackEvent._rust_id: EndOfTrackEvent,
-        ChannelPrefixEvent._rust_id: ChannelPrefixEvent,
-        SetTempoEvent._rust_id: SetTempoEvent,
-        SMPTEOffsetEvent._rust_id: SMPTEOffsetEvent,
-        TimeSignatureEvent._rust_id: TimeSignatureEvent,
-        KeySignatureEvent._rust_id: KeySignatureEvent,
-        SequencerEvent._rust_id: SequencerEvent,
-
-        NoteOnEvent._rust_id: NoteOnEvent,
-        NoteOffEvent._rust_id: NoteOffEvent,
-        PolyphonicKeyPressureEvent._rust_id: PolyphonicKeyPressureEvent,
-        ControlChangeEvent._rust_id: ControlChangeEvent,
-        ProgramChangeEvent._rust_id: ProgramChangeEvent,
-        ChannelPressureEvent._rust_id: ChannelPressureEvent,
-        PitchWheelChangeEvent._rust_id: PitchWheelChangeEvent,
-        SequenceNumberEvent._rust_id: SequenceNumberEvent
-    }
     def _get_track_count(self):
         return self.lib.get_track_count(self.pointer)
 
@@ -50,59 +25,45 @@ class MIDILike:
             MIDILike interpret(const char*);
             MIDILike new();
             void save(MIDILike, const char*);
-            uint32_t get_track_length(MIDILike, uint32_t);
-            uint32_t get_active_tick_count(MIDILike, uint32_t);
-            uint32_t get_track_count(MIDILike);
-            uint32_t get_tick_length(MIDILike, uint32_t, uint32_t);
-            uint32_t get_active_tick(MIDILike, uint32_t, uint32_t);
-            uint32_t get_nth_event_in_tick(MIDILike, uint32_t, uint32_t, uint32_t);
+            uint32_t get_track_length(MIDILike, uint8_t);
+            uint32_t count_tracks(MIDILike);
+            uint64_t count_events(MIDILike);
+
             uint8_t* get_event_property(MIDILike, uint64_t, uint8_t);
             uint8_t get_event_property_length(MIDILike, uint64_t, uint8_t);
             void set_event_property(MIDILike, uint32_t, const char*);
             uint8_t get_event_type(MIDILike, uint64_t);
-            uint64_t new_event(MIDILike, uint32_t);
+            uint64_t apply_event(MIDILike, uint8_t, uint64_t, const uint8_t*, uint8_t);
+            void set_event_position(MIDILike, uint64_t, uint8_t, uint64_t);
         """)
         self.lib = self.ffi.dlopen(self.SO_PATH)
         self.events = {}
-        self.tracks = []
 
         if path:
             self.path = path
             fmt_path = bytes(self.path, 'utf-8')
             self.pointer = self.lib.interpret(fmt_path)
+
+            # 0 is reserved, but eids are generated in order.
+            # So we don't need to query every individual active id at this point
+            for eid in range(1, self.lib.count_events()):
+                event = self._get_event(eid)
+                event.get_position()
+                self.events[eid] = event
+
         else:
             self.path = ''
             self.pointer = self.lib.new()
 
-        for i in range(self._get_track_count()):
-            new_track = MIDILikeTrack(i, self)
-            self.tracks.append(new_track)
-            new_track.sync()
 
-    def add_track(self):
-        new_track = MIDILikeTrack(len(self.tracks), self)
-        self.tracks.append(new_track)
-        return new_track
+    def _event_get_position(self, eid):
+        tick = self.lib.get_event_tick(self.pointer, eid) - 1
+        track = self.lib.get_event_track(self.pointer, eid) - 1
 
-    def get_tracks(self):
-        return self.tracks
+        return (track, tick)
 
     def _track_get_length(self, n):
         return self.lib.get_track_length(self.pointer, n)
-
-    def _track_get_tick_count(self, track):
-        return self.lib.get_active_tick_count(self.pointer, track)
-    def _track_get_tick(self, track, n):
-        return self.lib.get_active_tick(self.pointer, track, n)
-
-    def _tick_get_event_count(self, track, tick):
-        return self.lib.get_tick_length(self.pointer, track, tick)
-
-    def _tick_get_event_id(self, track, tick, n):
-        return self.lib.get_nth_event_in_tick(self.pointer, track, tick, n)
-
-    def _tick_get_events(self, track, tick):
-        return self.lib.get_events_in_tick(self.pointer, track, tick)
 
     def _event_get_type(self, uuid):
         return self.lib.get_event_type(self.pointer, uuid)
@@ -134,7 +95,6 @@ class MIDILike:
         self.ffi.memmove(bufferlist, array_pointer, length)
         return bufferlist
 
-
     def _get_event(self, event_uuid):
         type_num = self._event_get_type(event_uuid)
         if type_num == 0:
@@ -148,70 +108,43 @@ class MIDILike:
 
     def save(self, path):
         fmt_path = bytes(path, 'utf-8')
-        self.lib.save(MIDILike, fmt_path)
+        self.lib.save(self.pointer, fmt_path)
 
-    def create_new_event(self, constructor):
-        self.lib.new_event(constructor._rust_id)
+    def _event_apply(self, track, tick, event):
+        orig_bytes = bytes(event)
+        #self.ffi.memmove(byterep, orig_bytes, len(orig_bytes))
+        event_id = self.lib.apply_event(self.pointer, track, tick, orig_bytes, len(orig_bytes))
+        return event_id
 
-    ##########################################################
+    def _event_move(self, event_uuid, new_track, new_tick):
+        self.lib.move_event(self.pointer, event_uuid, new_track, new_tick)
 
-class MIDILikeTrack:
-    def __init__(self, track_number, midilike):
-        self.track_number = track_number
-
-        self._midilike = midilike
-        self._ticks = {}
-        self.sync()
-
-    def get_ticks(self):
-        return self._ticks
-
-    def sync(self):
-        self._ticks = {}
-        tick_count = self._track_get_tick_count()
-        for i in range(tick_count):
-            tick = self._track_get_tick(i)
-            self._ticks[tick] = []
-            for j in range(self._tick_get_event_count(tick)):
-                uuid = self._tick_get_event_id(tick, j)
-                event = self._midilike._get_event(uuid)
-                self._ticks[tick].append(event)
-
-    def _tick_get_event_id(self, tick, n):
-        return self._midilike._tick_get_event_id(self.track_number, tick, n)
-
-    def _track_get_tick(self, n):
-        return self._midilike._track_get_tick(self.track_number, n)
-
-    def _tick_get_event_count(self, tick):
-        return self._midilike._tick_get_event_count(self.track_number, tick)
-
-    def _track_get_tick_count(self):
-        return self._midilike._track_get_tick_count(self.track_number)
-
-    def __len__(self):
-        return self._midilike._track_get_length(self.track_number)
 
     def add_event(self, constructor, **kwargs):
-        tick = 0
-        if "tick" in kwargs.keys():
-            tick = kwargs["tick"]
-        elif "wait" in kwargs.keys():
-            tick = self._track_get_tick_count() - 1 + kwargs['wait']
-        else:
-            raise NoTickException
-        new_event = constructor(self._midilike, **kwargs)
-        # TODO: placement
+        new_event = constructor(self, **kwargs)
 
+
+    ##########################################################
 
 class MIDIEvent:
     def __init__(self, midilike, **kwargs):
         self._midilike = midilike
+        self.track = 0
+        self.tick = 0
+
         if "uuid" in kwargs.keys():
             self.uuid = kwargs["uuid"]
             self.sync()
         else:
-            self.uuid = self._midilike.create_new_event(self.__repr__())
+            if "tick" in kwargs.keys():
+                self.tick = kwargs["tick"]
+            elif "wait" in kwargs.keys():
+                self.tick = self._midilike._track_get_length(self.track) - 1 + kwargs['wait']
+
+            if 'track' in kwargs.keys():
+                self.track = kwargs['track']
+
+            self.uuid = self._midilike._event_apply(self.track, self.tick, self)
 
         self._midilike.events[self.uuid] = self
 
@@ -222,11 +155,27 @@ class MIDIEvent:
         prop = self._midilike._event_get_property(self.uuid, event_number)
         return prop
 
+    def get_position(self):
+        pos = self._midilike._event_get_position(self.uuid)
+        self.track = pos[0]
+        self.tick = pos[1]
+        return pos
+
+    def move(self, **kwargs):
+        if "track" in kwargs.keys():
+            self.track = track
+        if "tick" in kwargs.keys():
+            self.tick = kwargs["tick"]
+        elif "wait" in kwargs.keys():
+            self.tick = self._track_get_length(self.track) - 1 + kwargs['wait']
+
+        self._midilike._event_move(self.uuid, self.track, self.tick)
+
 
 class SequenceNumberEvent(MIDIEvent):
     _rust_id = 22
     sequence = 0
-    def __repr__(self):
+    def __bytes__(self):
         output = [
             0xFF,
             self.eid,
@@ -260,7 +209,7 @@ class SequenceNumberEvent(MIDIEvent):
 class TextEvent(MIDIEvent):
     _rust_id = 1
     text = ''
-    def __repr__(self):
+    def __bytes__(self):
         output = [0xFF, 0x01]
         text_bytes = self.text.encode("utf8")
         output.extend(to_variable_length(len(text_bytes)))
@@ -288,7 +237,7 @@ class TextEvent(MIDIEvent):
 class CopyRightNoticeEvent(MIDIEvent):
     _rust_id = 2
     text = ""
-    def __repr__(self):
+    def __bytes__(self):
         output = [0xFF, 0x02]
         text_bytes = self.text.encode("utf8")
         output.extend(to_variable_length(len(text_bytes)))
@@ -315,7 +264,7 @@ class CopyRightNoticeEvent(MIDIEvent):
 class TrackNameEvent(MIDIEvent):
     _rust_id = 3
     name = ""
-    def __repr__(self):
+    def __bytes__(self):
         output = [0xFF, 0x03]
         text_bytes = self.name.encode("utf8")
         output.extend(to_variable_length(len(text_bytes)))
@@ -342,7 +291,7 @@ class TrackNameEvent(MIDIEvent):
 class InstrumentNameEvent(MIDIEvent):
     _rust_id = 4
     name = ""
-    def __repr__(self):
+    def __bytes__(self):
         output = [0xFF, 0x04]
         text_bytes = self.name.encode("utf8")
         output.extend(to_variable_length(len(text_bytes)))
@@ -369,7 +318,7 @@ class InstrumentNameEvent(MIDIEvent):
 class LyricEvent(MIDIEvent):
     _rust_id = 5
     lyric = ""
-    def __repr__(self):
+    def __bytes__(self):
         output = [0xFF, 0x05]
         text_bytes = self.lyric.encode("utf8")
         output.extend(to_variable_length(len(text_bytes)))
@@ -396,7 +345,7 @@ class LyricEvent(MIDIEvent):
 class MarkerEvent(MIDIEvent):
     _rust_id = 6
     text = ""
-    def __repr__(self):
+    def __bytes__(self):
         output = [0xFF, 0x06]
         text_bytes = self.text.encode("utf8")
         output.extend(to_variable_length(len(text_bytes)))
@@ -423,7 +372,7 @@ class MarkerEvent(MIDIEvent):
 class CuePointEvent(MIDIEvent):
     _rust_id = 7
     text = ""
-    def __repr__(self):
+    def __bytes__(self):
         output = [0xFF, 0x07]
         text_bytes = self.text.encode("utf8")
         output.extend(to_variable_length(len(text_bytes)))
@@ -449,7 +398,7 @@ class CuePointEvent(MIDIEvent):
 
 class EndOfTrackEvent(MIDIEvent):
     _rust_id = 8
-    def __repr__(self):
+    def __bytes__(self):
         return bytes([0xFF, 0x2F, 0x00])
 
     def sync(self):
@@ -461,7 +410,7 @@ class EndOfTrackEvent(MIDIEvent):
 class ChannelPrefixEvent(MIDIEvent):
     _rust_id = 9
     channel = 0
-    def __repr__(self):
+    def __bytes__(self):
         return bytes([0xFF, 0x20, 0x01, self.channel])
 
     def __init__(self, midilike, **kwargs):
@@ -484,7 +433,7 @@ class ChannelPrefixEvent(MIDIEvent):
 class SetTempoEvent(MIDIEvent):
     _rust_id = 10
     us_per_quarter_note = 500000
-    def __repr__(self):
+    def __bytes__(self):
         return bytes([
             0xFF, 0x51, 0x03,
             (self.us_per_quarter_note // (256 ** 2)) % 256,
@@ -527,7 +476,7 @@ class SetTempoEvent(MIDIEvent):
 
 class SMPTEOffsetEvent(MIDIEvent):
     _rust_id = 11
-    def __repr__(self):
+    def __bytes__(self):
         return bytes([
             0xFF, 0x54, 0x05,
             self.hour, self.minute, self.second,
@@ -593,7 +542,7 @@ class SMPTEOffsetEvent(MIDIEvent):
 
 class TimeSignatureEvent(MIDIEvent):
     _rust_id = 12
-    def __repr__(self):
+    def __bytes__(self):
         return bytes([
             0xFF, 0x58, 0x04,
             self.numerator, self.denominator,
@@ -682,7 +631,7 @@ class KeySignatureEvent(MIDIEvent):
         "Gm": (1, 8 | 2)
     }
 
-    def __repr__(self):
+    def __bytes__(self):
         mi, sf = self.misf_map[self.key]
         return bytes([0xFF, 0x59, 0x02, sf, mi])
 
@@ -706,7 +655,7 @@ class KeySignatureEvent(MIDIEvent):
 class SequencerEvent(MIDIEvent):
     _rust_id = 14
     data = b''
-    def __repr__(self):
+    def __bytes__(self):
         output = [0xFF, 0x7F]
         data_length = len(self.data)
         output.extend(to_variable_length(data_length))
@@ -728,9 +677,9 @@ class SequencerEvent(MIDIEvent):
 
 class NoteOnEvent(MIDIEvent):
     _rust_id = 15
-    def __repr__(self):
+    def __bytes__(self):
         return bytes([
-            0x90 & self.channel,
+            0x90 | self.channel,
             self.note,
             self.velocity
         ])
@@ -773,9 +722,9 @@ class NoteOnEvent(MIDIEvent):
 
 class NoteOffEvent(MIDIEvent):
     _rust_id = 16
-    def __repr__(self):
+    def __bytes__(self):
         return bytes([
-            0x80 & self.channel,
+            0x80 | self.channel,
             self.note,
             self.velocity
         ])
@@ -818,9 +767,9 @@ class NoteOffEvent(MIDIEvent):
 
 class PolyphonicKeyPressureEvent(MIDIEvent):
     _rust_id = 17
-    def __repr__(self):
+    def __bytes__(self):
         return bytes([
-            0xA0 & self.channel,
+            0xA0 | self.channel,
             self.note,
             self.pressure
         ])
@@ -862,9 +811,9 @@ class PolyphonicKeyPressureEvent(MIDIEvent):
 
 class ControlChangeEvent(MIDIEvent):
     _rust_id = 18
-    def __repr__(self):
+    def __bytes__(self):
         return bytes([
-            0xB0 & self.channel,
+            0xB0 | self.channel,
             self.controller,
             self.value
         ])
@@ -907,9 +856,9 @@ class ControlChangeEvent(MIDIEvent):
 
 class ProgramChangeEvent(MIDIEvent):
     _rust_id = 19
-    def __repr__(self):
+    def __bytes__(self):
         return bytes([
-            0xC0 & self.channel,
+            0xC0 | self.channel,
             self.program
         ])
 
@@ -942,9 +891,9 @@ class ProgramChangeEvent(MIDIEvent):
 
 class ChannelPressureEvent(MIDIEvent):
     _rust_id = 20
-    def __repr__(self):
+    def __bytes__(self):
         return bytes([
-            0xD0 & self.channel,
+            0xD0 | self.channel,
             self.pressure
         ])
 
@@ -974,9 +923,10 @@ class ChannelPressureEvent(MIDIEvent):
         self.pressure = pressure
         self.set_property(1, pressure)
 
+# TODO: Store as signed integer, set 0x2000 to == 0
 class PitchWheelChangeEvent(MIDIEvent):
     _rust_id = 21
-    def __repr__(self):
+    def __bytes__(self):
         least = self.value & 0x7F
         most = (self.value >> 7) & 0x7F
         return bytes([(0xE0 | self.channel), least, most])
@@ -1011,7 +961,7 @@ class PitchWheelChangeEvent(MIDIEvent):
 class SystemExclusiveEvent(MIDIEvent):
     _rust_id = 23
     data = b''
-    def __repr__(self):
+    def __bytes__(self):
         output = [0xF0]
         for b in self.data:
             output.append(b)
@@ -1034,7 +984,7 @@ class SystemExclusiveEvent(MIDIEvent):
 class MTCQuarterFrameEvent(MIDIEvent):
     _rust_id = 24
     time_code = 0
-    def __repr__(self):
+    def __bytes__(self):
         return bytes([0xF1, time_code])
 
     def __init__(self, midilike, **kwargs):
@@ -1051,7 +1001,7 @@ class MTCQuarterFrameEvent(MIDIEvent):
 
 class SongPositionPointerEvent(MIDIEvent):
     _rust_id = 25
-    def __repr__(self):
+    def __bytes__(self):
         least = self.beat & 0x7F
         most = (self.beat >> 7) & 0x7F
         return bytes([0xF2, least, most])
@@ -1075,8 +1025,8 @@ class SongPositionPointerEvent(MIDIEvent):
 
 class SongSelectEvent(MIDIEvent):
     _rust_id = 26
-    def __repr__(self):
-        return bytes([0xF3, self.song& 0xFF])
+    def __bytes__(self):
+        return bytes([0xF3, self.song & 0xFF])
 
     def __init__(self, midilike, **kwargs):
         if "uuid" not in kwrags.keys():
@@ -1096,43 +1046,68 @@ class SongSelectEvent(MIDIEvent):
 
 class TuneRequestEvent(MIDIEvent):
     _rust_id = 27
-    def __repr__(self):
+    def __bytes__(self):
         return bytes([0xF6])
 
 class MIDIClockEvent(MIDIEvent):
     _rust_id = 28
-    def __repr__(self):
+    def __bytes__(self):
         return bytes([0xF8])
 
 class MIDIStartEvent(MIDIEvent):
     _rust_id = 29
-    def __repr__(self):
+    def __bytes__(self):
         return bytes([0xFA])
 
 class MIDIContinueEvent(MIDIEvent):
     _rust_id = 30
-    def __repr__(self):
+    def __bytes__(self):
         return bytes([0xFB])
 
 class MIDIStopEvent(MIDIEvent):
     _rust_id = 31
-    def __repr__(self):
+    def __bytes__(self):
         return bytes([0xFC])
 
 class ActiveSenseEvent(MIDIEvent):
     _rust_id = 32
-    def __repr__(self):
+    def __bytes__(self):
         return bytes([0xFE])
 
 class ResetEvent(MIDIEvent):
     _rust_id = 33
-    def __repr__(self):
+    def __bytes__(self):
         return bytes([0xFF])
 
+MIDILike.event_constructors = {
+    TextEvent._rust_id: TextEvent,
+    CopyRightNoticeEvent._rust_id: CopyRightNoticeEvent,
+    TrackNameEvent._rust_id: TrackNameEvent,
+    InstrumentNameEvent._rust_id: InstrumentNameEvent,
+    LyricEvent._rust_id: LyricEvent,
+    MarkerEvent._rust_id: MarkerEvent,
+    CuePointEvent._rust_id: CuePointEvent,
+    EndOfTrackEvent._rust_id: EndOfTrackEvent,
+    ChannelPrefixEvent._rust_id: ChannelPrefixEvent,
+    SetTempoEvent._rust_id: SetTempoEvent,
+    SMPTEOffsetEvent._rust_id: SMPTEOffsetEvent,
+    TimeSignatureEvent._rust_id: TimeSignatureEvent,
+    KeySignatureEvent._rust_id: KeySignatureEvent,
+    SequencerEvent._rust_id: SequencerEvent,
+
+    NoteOnEvent._rust_id: NoteOnEvent,
+    NoteOffEvent._rust_id: NoteOffEvent,
+    PolyphonicKeyPressureEvent._rust_id: PolyphonicKeyPressureEvent,
+    ControlChangeEvent._rust_id: ControlChangeEvent,
+    ProgramChangeEvent._rust_id: ProgramChangeEvent,
+    ChannelPressureEvent._rust_id: ChannelPressureEvent,
+    PitchWheelChangeEvent._rust_id: PitchWheelChangeEvent,
+    SequenceNumberEvent._rust_id: SequenceNumberEvent
+}
+
 ml = MIDILike()
-mlt = ml.add_track()
-mlt.add_event(NoteOnEvent, channel=0, velocity=64, note=64, wait=0)
-mlt.add_event(NoteOffEvent, channel=0, velocity=0, note=64, wait=120)
+ml.add_event(NoteOnEvent, channel=0, velocity=64, note=24, wait=0)
+ml.add_event(NoteOffEvent, channel=0, velocity=0, note=64, wait=120)
 ml.save("/home/pent/test2.mid")
 #ml = MIDILike(sys.argv[1])
 #print(ml.tracks[0]._ticks.keys())

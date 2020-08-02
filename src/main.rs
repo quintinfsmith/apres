@@ -1,7 +1,6 @@
 use std::env;
 pub mod lib;
 use lib::*;
-use lib::midi::*;
 
 fn main() {
     let args: Vec<String> = env::args().collect();
