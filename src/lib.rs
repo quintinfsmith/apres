@@ -8,6 +8,8 @@ use std::mem;
 
 use std::collections::{HashMap, HashSet};
 use std::slice;
+
+
 #[no_mangle]
 pub extern fn save(midi_ptr: *mut MIDI, path: *const c_char) {
     let mut midi = unsafe { Box::from_raw(midi_ptr) };
@@ -189,7 +191,7 @@ pub extern fn apply_event(midi_ptr: *mut MIDI, track: u8, tick: u64, bytes_ptr: 
         }
     };
     sub_bytes.remove(0);
-    let new_event_id = match process_mtrk_event(lead_byte, &mut sub_bytes, &mut (tick as usize), &mut midi, track as usize, &mut 0x90) {
+    let new_event_id = match midi.process_mtrk_event(lead_byte, &mut sub_bytes, &mut (tick as usize), track as usize, &mut 0x90) {
         Some(created_event) => {
             created_event
         }
@@ -257,6 +259,8 @@ pub trait MIDIEvent {
     fn to_bytes(&self) -> Vec<u8>;
     fn get_eid(&self) -> u8;
     fn is_meta(&self) -> bool;
+
+    // For FFI bindings
     fn set_property(&mut self, argument: u8, bytes: Vec<u8>);
     fn get_property(&self, argument: u8) -> Vec<u8>;
     fn get_type(&self) -> MIDIEventType;
@@ -1877,7 +1881,7 @@ impl MIDI {
                     current_deltatime += get_variable_length_number(&mut sub_bytes) as usize;
                     match sub_bytes.pop() {
                         Some(byte) => {
-                            process_mtrk_event(byte, &mut sub_bytes, &mut current_deltatime, &mut mlo, current_track, &mut fallback_byte);
+                            mlo.process_mtrk_event(byte, &mut sub_bytes, &mut current_deltatime, current_track, &mut fallback_byte);
                         },
                         None => {}
                     }
@@ -1889,6 +1893,227 @@ impl MIDI {
         }
         mlo
     }
+
+    fn process_mtrk_event(&mut self, leadbyte: u8, bytes: &mut Vec<u8>, current_deltatime: &mut usize, track: usize, fallback_cmd: &mut u8) -> Option<u64> {
+        let mut output = None;
+        let mut channel: u8;
+
+        let mut a: u8;
+        let mut b: u8;
+        let mut c: u8;
+
+        let mut n: u32;
+        let mut varlength: u64;
+
+        let mut dump: Vec<u8>;
+
+        let mut leadnibble: u8 = leadbyte >> 4;
+
+        match leadbyte {
+            0..=0x7F => {
+                 // Implicitly a Channel Event
+                bytes.push(leadbyte);
+                output = self.process_mtrk_event(*fallback_cmd, bytes, current_deltatime, track, fallback_cmd);
+            }
+            0x80..=0xEF => {
+                match leadnibble {
+                    8 => {
+                        channel = leadbyte & 0x0F;
+                        b = bytes.pop().unwrap();
+                        c = bytes.pop().unwrap();
+                        output = Some(self.insert_event(track, *current_deltatime, NoteOffEvent::new(channel, b, c)));
+                    }
+                    9 => {
+                        channel = leadbyte & 0x0F;
+                        b = bytes.pop().unwrap();
+                        c = bytes.pop().unwrap();
+                        // Convert fake NoteOff (NoteOn where velocity is 0) to real NoteOff
+                        if c == 0 {
+                            output = Some(self.insert_event(track, *current_deltatime, NoteOffEvent::new(channel, b, c)));
+                        } else {
+                            output = Some(self.insert_event(track, *current_deltatime, NoteOnEvent::new(channel, b, c)));
+                        }
+                    }
+                    10 => {
+                        channel = leadbyte & 0x0F;
+                        b = bytes.pop().unwrap();
+                        c = bytes.pop().unwrap();
+                        output = Some(self.insert_event(track, *current_deltatime, PolyphonicKeyPressureEvent::new(channel, b, c)));
+                    }
+                    11 => {
+                        channel = leadbyte & 0x0F;
+                        b = bytes.pop().unwrap();
+                        c = bytes.pop().unwrap();
+                        output = Some(self.insert_event(track, *current_deltatime, ControlChangeEvent::new(channel, b, c)));
+                    }
+                    12 => {
+                        channel = leadbyte & 0x0F;
+                        b = bytes.pop().unwrap();
+                        output = Some(self.insert_event(track, *current_deltatime, ProgramChangeEvent::new(channel, b)));
+                    }
+                    13 => {
+                        channel = leadbyte & 0x0F;
+                        b = bytes.pop().unwrap();
+                        output = Some(self.insert_event(track, *current_deltatime, ChannelPressureEvent::new(channel, b)));
+                    }
+                    14 => {
+                        channel = leadbyte & 0x0F;
+                        b = bytes.pop().unwrap();
+                        c = bytes.pop().unwrap();
+                        output = Some(self.insert_event(track, *current_deltatime, PitchWheelChangeEvent::new_from_lsb_msb(channel, b, c)));
+                    }
+                    _ => {
+                        //undefined behavior
+                    }
+                }
+            }
+            0xF0 => {
+                // System Exclusive
+                dump = Vec::new();
+                loop {
+                    match bytes.pop() {
+                        Some(byte) => {
+                            if byte == 0xF7 {
+                                break;
+                            } else {
+                                dump.push(byte);
+                            }
+                        },
+                        None => {
+                            break;
+                        }
+                    }
+                }
+
+                output = Some(self.insert_event(track, *current_deltatime, SystemExclusiveEvent::new(dump.clone())));
+            }
+            0xF2 => {
+                // Song Position Pointer
+                b = bytes.pop().unwrap();
+                c = bytes.pop().unwrap();
+
+                let beat = ((c as u16) << 7) + (b as u16);
+                output = Some(self.insert_event(track, *current_deltatime, SongPositionPointerEvent::new(beat)));
+            }
+            0xF3 => {
+                b = bytes.pop().unwrap();
+                output = Some(self.insert_event(track, *current_deltatime, SongSelectEvent::new(b & 0x7F)));
+            }
+            0xF6 | 0xF8 | 0xFA | 0xFB | 0xFC | 0xFE => {
+                // Do Nothing. These are system-realtime and shouldn't be in a file.
+            }
+            0xF7 => {
+                varlength = get_variable_length_number(bytes);
+                n = pop_n(bytes, varlength as usize);
+                // TODO ADD EVENT
+            }
+            0xF1 | 0xF4 | 0xF5 => {
+                // Undefined Behaviour
+            }
+            0xFF => {
+                a = bytes.pop().unwrap(); // Meta Type
+                varlength = get_variable_length_number(bytes);
+                if (a == 0x51) {
+                    output = Some(self.insert_event(track, *current_deltatime, SetTempoEvent::new(pop_n(bytes, varlength as usize))));
+                } else {
+                    dump = Vec::new();
+                    for _ in 0..varlength {
+                        match bytes.pop() {
+                            Some(byte) => {
+                                dump.push(byte);
+                            },
+                            None => {
+                                break; // TODO: Should throw error
+                            }
+                        }
+                    }
+                    match a {
+                        0x02 => {
+                            match std::str::from_utf8(dump.as_slice()) {
+                                Ok(textdump) => {
+                                    output = Some(self.insert_event(track, *current_deltatime, CopyRightNoticeEvent::new(textdump.to_string())));
+                                }
+                                Err(e) => {}
+                            };
+                        }
+                        0x03 => {
+                            match std::str::from_utf8(dump.as_slice()) {
+                                Ok(textdump) => {
+                                    output = Some(self.insert_event(track, *current_deltatime, TrackNameEvent::new(textdump.to_string())));
+                                }
+                                Err(e) => {}
+                            };
+                        }
+                        0x04 => {
+                            match std::str::from_utf8(dump.as_slice()) {
+                                Ok(textdump) => {
+                                    output = Some(self.insert_event(track, *current_deltatime, InstrumentNameEvent::new(textdump.to_string())));
+                                }
+                                Err(e) => {}
+                            };
+                        }
+                        0x05 => {
+                            match std::str::from_utf8(dump.as_slice()) {
+                                Ok(textdump) => {
+                                    output = Some(self.insert_event(track, *current_deltatime, LyricEvent::new(textdump.to_string())));
+                                }
+                                Err(e) => {}
+                            };
+                        }
+                        0x06 => {
+                            match std::str::from_utf8(dump.as_slice()) {
+                                Ok(textdump) => {
+                                    output = Some(self.insert_event(track, *current_deltatime, MarkerEvent::new(textdump.to_string())));
+                                }
+                                Err(e) => {}
+                            };
+                        }
+                        0x07 => {
+                            match std::str::from_utf8(dump.as_slice()) {
+                                Ok(textdump) => {
+                                    output = Some(self.insert_event(track, *current_deltatime, CuePointEvent::new(textdump.to_string())));
+                                }
+                                Err(e) => {}
+                            };
+                        }
+                        0x20 => {
+                            output = Some(self.insert_event(track, *current_deltatime, ChannelPrefixEvent::new(dump[0])));
+                        }
+                        0x2F => {
+                            // I *think* EndOfTrack events can be safely ignored, since it has to be the last event in a track and the track knows how long it is.
+                            //output = Some(self.insert_event(track, *current_deltatime, EndOfTrackEvent::new() ));
+                        }
+                        0x51 => {
+                        }
+                        0x54 => {
+                            output = Some(self.insert_event(track, *current_deltatime, SMPTEOffsetEvent::new(dump[0], dump[1], dump[2], dump[3], dump[4])));
+                        }
+                        0x58 => {
+                            output = Some(self.insert_event(track, *current_deltatime, TimeSignatureEvent::new(dump[0], dump[1],dump[2], dump[3])));
+                        }
+                        0x59 => {
+                            output = Some(self.insert_event(track, *current_deltatime, KeySignatureEvent::from_mi_sf(dump[0], dump[1])));
+                        }
+                        0x7F => {
+                            output = Some(self.insert_event(track, *current_deltatime, SequencerSpecificEvent::new(dump)));
+                        }
+                        _ => {
+                        }
+                    }
+                }
+            }
+            _ => {
+                // Undefined Behaviour
+            }
+        }
+
+        if leadnibble >= 8 && leadnibble < 15 {
+            *fallback_cmd = leadbyte.clone();
+        }
+
+        output
+    }
+
 
     pub fn to_bytes(&self) -> Vec<u8> {
         // First 8  bytes will always be the same
@@ -2156,225 +2381,6 @@ fn to_variable_length_bytes(number: usize) -> Vec<u8> {
 }
 
 
-fn process_mtrk_event(leadbyte: u8, bytes: &mut Vec<u8>, current_deltatime: &mut usize, mlo: &mut MIDI, track: usize, fallback_cmd: &mut u8) -> Option<u64> {
-    let mut output = None;
-    let mut channel: u8;
-
-    let mut a: u8;
-    let mut b: u8;
-    let mut c: u8;
-
-    let mut n: u32;
-    let mut varlength: u64;
-
-    let mut dump: Vec<u8>;
-
-    let mut leadnibble: u8 = leadbyte >> 4;
-
-    match leadbyte {
-        0..=0x7F => {
-             // Implicitly a Channel Event
-            bytes.push(leadbyte);
-            output = process_mtrk_event(*fallback_cmd, bytes, current_deltatime, mlo, track, fallback_cmd);
-        }
-        0x80..=0xEF => {
-            match leadnibble {
-                8 => {
-                    channel = leadbyte & 0x0F;
-                    b = bytes.pop().unwrap();
-                    c = bytes.pop().unwrap();
-                    output = Some(mlo.insert_event(track, *current_deltatime, NoteOffEvent::new(channel, b, c)));
-                }
-                9 => {
-                    channel = leadbyte & 0x0F;
-                    b = bytes.pop().unwrap();
-                    c = bytes.pop().unwrap();
-                    // Convert fake NoteOff (NoteOn where velocity is 0) to real NoteOff
-                    if c == 0 {
-                        output = Some(mlo.insert_event(track, *current_deltatime, NoteOffEvent::new(channel, b, c)));
-                    } else {
-                        output = Some(mlo.insert_event(track, *current_deltatime, NoteOnEvent::new(channel, b, c)));
-                    }
-                }
-                10 => {
-                    channel = leadbyte & 0x0F;
-                    b = bytes.pop().unwrap();
-                    c = bytes.pop().unwrap();
-                    output = Some(mlo.insert_event(track, *current_deltatime, PolyphonicKeyPressureEvent::new(channel, b, c)));
-                }
-                11 => {
-                    channel = leadbyte & 0x0F;
-                    b = bytes.pop().unwrap();
-                    c = bytes.pop().unwrap();
-                    output = Some(mlo.insert_event(track, *current_deltatime, ControlChangeEvent::new(channel, b, c)));
-                }
-                12 => {
-                    channel = leadbyte & 0x0F;
-                    b = bytes.pop().unwrap();
-                    output = Some(mlo.insert_event(track, *current_deltatime, ProgramChangeEvent::new(channel, b)));
-                }
-                13 => {
-                    channel = leadbyte & 0x0F;
-                    b = bytes.pop().unwrap();
-                    output = Some(mlo.insert_event(track, *current_deltatime, ChannelPressureEvent::new(channel, b)));
-                }
-                14 => {
-                    channel = leadbyte & 0x0F;
-                    b = bytes.pop().unwrap();
-                    c = bytes.pop().unwrap();
-                    output = Some(mlo.insert_event(track, *current_deltatime, PitchWheelChangeEvent::new_from_lsb_msb(channel, b, c)));
-                }
-                _ => {
-                    //undefined behavior
-                }
-            }
-        }
-        0xF0 => {
-            // System Exclusive
-            dump = Vec::new();
-            loop {
-                match bytes.pop() {
-                    Some(byte) => {
-                        if byte == 0xF7 {
-                            break;
-                        } else {
-                            dump.push(byte);
-                        }
-                    },
-                    None => {
-                        break;
-                    }
-                }
-            }
-
-            output = Some(mlo.insert_event(track, *current_deltatime, SystemExclusiveEvent::new(dump.clone())));
-        }
-        0xF2 => {
-            // Song Position Pointer
-            b = bytes.pop().unwrap();
-            c = bytes.pop().unwrap();
-
-            let beat = ((c as u16) << 7) + (b as u16);
-            output = Some(mlo.insert_event(track, *current_deltatime, SongPositionPointerEvent::new(beat)));
-        }
-        0xF3 => {
-            b = bytes.pop().unwrap();
-            output = Some(mlo.insert_event(track, *current_deltatime, SongSelectEvent::new(b & 0x7F)));
-        }
-        0xF6 | 0xF8 | 0xFA | 0xFB | 0xFC | 0xFE => {
-            // Do Nothing. These are system-realtime and shouldn't be in a file.
-        }
-        0xF7 => {
-            varlength = get_variable_length_number(bytes);
-            n = pop_n(bytes, varlength as usize);
-            // TODO ADD EVENT
-        }
-        0xF1 | 0xF4 | 0xF5 => {
-            // Undefined Behaviour
-        }
-        0xFF => {
-            a = bytes.pop().unwrap(); // Meta Type
-            varlength = get_variable_length_number(bytes);
-            if (a == 0x51) {
-                output = Some(mlo.insert_event(track, *current_deltatime, SetTempoEvent::new(pop_n(bytes, varlength as usize))));
-            } else {
-                dump = Vec::new();
-                for _ in 0..varlength {
-                    match bytes.pop() {
-                        Some(byte) => {
-                            dump.push(byte);
-                        },
-                        None => {
-                            break; // TODO: Should throw error
-                        }
-                    }
-                }
-                match a {
-                    0x02 => {
-                        match std::str::from_utf8(dump.as_slice()) {
-                            Ok(textdump) => {
-                                output = Some(mlo.insert_event(track, *current_deltatime, CopyRightNoticeEvent::new(textdump.to_string())));
-                            }
-                            Err(e) => {}
-                        };
-                    }
-                    0x03 => {
-                        match std::str::from_utf8(dump.as_slice()) {
-                            Ok(textdump) => {
-                                output = Some(mlo.insert_event(track, *current_deltatime, TrackNameEvent::new(textdump.to_string())));
-                            }
-                            Err(e) => {}
-                        };
-                    }
-                    0x04 => {
-                        match std::str::from_utf8(dump.as_slice()) {
-                            Ok(textdump) => {
-                                output = Some(mlo.insert_event(track, *current_deltatime, InstrumentNameEvent::new(textdump.to_string())));
-                            }
-                            Err(e) => {}
-                        };
-                    }
-                    0x05 => {
-                        match std::str::from_utf8(dump.as_slice()) {
-                            Ok(textdump) => {
-                                output = Some(mlo.insert_event(track, *current_deltatime, LyricEvent::new(textdump.to_string())));
-                            }
-                            Err(e) => {}
-                        };
-                    }
-                    0x06 => {
-                        match std::str::from_utf8(dump.as_slice()) {
-                            Ok(textdump) => {
-                                output = Some(mlo.insert_event(track, *current_deltatime, MarkerEvent::new(textdump.to_string())));
-                            }
-                            Err(e) => {}
-                        };
-                    }
-                    0x07 => {
-                        match std::str::from_utf8(dump.as_slice()) {
-                            Ok(textdump) => {
-                                output = Some(mlo.insert_event(track, *current_deltatime, CuePointEvent::new(textdump.to_string())));
-                            }
-                            Err(e) => {}
-                        };
-                    }
-                    0x20 => {
-                        output = Some(mlo.insert_event(track, *current_deltatime, ChannelPrefixEvent::new(dump[0])));
-                    }
-                    0x2F => {
-                        output = Some(mlo.insert_event(track, *current_deltatime, EndOfTrackEvent::new() ));
-                    }
-                    0x51 => {
-                    }
-                    0x54 => {
-                        output = Some(mlo.insert_event(track, *current_deltatime, SMPTEOffsetEvent::new(dump[0], dump[1], dump[2], dump[3], dump[4])));
-                    }
-                    0x58 => {
-                        output = Some(mlo.insert_event(track, *current_deltatime, TimeSignatureEvent::new(dump[0], dump[1],dump[2], dump[3])));
-                    }
-                    0x59 => {
-                        output = Some(mlo.insert_event(track, *current_deltatime, KeySignatureEvent::from_mi_sf(dump[0], dump[1])));
-                    }
-                    0x7F => {
-                        output = Some(mlo.insert_event(track, *current_deltatime, SequencerSpecificEvent::new(dump)));
-                    }
-                    _ => {
-                    }
-                }
-            }
-        }
-        _ => {
-            // Undefined Behaviour
-        }
-    }
-
-    if leadnibble >= 8 && leadnibble < 15 {
-        *fallback_cmd = leadbyte.clone();
-    }
-
-    output
-}
-
 
 #[cfg(test)]
 mod tests {
@@ -2383,12 +2389,24 @@ mod tests {
     #[test]
     fn test_initialize_load() {
         let midi_bytes = vec![
-            0x4D, 0x54, 0x68, 0x64,
-            0x00, 0x00, 0x00, 0x06,
-            0x00, 0x01, 0x00, 0x01,
-            0x4D, 0x54, 0x72, 0x6B
+            0x4D, 0x54, 0x68, 0x64, // MThd
+            0x00, 0x00, 0x00, 0x06, // Length
+            0x00, 0x01, // format = 1
+            0x00, 0x01, // track count = 1
+            0x00, 0x78, // bytes in midi (excluding Mthd) = 20 expressed as variable length
+            0x4D, 0x54, 0x72, 0x6B, // MTrk
+            0x00, 0x00, 0x00, 0x0C, // Length
+            0x00, 0x90, 0x40, 0x18, // wait 0 ticks, turn on note 64 at volume 24 / 127
+            0x78, 0x80, 0x00, 0x40, // Wait 120 ticks, turn off note 64
+            0x00, 0xFF, 0x2F, 0x00 // EOT
         ];
-        MIDI::from_path("testmid.mid".to_string());
+        let midi = MIDI::from_bytes(midi_bytes);
+
+        assert_eq!(midi.count_tracks(), 1);
+        assert_eq!(midi.get_track_length(0), 121);
+        assert_eq!(midi.events.len(), 2);
+        assert_eq!(midi.event_positions.len(), 2);
+
     }
 
     #[test]
