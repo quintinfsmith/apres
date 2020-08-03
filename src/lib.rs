@@ -2,7 +2,7 @@ use std::ffi::{CStr, CString};
 use std::os::raw::c_char;
 use std::fs::File;
 use std::io::prelude::*;
-use std::cmp::max;
+use std::cmp::{max, min};
 
 use std::mem;
 
@@ -236,7 +236,7 @@ pub enum MIDIEventType {
 
     NoteOn = 15,
     NoteOff = 16,
-    PolyphonicKeyPressure = 17,
+    AfterTouch = 17,
     ControlChange = 18,
     ProgramChange = 19,
     ChannelPressure = 20,
@@ -256,7 +256,7 @@ pub enum MIDIEventType {
 }
 
 pub trait MIDIEvent {
-    fn to_bytes(&self) -> Vec<u8>;
+    fn as_bytes(&self) -> Vec<u8>;
     fn get_eid(&self) -> u8;
     fn is_meta(&self) -> bool;
 
@@ -280,9 +280,13 @@ impl SequenceNumberEvent {
             }
         )
     }
+
+    pub fn set_sequence(&mut self, new_sequence: u16) {
+        self.sequence = new_sequence;
+    }
 }
 impl MIDIEvent for SequenceNumberEvent {
-    fn to_bytes(&self) -> Vec<u8> {
+    fn as_bytes(&self) -> Vec<u8> {
         vec![
             0xFF, 0x00, 0x02,
             (self.sequence / 256) as u8,
@@ -322,7 +326,7 @@ impl TextEvent {
     }
 }
 impl MIDIEvent for TextEvent {
-    fn to_bytes(&self) -> Vec<u8> {
+    fn as_bytes(&self) -> Vec<u8> {
         let text_bytes = self.text.as_bytes();
         let mut length_bytes = to_variable_length_bytes(text_bytes.len());
 
@@ -361,7 +365,7 @@ impl CopyRightNoticeEvent {
     }
 }
 impl MIDIEvent for CopyRightNoticeEvent {
-    fn to_bytes(&self) -> Vec<u8> {
+    fn as_bytes(&self) -> Vec<u8> {
         let text_bytes = self.text.as_bytes();
         let mut length_bytes = to_variable_length_bytes(text_bytes.len());
 
@@ -401,7 +405,7 @@ impl TrackNameEvent {
     }
 }
 impl MIDIEvent for TrackNameEvent {
-    fn to_bytes(&self) -> Vec<u8> {
+    fn as_bytes(&self) -> Vec<u8> {
         let text_bytes = self.track_name.as_bytes();
         let mut length_bytes = to_variable_length_bytes(text_bytes.len());
 
@@ -442,7 +446,7 @@ impl InstrumentNameEvent {
 }
 
 impl MIDIEvent for InstrumentNameEvent {
-    fn to_bytes(&self) -> Vec<u8> {
+    fn as_bytes(&self) -> Vec<u8> {
         let text_bytes = self.instrument_name.as_bytes();
         let mut length_bytes = to_variable_length_bytes(text_bytes.len());
 
@@ -481,7 +485,7 @@ impl LyricEvent {
     }
 }
 impl MIDIEvent for LyricEvent {
-    fn to_bytes(&self) -> Vec<u8> {
+    fn as_bytes(&self) -> Vec<u8> {
         let text_bytes = self.lyric.as_bytes();
         let mut length_bytes = to_variable_length_bytes(text_bytes.len());
 
@@ -520,7 +524,7 @@ impl MarkerEvent {
     }
 }
 impl MIDIEvent for MarkerEvent {
-    fn to_bytes(&self) -> Vec<u8> {
+    fn as_bytes(&self) -> Vec<u8> {
         let text_bytes = self.text.as_bytes();
         let mut length_bytes = to_variable_length_bytes(text_bytes.len());
 
@@ -559,7 +563,7 @@ impl CuePointEvent {
     }
 }
 impl MIDIEvent for CuePointEvent {
-    fn to_bytes(&self) -> Vec<u8> {
+    fn as_bytes(&self) -> Vec<u8> {
         let text_bytes = self.text.as_bytes();
         let mut length_bytes = to_variable_length_bytes(text_bytes.len());
 
@@ -593,7 +597,7 @@ impl EndOfTrackEvent {
     }
 }
 impl MIDIEvent for EndOfTrackEvent {
-    fn to_bytes(&self) -> Vec<u8> {
+    fn as_bytes(&self) -> Vec<u8> {
         vec![0xFF, 0x2F, 0x00]
     }
     fn is_meta(&self) -> bool {
@@ -624,9 +628,12 @@ impl ChannelPrefixEvent {
             }
         )
     }
+    pub fn set_channel(&mut self, new_channel: u8) {
+        self.channel = new_channel;
+    }
 }
 impl MIDIEvent for ChannelPrefixEvent {
-    fn to_bytes(&self) -> Vec<u8> {
+    fn as_bytes(&self) -> Vec<u8> {
         vec![0xFF, 0x20, 0x01, self.channel]
     }
     fn is_meta(&self) -> bool {
@@ -650,17 +657,47 @@ pub struct SetTempoEvent {
     // Note: Stored in u32 but is a 3 byte value
     us_per_quarter_note: u32
 }
+
 impl SetTempoEvent {
     pub fn new(us_per_quarter_note: u32) -> Box<SetTempoEvent> {
         Box::new(
             SetTempoEvent {
-                us_per_quarter_note: us_per_quarter_note
+                us_per_quarter_note: min(us_per_quarter_note, 0x00FFFFFF)
             }
         )
     }
+
+    pub fn set_bpm(&mut self, bpm: f64) {
+        // The minimum BPM is ~3.57(60000000 / u16::MAX)
+        let adj_bpm = if 3.5762788 >= bpm {
+            3.5762788
+        } else {
+            bpm
+        };
+
+        // It's ok to lose the precision here (f64 -> u32) because it's microseconds as percieved by a human
+        self.us_per_quarter_note = if 60000000_f64 / adj_bpm < 0x00FFFFFF as f64 {
+            (60000000_f64 / adj_bpm) as u32
+        } else {
+            0x00FFFFFF
+        };
+    }
+
+    pub fn set_uspqn(&mut self, uspqn: u32) {
+        self.us_per_quarter_note = min(uspqn, 0x00FFFFFF);
+    }
+
+    pub fn get_uspqn(&self) -> u32 {
+        self.us_per_quarter_note
+    }
+
+    pub fn get_bpm(&self) -> f64 {
+        60_000_000 as f64 / self.us_per_quarter_note as f64
+    }
 }
+
 impl MIDIEvent for SetTempoEvent {
-    fn to_bytes(&self) -> Vec<u8> {
+    fn as_bytes(&self) -> Vec<u8> {
         vec![
             0xFF, 0x51, 0x03,
             ((self.us_per_quarter_note / 256u32.pow(2)) % 256) as u8,
@@ -711,7 +748,7 @@ impl SMPTEOffsetEvent {
 }
 
 impl MIDIEvent for SMPTEOffsetEvent {
-    fn to_bytes(&self) -> Vec<u8> {
+    fn as_bytes(&self) -> Vec<u8> {
         vec![0xFF, 0x54, 05, self.hour, self.minute, self.second, self.ff, self.fr]
     }
     fn is_meta(&self) -> bool {
@@ -789,7 +826,7 @@ impl TimeSignatureEvent {
     }
 }
 impl MIDIEvent for TimeSignatureEvent {
-    fn to_bytes(&self) -> Vec<u8> {
+    fn as_bytes(&self) -> Vec<u8> {
         vec![0xFF, 0x58, 04, self.numerator, self.denominator, self.clocks_per_metronome, self.thirtysecondths_per_quarter]
     }
     fn is_meta(&self) -> bool {
@@ -910,7 +947,7 @@ impl KeySignatureEvent {
 }
 
 impl MIDIEvent for KeySignatureEvent {
-    fn to_bytes(&self) -> Vec<u8> {
+    fn as_bytes(&self) -> Vec<u8> {
         let (mi, sf) = self.get_mi_sf();
         vec![0xFF, 0x59, 0x02, sf, mi]
     }
@@ -946,7 +983,7 @@ impl SequencerSpecificEvent {
 }
 
 impl MIDIEvent for SequencerSpecificEvent {
-    fn to_bytes(&self) -> Vec<u8> {
+    fn as_bytes(&self) -> Vec<u8> {
         let mut length_bytes = to_variable_length_bytes(self.data.len());
 
         let mut output = vec![0xFF, 0x7F];
@@ -983,16 +1020,16 @@ impl NoteOnEvent {
     pub fn new(channel: u8, note: u8, velocity: u8) -> Box<NoteOnEvent> {
         Box::new(
             NoteOnEvent {
-                channel: channel,
-                note: note,
-                velocity: velocity
+                channel: channel & 0x0F,
+                note: note & 0x7F,
+                velocity: velocity & 0x7F
             }
         )
     }
 
 }
 impl MIDIEvent for NoteOnEvent {
-    fn to_bytes(&self) -> Vec<u8> {
+    fn as_bytes(&self) -> Vec<u8> {
         vec![
             0x90 | self.channel,
             self.note,
@@ -1009,13 +1046,13 @@ impl MIDIEvent for NoteOnEvent {
     fn set_property(&mut self, argument: u8, bytes: Vec<u8>) {
         match argument {
             0 => {
-                self.channel = bytes[0];
+                self.channel = bytes[0] & 0x0F;
             }
             1 => {
-                self.note = bytes[0];
+                self.note = bytes[0] & 0x7F;
             }
             2 => {
-                self.velocity = bytes[0];
+                self.velocity = bytes[0] & 0x7F;
             }
             _ => ()
         };
@@ -1053,15 +1090,15 @@ impl NoteOffEvent {
     pub fn new(channel: u8, note: u8, velocity: u8) -> Box<NoteOffEvent> {
         Box::new(
             NoteOffEvent {
-                channel: channel,
-                note: note,
-                velocity: velocity
+                channel: channel & 0x0F,
+                note: note & 0x7F,
+                velocity: velocity & 0x7F
             }
         )
     }
 }
 impl MIDIEvent for NoteOffEvent {
-    fn to_bytes(&self) -> Vec<u8> {
+    fn as_bytes(&self) -> Vec<u8> {
         vec![
             0x80 | self.channel,
             self.note,
@@ -1077,13 +1114,13 @@ impl MIDIEvent for NoteOffEvent {
     fn set_property(&mut self, argument: u8, bytes: Vec<u8>) {
         match argument {
             0 => {
-                self.channel = bytes[0];
+                self.channel = bytes[0] & 0x0F;
             }
             1 => {
-                self.note = bytes[0];
+                self.note = bytes[0] & 0x7F;
             }
             2 => {
-                self.velocity = bytes[0];
+                self.velocity = bytes[0] & 0x7F;
             }
             _ => ()
         };
@@ -1112,24 +1149,24 @@ impl MIDIEvent for NoteOffEvent {
     }
 }
 
-pub struct PolyphonicKeyPressureEvent {
+pub struct AfterTouchEvent {
 	channel: u8,
 	note: u8,
 	pressure: u8
 }
-impl PolyphonicKeyPressureEvent {
-    pub fn new(channel: u8, note: u8, pressure: u8) -> Box<PolyphonicKeyPressureEvent> {
+impl AfterTouchEvent {
+    pub fn new(channel: u8, note: u8, pressure: u8) -> Box<AfterTouchEvent> {
         Box::new(
-            PolyphonicKeyPressureEvent {
-                channel: channel,
-                note: note,
-                pressure: pressure
+            AfterTouchEvent {
+                channel: channel & 0x0F,
+                note: note & 0x7F,
+                pressure: pressure & 0x7F
             }
         )
     }
 }
-impl MIDIEvent for PolyphonicKeyPressureEvent {
-    fn to_bytes(&self) -> Vec<u8> {
+impl MIDIEvent for AfterTouchEvent {
+    fn as_bytes(&self) -> Vec<u8> {
         vec![
             0xA0 | self.channel,
             self.note,
@@ -1145,13 +1182,13 @@ impl MIDIEvent for PolyphonicKeyPressureEvent {
     fn set_property(&mut self, argument: u8, bytes: Vec<u8>) {
         match argument {
             0 => {
-                self.channel = bytes[0];
+                self.channel = bytes[0] & 0x0F;
             }
             1 => {
-                self.note = bytes[0];
+                self.note = bytes[0] & 0x7F;
             }
             2 => {
-                self.pressure = bytes[0];
+                self.pressure = bytes[0] & 0x7F;
             }
             _ => ()
         };
@@ -1175,7 +1212,7 @@ impl MIDIEvent for PolyphonicKeyPressureEvent {
         vec![output]
     }
     fn get_type(&self) -> MIDIEventType {
-        MIDIEventType::PolyphonicKeyPressure
+        MIDIEventType::AfterTouch
     }
 }
 
@@ -1188,15 +1225,15 @@ impl ControlChangeEvent {
     pub fn new(channel: u8, controller: u8, value:u8) -> Box<ControlChangeEvent> {
         Box::new(
             ControlChangeEvent {
-                channel: channel,
-                controller: controller,
-                value: value
+                channel: channel & 0x0F,
+                controller: controller & 0x7F,
+                value: value & 0x7F
             }
         )
     }
 }
 impl MIDIEvent for ControlChangeEvent {
-    fn to_bytes(&self) -> Vec<u8> {
+    fn as_bytes(&self) -> Vec<u8> {
         vec![
             0xB0 | self.channel,
             self.controller,
@@ -1212,13 +1249,13 @@ impl MIDIEvent for ControlChangeEvent {
     fn set_property(&mut self, argument: u8, bytes: Vec<u8>) {
         match argument {
             0 => {
-                self.channel = bytes[0];
+                self.channel = bytes[0] & 0x0F;
             }
             1 => {
-                self.controller = bytes[0];
+                self.controller = bytes[0] & 0x7F;
             }
             2 => {
-                self.value = bytes[0];
+                self.value = bytes[0] & 0x7F;
             }
             _ => ()
         };
@@ -1254,14 +1291,14 @@ impl ProgramChangeEvent {
     pub fn new(channel: u8, program: u8) -> Box<ProgramChangeEvent> {
         Box::new(
             ProgramChangeEvent {
-                channel: channel,
-                program: program
+                channel: channel & 0x0F,
+                program: program & 0x7F
             }
         )
     }
 }
 impl MIDIEvent for ProgramChangeEvent {
-    fn to_bytes(&self) -> Vec<u8> {
+    fn as_bytes(&self) -> Vec<u8> {
         vec![
             0xC0 | self.channel,
             self.program
@@ -1276,10 +1313,10 @@ impl MIDIEvent for ProgramChangeEvent {
     fn set_property(&mut self, argument: u8, bytes: Vec<u8>) {
         match argument {
             0 => {
-                self.channel = bytes[0];
+                self.channel = bytes[0] & 0x0F;
             }
             1 => {
-                self.program = bytes[0];
+                self.program = bytes[0] & 0x7F;
             }
             _ => ()
         };
@@ -1312,15 +1349,15 @@ impl ChannelPressureEvent {
     pub fn new(channel: u8, pressure: u8) -> Box<ChannelPressureEvent> {
         Box::new(
             ChannelPressureEvent {
-                channel: channel,
-                pressure: pressure
+                channel: channel & 0x0F,
+                pressure: pressure & 0x7F
             }
         )
     }
 }
 
 impl MIDIEvent for ChannelPressureEvent {
-    fn to_bytes(&self) -> Vec<u8> {
+    fn as_bytes(&self) -> Vec<u8> {
         vec![
             0xD0 | self.channel,
             self.pressure
@@ -1335,10 +1372,10 @@ impl MIDIEvent for ChannelPressureEvent {
     fn set_property(&mut self, argument: u8, bytes: Vec<u8>) {
         match argument {
             0 => {
-                self.channel = bytes[0];
+                self.channel = bytes[0] & 0x0F;
             }
             1 => {
-                self.pressure = bytes[0];
+                self.pressure = bytes[0] & 0x7F;
             }
             _ => ()
         };
@@ -1371,7 +1408,7 @@ impl PitchWheelChangeEvent {
     pub fn new(channel: u8, value: f64) -> Box<PitchWheelChangeEvent> {
         Box::new(
             PitchWheelChangeEvent {
-                channel: channel,
+                channel: channel & 0x0F,
                 value: value
             }
         )
@@ -1383,12 +1420,22 @@ impl PitchWheelChangeEvent {
     }
 
     fn get_unsigned_value(&self) -> u16 {
-        (((((self.value + 1_f64) as u16) * 0x3FFF) / 2) & 0x3FFF) as u16
+        if (self.value < 0_f64) {
+            ((1_f64 + self.value) * (0x2000 as f64)) as u16
+        } else if (self.value > 0_f64) {
+            (self.value * (0x1FFF as f64)) as u16 + 0x2000
+        } else {
+            0x2000
+        }
+    }
+
+    fn set_value(&mut self, value: f64) {
+        self.value = value;
     }
 }
 
 impl MIDIEvent for PitchWheelChangeEvent {
-    fn to_bytes(&self) -> Vec<u8> {
+    fn as_bytes(&self) -> Vec<u8> {
         let unsigned_value = self.get_unsigned_value();
         let lsb: u8 = (unsigned_value & 0x007F) as u8;
         let msb: u8 = ((unsigned_value >> 7) & 0x007F) as u8;
@@ -1408,7 +1455,7 @@ impl MIDIEvent for PitchWheelChangeEvent {
     fn set_property(&mut self, argument: u8, bytes: Vec<u8>) {
         match argument {
             0 => {
-                self.channel = bytes[0];
+                self.channel = bytes[0] & 0x0F;
             }
             1 => {
                 let unsigned_value = (((bytes[0] as u16) * 256) + (bytes[1] as u16)) as f64;
@@ -1458,7 +1505,7 @@ impl SystemExclusiveEvent {
 }
 
 impl MIDIEvent for SystemExclusiveEvent {
-    fn to_bytes(&self) -> Vec<u8> {
+    fn as_bytes(&self) -> Vec<u8> {
         let mut output = vec![0xF0];
         output.extend(self.data.iter().copied());
         output.push(0xF7);
@@ -1490,7 +1537,7 @@ pub struct MTCQuarterFrameEvent {
 }
 
 impl MIDIEvent for MTCQuarterFrameEvent {
-    fn to_bytes(&self) -> Vec<u8> {
+    fn as_bytes(&self) -> Vec<u8> {
         let mut b = 0;
         b |= self.message_type;
         b <<= 3;
@@ -1548,7 +1595,7 @@ impl SongPositionPointerEvent {
     }
 }
 impl MIDIEvent for SongPositionPointerEvent {
-    fn to_bytes(&self) -> Vec<u8> {
+    fn as_bytes(&self) -> Vec<u8> {
         vec![
             0xF2,
             (self.beat & 0x7F) as u8,
@@ -1591,7 +1638,7 @@ impl SongSelectEvent {
     }
 }
 impl MIDIEvent for SongSelectEvent {
-    fn to_bytes(&self) -> Vec<u8> {
+    fn as_bytes(&self) -> Vec<u8> {
         vec![
             0xF3,
             self.song & 0x7F
@@ -1621,7 +1668,7 @@ impl MIDIEvent for SongSelectEvent {
 
 pub struct TuneRequestEvent { }
 impl MIDIEvent for TuneRequestEvent {
-    fn to_bytes(&self) -> Vec<u8> {
+    fn as_bytes(&self) -> Vec<u8> {
         vec![ 0xF6 ]
     }
     fn is_meta(&self) -> bool {
@@ -1643,7 +1690,7 @@ impl MIDIEvent for TuneRequestEvent {
 
 pub struct MIDIClockEvent { }
 impl MIDIEvent for MIDIClockEvent {
-    fn to_bytes(&self) -> Vec<u8> {
+    fn as_bytes(&self) -> Vec<u8> {
         vec![ 0xF8 ]
     }
     fn is_meta(&self) -> bool {
@@ -1665,7 +1712,7 @@ impl MIDIEvent for MIDIClockEvent {
 
 pub struct MIDIStartEvent { }
 impl MIDIEvent for MIDIStartEvent {
-    fn to_bytes(&self) -> Vec<u8> {
+    fn as_bytes(&self) -> Vec<u8> {
         vec![ 0xFA ]
     }
     fn is_meta(&self) -> bool {
@@ -1687,7 +1734,7 @@ impl MIDIEvent for MIDIStartEvent {
 
 pub struct MIDIContinueEvent { }
 impl MIDIEvent for MIDIContinueEvent {
-    fn to_bytes(&self) -> Vec<u8> {
+    fn as_bytes(&self) -> Vec<u8> {
         vec![ 0xFB ]
     }
     fn is_meta(&self) -> bool {
@@ -1709,7 +1756,7 @@ impl MIDIEvent for MIDIContinueEvent {
 
 pub struct MIDIStopEvent { }
 impl MIDIEvent for MIDIStopEvent {
-    fn to_bytes(&self) -> Vec<u8> {
+    fn as_bytes(&self) -> Vec<u8> {
         vec![ 0xFC ]
     }
     fn is_meta(&self) -> bool {
@@ -1732,7 +1779,7 @@ impl MIDIEvent for MIDIStopEvent {
 
 pub struct ActiveSenseEvent { }
 impl MIDIEvent for ActiveSenseEvent {
-    fn to_bytes(&self) -> Vec<u8> {
+    fn as_bytes(&self) -> Vec<u8> {
         vec![ 0xFE ]
     }
     fn is_meta(&self) -> bool {
@@ -1755,7 +1802,7 @@ impl MIDIEvent for ActiveSenseEvent {
 
 pub struct ResetEvent { }
 impl MIDIEvent for ResetEvent {
-    fn to_bytes(&self) -> Vec<u8> {
+    fn as_bytes(&self) -> Vec<u8> {
         vec![ 0xFF ]
     }
     fn is_meta(&self) -> bool {
@@ -1953,7 +2000,7 @@ impl MIDI {
                         channel = leadbyte & 0x0F;
                         b = bytes.pop().unwrap();
                         c = bytes.pop().unwrap();
-                        output = Some(self.insert_event(track, *current_deltatime, PolyphonicKeyPressureEvent::new(channel, b, c)));
+                        output = Some(self.insert_event(track, *current_deltatime, AfterTouchEvent::new(channel, b, c)));
                     }
                     11 => {
                         channel = leadbyte & 0x0F;
@@ -2130,7 +2177,7 @@ impl MIDI {
     }
 
 
-    pub fn to_bytes(&self) -> Vec<u8> {
+    pub fn as_bytes(&self) -> Vec<u8> {
         // First 8  bytes will always be the same
         let mut output: Vec<u8> = vec!['M' as u8, 'T' as u8, 'h' as u8, 'd' as u8, 0, 0, 0, 6];
 
@@ -2163,7 +2210,7 @@ impl MIDI {
                 match self.get_event(*eid) {
                     Some(working_event) => {
                         track_event_bytes.extend(to_variable_length_bytes(*tick_delay).iter().copied());
-                        track_event_bytes.extend(working_event.to_bytes());
+                        track_event_bytes.extend(working_event.as_bytes());
                     }
                     None => {
                     }
@@ -2172,7 +2219,7 @@ impl MIDI {
 
             // Automatically handle EndOfTrackEvent Here instead of requiring it be in the MIDITrack Object
             track_event_bytes.push(0);
-            track_event_bytes.extend(EndOfTrackEvent::new().to_bytes().iter().copied());
+            track_event_bytes.extend(EndOfTrackEvent::new().as_bytes().iter().copied());
 
             // track length in bytes
             track_byte_length = track_event_bytes.len() as u32;
@@ -2188,7 +2235,7 @@ impl MIDI {
     }
 
     pub fn save(&self, path: String) {
-        let bytes = self.to_bytes();
+        let bytes = self.as_bytes();
         match File::create(path) {
             Ok(mut file) => {
                 file.write_all(bytes.as_slice());
@@ -2438,5 +2485,290 @@ mod tests {
         assert_eq!(midi.get_track_length(0), 120);
     }
 
+    #[test]
+    fn test_variable_length_conversion() {
+        let mut test_cases = vec![
+            (0, vec![0]),
+            (127, vec![0x7F]),
+            (128, vec![0x81, 0x00]),
+            (2097151, vec![0xFF, 0xFF, 0x7F])
+        ];
+        let mut output_vector;
+        for (input_number, expected_vector) in test_cases.iter() {
+            output_vector = to_variable_length_bytes(*input_number);
+            assert_eq!(
+                output_vector.as_slice(),
+                expected_vector.as_slice()
+            );
+        }
+    }
+
+
+    #[test]
+    fn test_sequence_number_event() {
+        let mut event = SequenceNumberEvent::new(1);
+        assert_eq!(event.as_bytes().as_slice(), &[0xFF, 0x00, 0x02, 0x00, 0x01]);
+        event.set_sequence(13607);
+        assert_eq!(event.as_bytes().as_slice(), &[0xFF, 0x00, 0x02, 0x35, 0x27]);
+    }
+
+    #[test]
+    fn test_text_event() {
+        let mut some_text = "This is some text".to_string();
+        let mut text_len_bytes = to_variable_length_bytes(some_text.len());
+
+        let mut event = TextEvent::new(some_text.clone());
+        let mut compare_vec = vec![ 0xFF, 0x01 ];
+        compare_vec.extend(text_len_bytes.iter().copied());
+        compare_vec.extend(some_text.as_bytes().iter().copied());
+        assert_eq!(
+            event.as_bytes().as_slice(),
+            compare_vec.as_slice()
+        );
+    }
+
+    #[test]
+    fn test_copyright_notice_event() {
+        let mut some_text = "This is some text".to_string();
+        let mut text_len_bytes = to_variable_length_bytes(some_text.len());
+
+        let mut event = CopyRightNoticeEvent::new(some_text.clone());
+        let mut compare_vec = vec![ 0xFF, 0x02 ];
+        compare_vec.extend(text_len_bytes.iter().copied());
+        compare_vec.extend(some_text.as_bytes().iter().copied());
+        assert_eq!(
+            event.as_bytes().as_slice(),
+            compare_vec.as_slice()
+        );
+    }
+
+    #[test]
+    fn test_track_name_event() {
+        let mut some_text = "Some Track Name".to_string();
+        let mut text_len_bytes = to_variable_length_bytes(some_text.len());
+
+        let mut event = TrackNameEvent::new(some_text.clone());
+        let mut compare_vec = vec![ 0xFF, 0x03 ];
+        compare_vec.extend(text_len_bytes.iter().copied());
+        compare_vec.extend(some_text.as_bytes().iter().copied());
+        assert_eq!(
+            event.as_bytes().as_slice(),
+            compare_vec.as_slice()
+        );
+    }
+
+    #[test]
+    fn test_instrument_name_event() {
+        let mut some_text = "Some Instrument Name".to_string();
+        let mut text_len_bytes = to_variable_length_bytes(some_text.len());
+
+        let mut event = InstrumentNameEvent::new(some_text.clone());
+        let mut compare_vec = vec![ 0xFF, 0x04 ];
+        compare_vec.extend(text_len_bytes.iter().copied());
+        compare_vec.extend(some_text.as_bytes().iter().copied());
+        assert_eq!(
+            event.as_bytes().as_slice(),
+            compare_vec.as_slice()
+        );
+    }
+
+    #[test]
+    fn test_lyric_event() {
+        let mut some_text = "Here are some Lyrics.".to_string();
+        let mut text_len_bytes = to_variable_length_bytes(some_text.len());
+
+        let mut event = LyricEvent::new(some_text.clone());
+        let mut compare_vec = vec![ 0xFF, 0x05 ];
+        compare_vec.extend(text_len_bytes.iter().copied());
+        compare_vec.extend(some_text.as_bytes().iter().copied());
+        assert_eq!(
+            event.as_bytes().as_slice(),
+            compare_vec.as_slice()
+        );
+    }
+
+    #[test]
+    fn test_marker_event() {
+        let mut some_text = "marker text".to_string();
+        let mut text_len_bytes = to_variable_length_bytes(some_text.len());
+
+        let mut event = MarkerEvent::new(some_text.clone());
+        let mut compare_vec = vec![ 0xFF, 0x06 ];
+        compare_vec.extend(text_len_bytes.iter().copied());
+        compare_vec.extend(some_text.as_bytes().iter().copied());
+        assert_eq!(
+            event.as_bytes().as_slice(),
+            compare_vec.as_slice()
+        );
+    }
+
+    #[test]
+    fn test_cue_point_event() {
+        let mut some_text = "cue point text".to_string();
+        let mut text_len_bytes = to_variable_length_bytes(some_text.len());
+
+        let mut event = CuePointEvent::new(some_text.clone());
+        let mut compare_vec = vec![ 0xFF, 0x07 ];
+        compare_vec.extend(text_len_bytes.iter().copied());
+        compare_vec.extend(some_text.as_bytes().iter().copied());
+        assert_eq!(
+            event.as_bytes().as_slice(),
+            compare_vec.as_slice()
+        );
+    }
+
+    #[test]
+    fn test_end_of_track_event() {
+        let mut event = EndOfTrackEvent::new();
+        assert_eq!(
+            event.as_bytes().as_slice(),
+            [0xFF, 0x2F, 0x00]
+        );
+    }
+
+    #[test]
+    fn test_channel_prefix_event() {
+        let mut event = ChannelPrefixEvent::new(0);
+        for i in std::u8::MIN .. std::u8::MAX {
+            event.set_channel(i as u8);
+            assert_eq!(
+                event.as_bytes().as_slice(),
+                [0xFF, 0x20, 0x01, i]
+            );
+        }
+    }
+
+    #[test]
+    fn test_set_tempo_event() {
+        let mut event = SetTempoEvent::new(500000);
+        let test_cases_bpm = vec![
+            (120, 500000),
+            (280, 214285),
+            (1, 0x00FFFFFF),// Minimum bpm is 3.576278762788
+            (60_000_000, 1)
+        ];
+        for (bpm, expected_uspqn) in test_cases_bpm.iter() {
+            event.set_bpm(*bpm as f64);
+            assert_eq!(*expected_uspqn, event.get_uspqn());
+            assert_eq!(
+                event.as_bytes().as_slice(),
+                [
+                    0xFF, 0x51, 0x03,
+                    ((*expected_uspqn / 256u32.pow(2)) % 256) as u8,
+                    ((*expected_uspqn / 256u32.pow(1)) % 256) as u8,
+                    (*expected_uspqn % 256) as u8
+                ]
+            );
+        }
+    }
+
+    #[test]
+    fn test_smpte_offset_event() {
+        let mut event = SMPTEOffsetEvent::new(1,2,3,4,5);
+        assert_eq!(
+            event.as_bytes().as_slice(),
+            [0xFF, 0x54, 0x05, 0x01, 0x02, 0x03, 0x04, 0x05]
+        );
+    }
+
+    #[test]
+    fn test_time_signature_event() {
+        let mut event = TimeSignatureEvent::new(4, 4, 32, 3);
+        assert_eq!(
+            event.as_bytes().as_slice(),
+            [0xFF, 0x58, 0x04, 0x04, 0x04, 0x20, 0x03]
+        );
+    }
+
+    #[test]
+    fn test_key_signature_event() {
+        let mut event = KeySignatureEvent::new("A".to_string());
+        assert_eq!(
+            event.as_bytes().as_slice(),
+            [0xFF, 0x59, 0x02, 0x03, 0x00]
+        );
+    }
+
+    #[test]
+    fn test_sequence_specific_event() {
+        let mut event = SequencerSpecificEvent::new(vec![0x00]);
+        assert_eq!(
+            event.as_bytes().as_slice(),
+            [0xFF, 0x7F, 0x01, 0x00]
+        );
+    }
+
+    #[test]
+    fn test_note_on_event() {
+        let mut event = NoteOnEvent::new(14, 23, 33);
+        assert_eq!(
+            event.as_bytes().as_slice(),
+            [0x9E, 0x17, 0x21]
+        );
+    }
+
+    #[test]
+    fn test_note_off_event() {
+        let mut event = NoteOffEvent::new(14, 23, 33);
+        assert_eq!(
+            event.as_bytes().as_slice(),
+            [0x8E, 0x17, 0x21]
+        );
+    }
+
+    #[test]
+    fn test_aftertouch_event() {
+        let mut event = AfterTouchEvent::new(14, 23, 33);
+        assert_eq!(
+            event.as_bytes().as_slice(),
+            [0xAE, 0x17, 0x21]
+        );
+    }
+
+    #[test]
+    fn test_control_change_event() {
+        let mut event = ControlChangeEvent::new(14, 23, 33);
+        assert_eq!(
+            event.as_bytes().as_slice(),
+            [0xBE, 0x17, 0x21]
+        );
+    }
+
+    #[test]
+    fn test_program_change_event() {
+        let mut event = ProgramChangeEvent::new(14, 23);
+        assert_eq!(
+            event.as_bytes().as_slice(),
+            [0xCE, 0x17]
+        );
+    }
+
+    #[test]
+    fn test_channel_pressure_event() {
+        let mut event = ChannelPressureEvent::new(14, 23);
+        assert_eq!(
+            event.as_bytes().as_slice(),
+            [0xDE, 0x17]
+        );
+    }
+
+    #[test]
+    fn test_pitchwheel_change_event() {
+        let mut event = PitchWheelChangeEvent::new(14, 0.0);
+        let mut test_cases: Vec<(f64, (u8, u8))> = vec![
+            (-1.0, (0, 0)),
+            (-0.5, (0x20, 0x00)),
+            (0.0, (0x40, 0x00)),
+            (0.5, (0x5f, 0x7F)),
+            (1.0, (0x7F, 0x7F))
+        ];
+        for (input_value, (msb, lsb)) in test_cases.iter() {
+            event.set_value(*input_value);
+            assert_eq!(
+                event.as_bytes().as_slice(),
+                [0xEE, *lsb, *msb]
+            );
+        }
+    }
 }
 

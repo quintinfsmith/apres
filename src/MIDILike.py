@@ -330,7 +330,10 @@ class SetTempoEvent(MIDIEvent):
                 self.us_per_quarter_note = kwargs['uspqn']
             elif "bpm" in kwargs.keys():
                 bpm = kwargs["bpm"]
-                self.us_per_quarter_note = 60000000 // bpm
+                if not bpm:
+                    self.us_per_quarter_note = 0
+                else:
+                    self.us_per_quarter_note = 60000000 // bpm
 
         super().__init__(midilike, **kwargs)
 
@@ -338,7 +341,13 @@ class SetTempoEvent(MIDIEvent):
         self.get_us_per_quarter_note()
 
     def get_bpm(self):
-        return 60000000 / self.get_us_per_quarter_note()
+        usperqn = self.get_us_per_quarter_note()
+        if usperqn:
+            output = 60000000 / usperqn
+        else:
+            output = 0
+
+        return output
 
     def get_us_per_quarter_note(self):
         usqpn = self.get_property(0)
@@ -351,7 +360,12 @@ class SetTempoEvent(MIDIEvent):
         return self.us_per_quarter_note
 
     def set_bpm(self, bpm):
-        self.set_us_per_quarter_note(60000000 // bpm)
+        if not bpm:
+            uspqn = 0
+        else:
+            uspqn = 60000000 // bpm
+
+        self.set_us_per_quarter_note(uspqn)
 
     def set_us_per_quarter_note(self, uspqn):
         self.us_per_quarter_note = uspqn
