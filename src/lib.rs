@@ -1777,6 +1777,21 @@ impl MIDIEvent for ResetEvent {
 }
 
 
+/// Structural representation of MIDI.
+///
+/// Can represent a file or a real-time performance.
+///
+/// # Examples
+/// ```
+/// use midas::MIDI;
+/// // Create a MIDI from a file
+/// let midi = MIDI::from_path("/path/to/file.mid");
+/// ```
+/// ```
+/// use midas::MIDI;
+/// // Create an empty MIDI file.
+/// let midi = MIDI::new();
+/// ```
 pub struct MIDI {
     ppqn: u16,
     midi_format: u16, // 16 because the format stores in 2 bytes, even though it only requires 2 bits (0,1,2)
