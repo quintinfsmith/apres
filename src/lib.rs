@@ -1,4 +1,4 @@
-use std::ffi::{CStr, CString};
+use std::ffi::CStr;
 use std::os::raw::c_char;
 use std::fs::File;
 use std::io::prelude::*;
@@ -7,8 +7,6 @@ use std::cmp::{max, min};
 use std::mem;
 
 use std::collections::{HashMap, HashSet};
-use std::slice;
-
 
 #[no_mangle]
 pub extern fn save(midi_ptr: *mut MIDI, path: *const c_char) {
@@ -266,8 +264,6 @@ pub trait MIDIEvent {
     fn get_type(&self) -> MIDIEventType;
 }
 
-impl MIDIEvent { }
-
 pub struct SequenceNumberEvent {
     sequence: u16
 }
@@ -299,7 +295,7 @@ impl MIDIEvent for SequenceNumberEvent {
     fn get_eid(&self) -> u8 {
         0x00
     }
-    fn set_property(&mut self, argument: u8, bytes: Vec<u8>) {
+    fn set_property(&mut self, _argument: u8, bytes: Vec<u8>) {
         self.sequence = (bytes[1] as u16 * 256) + (bytes[0] as u16);
     }
     fn get_property(&self, _: u8) -> Vec<u8> {
@@ -342,7 +338,7 @@ impl MIDIEvent for TextEvent {
     fn get_eid(&self) -> u8 {
         0x01
     }
-    fn set_property(&mut self, argument: u8, bytes: Vec<u8>) {
+    fn set_property(&mut self, _argument: u8, bytes: Vec<u8>) {
         self.text = std::str::from_utf8(bytes.as_slice()).unwrap().to_string();
     }
     fn get_property(&self, _: u8) -> Vec<u8> {
@@ -381,7 +377,7 @@ impl MIDIEvent for CopyRightNoticeEvent {
     fn get_eid(&self) -> u8 {
         0x02
     }
-    fn set_property(&mut self, argument: u8, bytes: Vec<u8>) {
+    fn set_property(&mut self, _argument: u8, bytes: Vec<u8>) {
         self.text = std::str::from_utf8(bytes.as_slice()).unwrap().to_string();
     }
     fn get_property(&self, _: u8) -> Vec<u8> {
@@ -421,7 +417,7 @@ impl MIDIEvent for TrackNameEvent {
     fn get_eid(&self) -> u8 {
         0x03
     }
-    fn set_property(&mut self, argument: u8, bytes: Vec<u8>) {
+    fn set_property(&mut self, _argument: u8, bytes: Vec<u8>) {
         self.track_name = std::str::from_utf8(bytes.as_slice()).unwrap().to_string();
     }
     fn get_property(&self, _: u8) -> Vec<u8> {
@@ -462,7 +458,7 @@ impl MIDIEvent for InstrumentNameEvent {
     fn get_eid(&self) -> u8 {
         0x04
     }
-    fn set_property(&mut self, argument: u8, bytes: Vec<u8>) {
+    fn set_property(&mut self, _argument: u8, bytes: Vec<u8>) {
         self.instrument_name = std::str::from_utf8(bytes.as_slice()).unwrap().to_string();
     }
     fn get_property(&self, _: u8) -> Vec<u8> {
@@ -501,7 +497,7 @@ impl MIDIEvent for LyricEvent {
     fn get_eid(&self) -> u8 {
         0x05
     }
-    fn set_property(&mut self, argument: u8, bytes: Vec<u8>) {
+    fn set_property(&mut self, _argument: u8, bytes: Vec<u8>) {
         self.lyric = std::str::from_utf8(bytes.as_slice()).unwrap().to_string();
     }
     fn get_property(&self, _: u8) -> Vec<u8> {
@@ -540,7 +536,7 @@ impl MIDIEvent for MarkerEvent {
     fn get_eid(&self) -> u8 {
         0x06
     }
-    fn set_property(&mut self, argument: u8, bytes: Vec<u8>) {
+    fn set_property(&mut self, _argument: u8, bytes: Vec<u8>) {
         self.text = std::str::from_utf8(bytes.as_slice()).unwrap().to_string();
     }
     fn get_property(&self, _: u8) -> Vec<u8> {
@@ -579,7 +575,7 @@ impl MIDIEvent for CuePointEvent {
     fn get_eid(&self) -> u8 {
         0x07
     }
-    fn set_property(&mut self, argument: u8, bytes: Vec<u8>) {
+    fn set_property(&mut self, _argument: u8, bytes: Vec<u8>) {
         self.text = std::str::from_utf8(bytes.as_slice()).unwrap().to_string();
     }
     fn get_property(&self, _: u8) -> Vec<u8> {
@@ -606,7 +602,7 @@ impl MIDIEvent for EndOfTrackEvent {
     fn get_eid(&self) -> u8 {
         0x2F
     }
-    fn set_property(&mut self, argument: u8, bytes: Vec<u8>) {
+    fn set_property(&mut self, _argument: u8, _bytes: Vec<u8>) {
         // non-applicable
     }
     fn get_property(&self, _: u8) -> Vec<u8> {
@@ -642,7 +638,7 @@ impl MIDIEvent for ChannelPrefixEvent {
     fn get_eid(&self) -> u8 {
         0x20
     }
-    fn set_property(&mut self, argument: u8, bytes: Vec<u8>) {
+    fn set_property(&mut self, _argument: u8, bytes: Vec<u8>) {
         self.channel = bytes[0];
     }
     fn get_property(&self, _: u8) -> Vec<u8> {
@@ -711,7 +707,7 @@ impl MIDIEvent for SetTempoEvent {
     fn get_eid(&self) -> u8 {
         0x51
     }
-    fn set_property(&mut self, argument: u8, bytes: Vec<u8>) {
+    fn set_property(&mut self, _argument: u8, bytes: Vec<u8>) {
         self.us_per_quarter_note = (bytes[2] as u32 * 256u32.pow(2)) + (bytes[1] as u32 * 256) + (bytes[0] as u32);
     }
     fn get_property(&self, _: u8) -> Vec<u8> {
@@ -1420,9 +1416,9 @@ impl PitchWheelChangeEvent {
     }
 
     fn get_unsigned_value(&self) -> u16 {
-        if (self.value < 0_f64) {
+        if self.value < 0_f64 {
             ((1_f64 + self.value) * (0x2000 as f64)) as u16
-        } else if (self.value > 0_f64) {
+        } else if self.value > 0_f64 {
             (self.value * (0x1FFF as f64)) as u16 + 0x2000
         } else {
             0x2000
@@ -1518,11 +1514,11 @@ impl MIDIEvent for SystemExclusiveEvent {
         0xF0
     }
 
-    fn set_property(&mut self, argument: u8, bytes: Vec<u8>) {
+    fn set_property(&mut self, _:u8, bytes: Vec<u8>) {
         self.data = bytes.clone()
     }
 
-    fn get_property(&self, argument: u8) -> Vec<u8> {
+    fn get_property(&self, _argument: u8) -> Vec<u8> {
         self.data.clone()
     }
 
@@ -1678,7 +1674,7 @@ impl MIDIEvent for TuneRequestEvent {
         0xF6
     }
 
-    fn set_property(&mut self, _: u8, bytes: Vec<u8>) { }
+    fn set_property(&mut self, _: u8, _bytes: Vec<u8>) { }
     fn get_property(&self, _: u8) -> Vec<u8> {
         Vec::new()
     }
@@ -1700,7 +1696,7 @@ impl MIDIEvent for MIDIClockEvent {
         0xF8
     }
 
-    fn set_property(&mut self, _: u8, bytes: Vec<u8>) { }
+    fn set_property(&mut self, _: u8, _bytes: Vec<u8>) { }
     fn get_property(&self, _: u8) -> Vec<u8> {
         Vec::new()
     }
@@ -1722,7 +1718,7 @@ impl MIDIEvent for MIDIStartEvent {
         0xFA
     }
 
-    fn set_property(&mut self, _: u8, bytes: Vec<u8>) { }
+    fn set_property(&mut self, _: u8, _bytes: Vec<u8>) { }
     fn get_property(&self, _: u8) -> Vec<u8> {
         Vec::new()
     }
@@ -1744,7 +1740,7 @@ impl MIDIEvent for MIDIContinueEvent {
         0xFB
     }
 
-    fn set_property(&mut self, _: u8, bytes: Vec<u8>) { }
+    fn set_property(&mut self, _: u8, _bytes: Vec<u8>) { }
     fn get_property(&self, _: u8) -> Vec<u8> {
         Vec::new()
     }
@@ -1766,7 +1762,7 @@ impl MIDIEvent for MIDIStopEvent {
         0xFC
     }
 
-    fn set_property(&mut self, _: u8, bytes: Vec<u8>) { }
+    fn set_property(&mut self, _: u8, _bytes: Vec<u8>) { }
 
     fn get_property(&self, _: u8) -> Vec<u8> {
         Vec::new()
@@ -1789,7 +1785,7 @@ impl MIDIEvent for ActiveSenseEvent {
         0xFE
     }
 
-    fn set_property(&mut self, _: u8, bytes: Vec<u8>) { }
+    fn set_property(&mut self, _: u8, _bytes: Vec<u8>) { }
 
     fn get_property(&self, _: u8) -> Vec<u8> {
         Vec::new()
@@ -1812,7 +1808,7 @@ impl MIDIEvent for ResetEvent {
         0xFF
     }
 
-    fn set_property(&mut self, _: u8, bytes: Vec<u8>) { }
+    fn set_property(&mut self, _: u8, _bytes: Vec<u8>) { }
 
     fn get_property(&self, _: u8) -> Vec<u8> {
         Vec::new()
@@ -1867,7 +1863,7 @@ impl MIDI {
                     Ok(meta) => {
                         meta.len()
                     }
-                    Err(e) => {
+                    Err(_) => {
                         0
                     }
                 };
@@ -1891,7 +1887,7 @@ impl MIDI {
         let mut sub_bytes: Vec<u8>;
         let mut chunkcount: HashMap<(u8, u8,u8, u8), u16> = HashMap::new();
         let mut current_track: usize = 0;
-        let mut current_deltatime: usize = 0;
+        let mut current_deltatime: usize;
 
         let mut chunk_type: (u8, u8, u8, u8);
 
@@ -1979,13 +1975,13 @@ impl MIDI {
             }
             0x80..=0xEF => {
                 match leadnibble {
-                    8 => {
+                    0x8 => {
                         channel = leadbyte & 0x0F;
                         b = bytes.pop().unwrap();
                         c = bytes.pop().unwrap();
                         output = Some(self.insert_event(track, *current_deltatime, NoteOffEvent::new(channel, b, c)));
                     }
-                    9 => {
+                    0x9 => {
                         channel = leadbyte & 0x0F;
                         b = bytes.pop().unwrap();
                         c = bytes.pop().unwrap();
@@ -1996,29 +1992,29 @@ impl MIDI {
                             output = Some(self.insert_event(track, *current_deltatime, NoteOnEvent::new(channel, b, c)));
                         }
                     }
-                    10 => {
+                    0xA => {
                         channel = leadbyte & 0x0F;
                         b = bytes.pop().unwrap();
                         c = bytes.pop().unwrap();
                         output = Some(self.insert_event(track, *current_deltatime, AfterTouchEvent::new(channel, b, c)));
                     }
-                    11 => {
+                    0xB => {
                         channel = leadbyte & 0x0F;
                         b = bytes.pop().unwrap();
                         c = bytes.pop().unwrap();
                         output = Some(self.insert_event(track, *current_deltatime, ControlChangeEvent::new(channel, b, c)));
                     }
-                    12 => {
+                    0xC => {
                         channel = leadbyte & 0x0F;
                         b = bytes.pop().unwrap();
                         output = Some(self.insert_event(track, *current_deltatime, ProgramChangeEvent::new(channel, b)));
                     }
-                    13 => {
+                    0xD => {
                         channel = leadbyte & 0x0F;
                         b = bytes.pop().unwrap();
                         output = Some(self.insert_event(track, *current_deltatime, ChannelPressureEvent::new(channel, b)));
                     }
-                    14 => {
+                    0xE => {
                         channel = leadbyte & 0x0F;
                         b = bytes.pop().unwrap();
                         c = bytes.pop().unwrap();
@@ -2075,7 +2071,7 @@ impl MIDI {
             0xFF => {
                 a = bytes.pop().unwrap(); // Meta Type
                 varlength = get_variable_length_number(bytes);
-                if (a == 0x51) {
+                if a == 0x51 {
                     output = Some(self.insert_event(track, *current_deltatime, SetTempoEvent::new(pop_n(bytes, varlength as usize))));
                 } else {
                     dump = Vec::new();
@@ -2090,6 +2086,14 @@ impl MIDI {
                         }
                     }
                     match a {
+                        0x01 => {
+                            match std::str::from_utf8(dump.as_slice()) {
+                                Ok(textdump) => {
+                                    output = Some(self.insert_event(track, *current_deltatime, TextEvent::new(textdump.to_string())));
+                                }
+                                Err(e) => {}
+                            };
+                        }
                         0x02 => {
                             match std::str::from_utf8(dump.as_slice()) {
                                 Ok(textdump) => {
@@ -2290,7 +2294,7 @@ impl MIDI {
     pub fn get_track_length(&self, track: usize) -> usize {
         let mut highest_tick = 0;
         for (_, (current_track, test_tick)) in self.event_positions.iter() {
-            highest_tick = std::cmp::max(highest_tick, *test_tick);
+            highest_tick = max(highest_tick, *test_tick);
         }
 
         highest_tick + 1
@@ -2455,19 +2459,58 @@ mod tests {
             0x00, 0x00, 0x00, 0x06, // Length
             0x00, 0x01, // format = 1
             0x00, 0x01, // track count = 1
-            0x00, 0x78, // bytes in midi (excluding Mthd) = 20 expressed as variable length
+            0x00, 0x1b, // bytes in midi (excluding Mthd) = 20 expressed as variable length
             0x4D, 0x54, 0x72, 0x6B, // MTrk
-            0x00, 0x00, 0x00, 0x0C, // Length
-            0x00, 0x90, 0x40, 0x18, // wait 0 ticks, turn on note 64 at volume 24 / 127
-            0x78, 0x80, 0x00, 0x40, // Wait 120 ticks, turn off note 64
+            0x00, 0x00, 0x00, 92, // Length
+
+            // EVENTS (Do not change order)
+
+            // Meta Events
+            // TimeSignature
+            0x00, 0xFF, 0x58, 0x04, 0x04, 0x04, 0x24, 0x04,
+            // Text ("ABC")
+            0x00, 0xFF, 0x01, 0x03, 0x41, 0x42, 0x43,
+            // CopyRightNotice ("ABC")
+            0x00, 0xFF, 0x02, 0x03, 0x41, 0x42, 0x43,
+            // TrackName ("ABC")
+            0x00, 0xFF, 0x03, 0x03, 0x41, 0x42, 0x43,
+            // InstrumentName ("ABC")
+            0x00, 0xFF, 0x04, 0x03, 0x41, 0x42, 0x43,
+            // Lyric ("ABC")
+            0x00, 0xFF, 0x05, 0x03, 0x41, 0x42, 0x43,
+            // Marker ("ABC")
+            0x00, 0xFF, 0x06, 0x03, 0x41, 0x42, 0x43,
+            // CuePoint ("ABC")
+            0x00, 0xFF, 0x07, 0x03, 0x41, 0x42, 0x43,
+
+            // Channel Prefix
+            0x00, 0xFF, 0x20, 0x01, 0x00,
+
+            // SetTempo (~210)
+            0x00, 0xFF, 0x51, 0x03, 0x04, 0x5c, 0x12,
+
+            // Channel Events
+            // NoteOn
+            0x00, 0x90, 0x40, 0x18,
+            // AfterTouch
+            0x30, 0xA0, 0x40, 0x50,
+            // PitchWheel
+            0x10, 0xE0, 0x00, 0x00,
+            // ChannelPressure
+            0x00, 0xD0, 0x2F,
+            // NoteOff
+            0x38, 0x80, 0x00, 0x40,
+
+
+            // EOTs are ignored
             0x00, 0xFF, 0x2F, 0x00 // EOT
         ];
         let midi = MIDI::from_bytes(midi_bytes);
 
         assert_eq!(midi.count_tracks(), 1);
         assert_eq!(midi.get_track_length(0), 121);
-        assert_eq!(midi.events.len(), 2);
-        assert_eq!(midi.event_positions.len(), 2);
+        assert_eq!(midi.events.len(), 15);
+        assert_eq!(midi.event_positions.len(), 15);
 
     }
 
@@ -2769,6 +2812,15 @@ mod tests {
                 [0xEE, *lsb, *msb]
             );
         }
+    }
+
+    #[test]
+    fn test_system_exclusive_event() {
+        let mut event = SystemExclusiveEvent::new(vec![0,0,1,0]);
+        assert_eq!(
+            event.as_bytes().as_slice(),
+            [0xF0, 0x00, 0x00, 0x01, 0x00, 0xF7]
+        );
     }
 }
 
