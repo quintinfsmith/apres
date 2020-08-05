@@ -1212,11 +1212,1206 @@ impl MIDIEvent for AfterTouchEvent {
     }
 }
 
+//ControlChangeEvents
+pub struct BankSelectEvent {
+    channel: u8,
+    value: u16 // (technically u14)
+}
+impl BankSelectEvent {
+    pub fn new(channel: u8, value: u16) -> Box<BankSelectEvent> {
+        Box::new(
+            BankSelectEvent {
+                channel: channel,
+                value: value
+            }
+        }
+    }
+}
+impl MIDIEvent for BankSelectEvent {
+    pub fn get_bytes(&self) -> Vec<u8> {
+        // This event is actually expressed as 2 separate 'MSB' and 'LSB' events in the standard
+        let mut output: Vec<u8> = Vec::new();
+
+        // MSB
+        if (self.value > 0x7F) {
+            output.push(0xB | self.channel);
+            output.push(0x00);
+            output.push((value >> 7) as u8);
+        }
+
+        // LSB
+        if (self.value & 0x7F != 0) {
+            output.push(0xB | self.channel);
+            output.push(0x00);
+            output.push((value & 0x7F) as u8);
+        }
+
+        output
+    }
+    pub fn get_property(&self, argument: u8) -> Vec<u8> {
+        match argument {
+            0 => {
+                vec![self.channel]
+            }
+            _ => {
+                vec![
+                    (self.value >> 8) as u8,
+                    (self.value & 0xFF) as u8
+                ]
+            }
+        }
+    }
+    pub fn set_property(&mut self, argument: u8, bytes: Vec<u8>) {
+        match argument {
+            0 => {
+                self.channel = bytes[0];
+            }
+            _ => {
+                self.value = (bytes[0] as u16 << 8) + (bytes[1] as u16);
+            }
+        }
+    }
+}
+pub struct ModulationWheel {
+    channel: u8,
+    value: u16
+}
+impl ModulationWheel {
+    pub fn new(channel: u8, value: u16) -> Box<ModulationWheelEvent> {
+        Box::new(
+            ModulationWheelEvent {
+                channel: channel,
+                value: value
+            }
+        }
+    }
+}
+impl MIDIEvent for ModulationWheel {
+    pub fn get_bytes(&self) -> Vec<u8> {
+        // This event is actually expressed as 2 separate 'MSB' and 'LSB' events in the standard
+        let mut output: Vec<u8> = Vec::new();
+
+        // MSB
+        if (self.value > 0x7F) {
+            output.push(0xB | self.channel);
+            output.push(0x00);
+            output.push((value >> 7) as u8);
+        }
+
+        // LSB
+        if (self.value & 0x7F != 0) {
+            output.push(0xB | self.channel);
+            output.push(0x00);
+            output.push((value & 0x7F) as u8);
+        }
+
+        output
+    }
+    pub fn get_property(&self, argument: u8) -> Vec<u8> {
+        match argument {
+            0 => {
+                vec![self.channel]
+            }
+            _ => {
+                vec![
+                    (self.value >> 8) as u8,
+                    (self.value & 0xFF) as u8
+                ]
+            }
+        }
+    }
+    pub fn set_property(&mut self, argument: u8, bytes: Vec<u8>) {
+        match argument {
+            0 => {
+                self.channel = bytes[0];
+            }
+            _ => {
+                self.value = (bytes[0] as u16 << 8) + (bytes[1] as u16);
+            }
+        }
+    }
+}
+pub struct BreathControllerEvent {
+    channel: u8,
+    value: u16 // (technically u14)
+}
+impl BreathControllerEvent {
+    pub fn new(channel: u8, value: u16) -> Box<BreathControllerEvent> {
+        Box::new(
+            BreathControllerEvent {
+                channel: channel,
+                value: value
+            }
+        )
+    }
+}
+impl MIDIEvent for BreathControllerEvent {
+    pub fn get_bytes(&self) -> Vec<u8> {
+        // This event is actually expressed as 2 separate 'MSB' and 'LSB' events in the standard
+        let mut output: Vec<u8> = Vec::new();
+
+        // MSB
+        if (self.value > 0x7F) {
+            output.push(0xB | self.channel);
+            output.push(0x00);
+            output.push((value >> 7) as u8);
+        }
+
+        // LSB
+        if (self.value & 0x7F != 0) {
+            output.push(0xB | self.channel);
+            output.push(0x00);
+            output.push((value & 0x7F) as u8);
+        }
+
+        output
+    }
+    pub fn get_property(&self, argument: u8) -> Vec<u8> {
+        match argument {
+            0 => {
+                vec![self.channel]
+            }
+            _ => {
+                vec![
+                    (self.value >> 8) as u8,
+                    (self.value & 0xFF) as u8
+                ]
+            }
+        }
+    }
+    pub fn set_property(&mut self, argument: u8, bytes: Vec<u8>) {
+        match argument {
+            0 => {
+                self.channel = bytes[0];
+            }
+            _ => {
+                self.value = (bytes[0] as u16 << 8) + (bytes[1] as u16);
+            }
+        }
+    }
+}
+pub struct FootPedalEvent {
+    channel: u8,
+    value: u16 // (technically u14)
+}
+impl FootPedalEvent {
+    pub fn new(channel: u8, value: u16) -> Box<FootPedalEvent> {
+        Box::new(
+            FootPedalEvent {
+                channel: channel,
+                value: value
+            }
+        )
+    }
+}
+impl MIDIEvent for FootPedalEvent {
+    pub fn get_bytes(&self) -> Vec<u8> {
+        // This event is actually expressed as 2 separate 'MSB' and 'LSB' events in the standard
+        let mut output: Vec<u8> = Vec::new();
+
+        // MSB
+        if (self.value > 0x7F) {
+            output.push(0xB | self.channel);
+            output.push(0x00);
+            output.push((value >> 7) as u8);
+        }
+
+        // LSB
+        if (self.value & 0x7F != 0) {
+            output.push(0xB | self.channel);
+            output.push(0x00);
+            output.push((value & 0x7F) as u8);
+        }
+
+        output
+    }
+    pub fn get_property(&self, argument: u8) -> Vec<u8> {
+        match argument {
+            0 => {
+                vec![self.channel]
+            }
+            _ => {
+                vec![
+                    (self.value >> 8) as u8,
+                    (self.value & 0xFF) as u8
+                ]
+            }
+        }
+    }
+    pub fn set_property(&mut self, argument: u8, bytes: Vec<u8>) {
+        match argument {
+            0 => {
+                self.channel = bytes[0];
+            }
+            _ => {
+                self.value = (bytes[0] as u16 << 8) + (bytes[1] as u16);
+            }
+        }
+    }
+}
+
+pub struct PortamentoTimeEvent {
+    channel: u8,
+    value: u16 // (technically u14)
+}
+impl PortamentoTimeEvent {
+    pub fn new(channel: u8, value: u16) -> Box<PortamentoTimeEvent> {
+        Box::new(
+            PortamentoTimeEvent {
+                channel: channel,
+                value: value
+            }
+        )
+    }
+}
+impl MIDIEvent for PortamentoTimeEvent {
+    pub fn get_bytes(&self) -> Vec<u8> {
+        // This event is actually expressed as 2 separate 'MSB' and 'LSB' events in the standard
+        let mut output: Vec<u8> = Vec::new();
+
+        // MSB
+        if (self.value > 0x7F) {
+            output.push(0xB | self.channel);
+            output.push(0x00);
+            output.push((value >> 7) as u8);
+        }
+
+        // LSB
+        if (self.value & 0x7F != 0) {
+            output.push(0xB | self.channel);
+            output.push(0x00);
+            output.push((value & 0x7F) as u8);
+        }
+
+        output
+    }
+    pub fn get_property(&self, argument: u8) -> Vec<u8> {
+        match argument {
+            0 => {
+                vec![self.channel]
+            }
+            _ => {
+                vec![
+                    (self.value >> 8) as u8,
+                    (self.value & 0xFF) as u8
+                ]
+            }
+        }
+    }
+    pub fn set_property(&mut self, argument: u8, bytes: Vec<u8>) {
+        match argument {
+            0 => {
+                self.channel = bytes[0];
+            }
+            _ => {
+                self.value = (bytes[0] as u16 << 8) + (bytes[1] as u16);
+            }
+        }
+    }
+}
+
+pub struct DataEntrySliderEvent {
+    channel: u8,
+    value: u16, // (technically u14)
+    target: Option<u8> // if set, will create RPN event beforehand
+}
+impl DataEntrySliderEvent {
+    pub fn new(channel: u8, value: u16, target: Option<u8>) -> Box<DataEntrySliderEvent> {
+        Box::new(
+            DataEntrySliderEvent {
+                channel: channel,
+                value: value,
+                target: target
+            }
+        )
+    }
+}
+impl MIDIEvent for DataEntrySliderEvent {
+    pub fn get_bytes(&self) -> Vec<u8> {}
+    pub fn get_property(&self, _: u8) -> Vec<u8> {}
+    pub fn set_property(&mut self, _: u8, bytes: Vec<u8>) {}
+}
+pub struct VolumeEvent {
+    channel: u8,
+    value: u16 // (technically u14)
+}
+impl VolumeEvent {
+    pub fn new(channel: u8, value: u16) -> Box<VolumeEvent> {
+        Box::new(
+            VolumeEvent {
+                channel: channel,
+                value: value
+            }
+        )
+    }
+}
+impl MIDIEvent for VolumeEvent {
+    pub fn get_bytes(&self) -> Vec<u8> {
+        // This event is actually expressed as 2 separate 'MSB' and 'LSB' events in the standard
+        let mut output: Vec<u8> = Vec::new();
+
+        // MSB
+        if (self.value > 0x7F) {
+            output.push(0xB | self.channel);
+            output.push(0x00);
+            output.push((value >> 7) as u8);
+        }
+
+        // LSB
+        if (self.value & 0x7F != 0) {
+            output.push(0xB | self.channel);
+            output.push(0x00);
+            output.push((value & 0x7F) as u8);
+        }
+
+        output
+    }
+    pub fn get_property(&self, argument: u8) -> Vec<u8> {
+        match argument {
+            0 => {
+                vec![self.channel]
+            }
+            _ => {
+                vec![
+                    (self.value >> 8) as u8,
+                    (self.value & 0xFF) as u8
+                ]
+            }
+        }
+    }
+    pub fn set_property(&mut self, argument: u8, bytes: Vec<u8>) {
+        match argument {
+            0 => {
+                self.channel = bytes[0];
+            }
+            _ => {
+                self.value = (bytes[0] as u16 << 8) + (bytes[1] as u16);
+            }
+        }
+    }
+    pub fn get_bytes(&self) -> Vec<u8> {}
+    pub fn get_property(&self, _: u8) -> Vec<u8> {}
+    pub fn set_property(&mut self, _: u8, bytes: Vec<u8>) {}
+}
+pub struct BalanceEvent {
+    channel: u8,
+    value: u16 // (technically u14)
+}
+impl BalanceEvent {
+    pub fn new(channel: u8, value: u16) -> Box<BalanceEvent> {
+        Box::new(
+            BalanceEvent {
+                channel: channel,
+                value: value
+            }
+        )
+    }
+}
+impl MIDIEvent for BalanceEvent {
+    pub fn get_bytes(&self) -> Vec<u8> {
+        // This event is actually expressed as 2 separate 'MSB' and 'LSB' events in the standard
+        let mut output: Vec<u8> = Vec::new();
+
+        // MSB
+        if (self.value > 0x7F) {
+            output.push(0xB | self.channel);
+            output.push(0x00);
+            output.push((value >> 7) as u8);
+        }
+
+        // LSB
+        if (self.value & 0x7F != 0) {
+            output.push(0xB | self.channel);
+            output.push(0x00);
+            output.push((value & 0x7F) as u8);
+        }
+
+        output
+    }
+    pub fn get_property(&self, argument: u8) -> Vec<u8> {
+        match argument {
+            0 => {
+                vec![self.channel]
+            }
+            _ => {
+                vec![
+                    (self.value >> 8) as u8,
+                    (self.value & 0xFF) as u8
+                ]
+            }
+        }
+    }
+    pub fn set_property(&mut self, argument: u8, bytes: Vec<u8>) {
+        match argument {
+            0 => {
+                self.channel = bytes[0];
+            }
+            _ => {
+                self.value = (bytes[0] as u16 << 8) + (bytes[1] as u16);
+            }
+        }
+    }
+    pub fn get_bytes(&self) -> Vec<u8> {}
+    pub fn get_property(&self, _: u8) -> Vec<u8> {}
+    pub fn set_property(&mut self, _: u8, bytes: Vec<u8>) {}
+}
+
+
+pub struct PanEvent {
+    channel: u8,
+    value: u16 // (technically u14)
+}
+impl PanEvent {
+    pub fn new(channel: u8, value: u16) -> Box<PanEvent> {
+        Box::new(
+            PanEvent {
+                channel: channel,
+                value: value
+            }
+        )
+    }
+}
+impl MIDIEvent for PanEvent {
+    pub fn get_bytes(&self) -> Vec<u8> {}
+    pub fn get_property(&self, _: u8) -> Vec<u8> {}
+    pub fn set_property(&mut self, _: u8, bytes: Vec<u8>) {}
+    pub fn get_bytes(&self) -> Vec<u8> {
+        // This event is actually expressed as 2 separate 'MSB' and 'LSB' events in the standard
+        let mut output: Vec<u8> = Vec::new();
+
+        // MSB
+        if (self.value > 0x7F) {
+            output.push(0xB | self.channel);
+            output.push(0x00);
+            output.push((value >> 7) as u8);
+        }
+
+        // LSB
+        if (self.value & 0x7F != 0) {
+            output.push(0xB | self.channel);
+            output.push(0x00);
+            output.push((value & 0x7F) as u8);
+        }
+
+        output
+    }
+    pub fn get_property(&self, argument: u8) -> Vec<u8> {
+        match argument {
+            0 => {
+                vec![self.channel]
+            }
+            _ => {
+                vec![
+                    (self.value >> 8) as u8,
+                    (self.value & 0xFF) as u8
+                ]
+            }
+        }
+    }
+    pub fn set_property(&mut self, argument: u8, bytes: Vec<u8>) {
+        match argument {
+            0 => {
+                self.channel = bytes[0];
+            }
+            _ => {
+                self.value = (bytes[0] as u16 << 8) + (bytes[1] as u16);
+            }
+        }
+    }
+}
+
+
+pub struct EffectControlEvent {
+    channel: u8,
+    which: u8, // (0-1)
+    value: u16 // (technically u14)
+}
+impl EffectControlEvent {
+    pub fn new(channel: u8, which: u8 value: u16) -> Box<EffectControlEvent> {
+        Box::new(
+            EffectControlEvent {
+                channel: channel,
+                which: which,
+                value: value
+            }
+        )
+    }
+}
+impl MIDIEvent for EffectControlEvent {
+    pub fn get_bytes(&self) -> Vec<u8> {}
+    pub fn get_property(&self, _: u8) -> Vec<u8> {}
+    pub fn set_property(&mut self, _: u8, bytes: Vec<u8>) {}
+}
+
+pub struct SliderEvent {
+    channel: u8,
+    slider: u8, // (0-3)
+    value: u8 // (technically u7)
+}
+impl SliderEvent {
+    pub fn new(channel: u8, slider: u8, value: u8) -> Box<SliderEvent> {
+        Box::new(
+            SliderEvent {
+                channel: channel,
+                slider: slider,
+                value: value
+            }
+        )
+    }
+}
+impl MIDIEvent for SliderEvent {
+    pub fn get_bytes(&self) -> Vec<u8> {}
+    pub fn get_property(&self, _: u8) -> Vec<u8> {}
+    pub fn set_property(&mut self, _: u8, bytes: Vec<u8>) {}
+}
+
+pub struct HoldPedalEvent {
+    channel: u8,
+    value: u8
+}
+impl HoldPedalEvent {
+    pub fn new(channel: u8, value: u8) -> Box<HoldPedalEvent> {
+        Box::new(
+            HoldPedalEvent {
+                channel: channel,
+                value: value
+            }
+        )
+    }
+}
+impl MIDIEvent for HoldPedalEvent {
+    pub fn get_bytes(&self) -> Vec<u8> {}
+    pub fn get_property(&self, _: u8) -> Vec<u8> {}
+    pub fn set_property(&mut self, _: u8, bytes: Vec<u8>) {}
+}
+
+
+pub struct PortamentoEvent {
+    channel: u8,
+    value: u8
+}
+impl PortamentoEvent {
+    pub fn new(channel: u8, value: u8) -> Box<PortamentoEvent> {
+        Box::new(
+            PortamentoEvent {
+                channel: channel,
+                value: value
+            }
+        )
+    } 
+}
+impl MIDIEvent for PortamentoEvent {
+    pub fn get_bytes(&self) -> Vec<u8> {}
+    pub fn get_property(&self, _: u8) -> Vec<u8> {}
+    pub fn set_property(&mut self, _: u8, bytes: Vec<u8>) {}
+}
+
+pub struct SustenutoEvent {
+    channel: u8,
+    value: u8
+}
+impl SustenutoEvent {
+    pub fn new(channel: u8, value: u8) -> Box<SustenutoEvent> {
+        Box::new(
+            SustenutoEvent {
+                channel: channel,
+                value: value
+            }
+        )
+    } 
+}
+impl MIDIEvent for SustenutoEvent {
+    pub fn get_bytes(&self) -> Vec<u8> {}
+    pub fn get_property(&self, _: u8) -> Vec<u8> {}
+    pub fn set_property(&mut self, _: u8, bytes: Vec<u8>) {}
+}
+
+pub struct SoftPedalEvent {
+    channel: u8,
+    value: u8
+}
+impl SoftPedalEvent {
+    pub fn new(channel: u8, value: u8) -> Box<SoftPedalEvent> {
+        Box::new(
+            SoftPedalEvent {
+                channel: channel,
+                value: value
+            }
+        )
+    } 
+}
+impl MIDIEvent for SoftPedalEvent {
+    pub fn get_bytes(&self) -> Vec<u8> {}
+    pub fn get_property(&self, _: u8) -> Vec<u8> {}
+    pub fn set_property(&mut self, _: u8, bytes: Vec<u8>) {}
+}
+
+pub struct LegatoEvent {
+    channel: u8,
+    value: u8
+}
+impl LegatoEvent {
+    pub fn new(channel: u8, value: u8) -> Box<LegatoEvent> {
+        Box::new(
+            LegatoEvent {
+                channel: channel,
+                value: value
+            }
+        )
+    } 
+}
+impl MIDIEvent for LegatoEvent {
+    pub fn get_bytes(&self) -> Vec<u8> {}
+    pub fn get_property(&self, _: u8) -> Vec<u8> {}
+    pub fn set_property(&mut self, _: u8, bytes: Vec<u8>) {}
+}
+
+pub struct Hold2PedalEvent { // TODO: Bettwe name? Fade pedal?
+    channel: u8,
+    value: u8
+}
+impl Hold2PedalEvent {
+    pub fn new(channel: u8, value: u8) -> Box<Hold2PedalEvent> {
+        Box::new(
+            Hold2PedalEvent {
+                channel: channel,
+                value: value
+            }
+        )
+    } 
+}
+impl MIDIEvent for Hold2PedalEvent {
+    pub fn get_bytes(&self) -> Vec<u8> {}
+    pub fn get_property(&self, _: u8) -> Vec<u8> {}
+    pub fn set_property(&mut self, _: u8, bytes: Vec<u8>) {}
+}
+
+pub struct SoundVariationEvent {
+    channel: u8,
+    value: u8
+}
+impl SoundVariationEvent {
+    pub fn new(channel: u8, value: u8) -> Box<SoundVariationEvent> {
+        Box::new(
+            SoundVariationEvent {
+                channel: channel,
+                value: value
+            }
+        )
+    }
+}
+impl MIDIEvent for SoundVariationEvent {
+    pub fn get_bytes(&self) -> Vec<u8> {}
+    pub fn get_property(&self, _: u8) -> Vec<u8> {}
+    pub fn set_property(&mut self, _: u8, bytes: Vec<u8>) {}
+}
+
+pub struct SoundTimbreEvent {
+    channel: u8,
+    value: u8
+}
+impl SoundTimbreEvent {
+    pub fn new(channel: u8, value: u8) -> Box<SoundTimbreEvent> {
+        Box::new(
+            SoundTimbreEvent {
+                channel: channel,
+                value: value
+            }
+        )
+    }
+}
+impl MIDIEvent for SoundTimbreEvent {
+    pub fn get_bytes(&self) -> Vec<u8> {}
+    pub fn get_property(&self, _: u8) -> Vec<u8> {}
+    pub fn set_property(&mut self, _: u8, bytes: Vec<u8>) {}
+}
+
+pub struct SoundReleaseEvent {
+    channel: u8,
+    value: u8
+}
+impl SoundReleaseEvent {
+    pub fn new(channel: u8, value: u8) -> Box<SoundReleaseEvent> {
+        Box::new(
+            SoundReleaseEvent {
+                channel: channel,
+                value: value
+            }
+        )
+    }
+impl MIDIEvent for SoundReleaseEvent {
+    pub fn get_bytes(&self) -> Vec<u8> {}
+    pub fn get_property(&self, _: u8) -> Vec<u8> {}
+    pub fn set_property(&mut self, _: u8, bytes: Vec<u8>) {}
+}
+
+pub struct SoundAttackEvent {
+    channel: u8,
+    value: u8
+}
+impl SoundAttackEvent {
+    pub fn new(channel: u8, value: u8) -> Box<SoundAttackEvent> {
+        Box::new(
+            SoundAttackEvent {
+                channel: channel,
+                value: value
+            }
+        )
+    }
+impl MIDIEvent for SoundAttackEvent {
+    pub fn get_bytes(&self) -> Vec<u8> {}
+    pub fn get_property(&self, _: u8) -> Vec<u8> {}
+    pub fn set_property(&mut self, _: u8, bytes: Vec<u8>) {}
+}
+
+
+pub struct SoundBrightnessEvent {
+    channel: u8,
+    value: u8
+}
+impl SoundBrightnessEvent {
+    pub fn new(channel: u8, value: u8) -> Box<SoundBrightnessEvent> {
+        Box::new(
+            SoundBrightnessEvent {
+                channel: channel,
+                value: value
+            }
+        )
+    }
+}
+
+impl MIDIEvent for SoundBrightnessEvent {
+    pub fn get_bytes(&self) -> Vec<u8> {}
+    pub fn get_property(&self, _: u8) -> Vec<u8> {}
+    pub fn set_property(&mut self, _: u8, bytes: Vec<u8>) {}
+}
+
+
+pub struct SoundControlEvent {
+    channel: u8,
+    which: u8, // (0-4)
+    value: u8
+}
+impl SoundControlEvent {
+    pub fn new(channel: u8, which: u8, value: u8) -> Box<SoundControlEvent> {
+        Box::new(
+            SoundControlEvent {
+                channel: channel,
+                which: which,
+                value: value
+            }
+        )
+    }
+}
+impl MIDIEvent for SoundControlEvent {
+    pub fn get_bytes(&self) -> Vec<u8> {}
+    pub fn get_property(&self, _: u8) -> Vec<u8> {}
+    pub fn set_property(&mut self, _: u8, bytes: Vec<u8>) {}
+}
+
+pub struct GeneralButtonOnEvent {
+    channel: u8,
+    which: u8 //(0-3)
+}
+impl GeneralButtonOnEvent {
+    pub fn new(channel: u8, which: u8) -> Box<GeneralButtonEvent> {
+        Box::new(
+            GeneralButtonEvent {
+                channel: channel,
+                which: which
+            }
+        )
+    }
+}
+impl MIDIEvent for GeneralButtonOnEvent {
+    pub fn get_bytes(&self) -> Vec<u8> {}
+    pub fn get_property(&self, _: u8) -> Vec<u8> {}
+    pub fn set_property(&mut self, _: u8, bytes: Vec<u8>) {}
+}
+
+
+pub struct GeneralButtonOffEvent {
+    channel: u8,
+    which: u8 //(0-3)
+}
+impl GeneralButtonOffEvent {
+    pub fn new(channel: u8, which: u8) -> Box<GeneralButtonEvent> {
+        Box::new(
+            GeneralButtonEvent {
+                channel: channel,
+                which: which
+            }
+        )
+    }
+}
+impl MIDIEvent for GeneralButtonOffEvent {
+    pub fn get_bytes(&self) -> Vec<u8> {}
+    pub fn get_property(&self, _: u8) -> Vec<u8> {}
+    pub fn set_property(&mut self, _: u8, bytes: Vec<u8>) {}
+}
+
+
+pub struct EffectsLevelEvent {
+    channel: u8,
+    value: u8
+}
+impl EffectsLevelEvent {
+    pub fn new(channel: u8, value: u8) -> Box<EffectsLevelEvent> {
+        Box::new(
+            EffectsLevelEvent {
+                channel: channel,
+                value: value
+            }
+        )
+    }
+}
+impl MIDIEvent for EffectsLevelEvent {
+    pub fn get_bytes(&self) -> Vec<u8> {}
+    pub fn get_property(&self, _: u8) -> Vec<u8> {}
+    pub fn set_property(&mut self, _: u8, bytes: Vec<u8>) {}
+}
+
+
+pub struct TremuloLevelEvent {
+    channel: u8,
+    value: u8
+}
+impl TremuloLevelEvent {
+    pub fn new(channel: u8, value: u8) -> Box<TremuloLevelEvent> {
+        Box::new(
+            TremuloLevelEvent {
+                channel: channel,
+                value: value
+            }
+        )
+    }
+}
+impl MIDIEvent for TremuloLevelEvent {
+    pub fn get_bytes(&self) -> Vec<u8> {}
+    pub fn get_property(&self, _: u8) -> Vec<u8> {}
+    pub fn set_property(&mut self, _: u8, bytes: Vec<u8>) {}
+}
+
+
+pub struct ChorusLevelEvent {
+    channel: u8,
+    value: u8
+}
+impl ChorusLevelEvent {
+    pub fn new(channel: u8, value: u8) -> Box<ChorusLevelEvent> {
+        Box::new(
+            ChorusLevelEvent {
+                channel: channel,
+                value: value
+            }
+        )
+    }
+}
+impl MIDIEvent for ChorusLevelEvent {
+    pub fn get_bytes(&self) -> Vec<u8> {}
+    pub fn get_property(&self, _: u8) -> Vec<u8> {}
+    pub fn set_property(&mut self, _: u8, bytes: Vec<u8>) {}
+}
+
+pub struct CelesteLevelEvent {
+    channel: u8,
+    value: u8
+}
+impl CelesteLevelEvent {
+    pub fn new(channel: u8, value: u8) -> Box<CelesteLevelEvent> {
+        Box::new(
+            CelesteLevelEvent {
+                channel: channel,
+                value: value
+            }
+        )
+    }
+}
+impl MIDIEvent for CelesteLevelEvent {
+    pub fn get_bytes(&self) -> Vec<u8> {}
+    pub fn get_property(&self, _: u8) -> Vec<u8> {}
+    pub fn set_property(&mut self, _: u8, bytes: Vec<u8>) {}
+}
+
+pub struct PhaserLevelEvent {
+    channel: u8,
+    value: u8
+}
+impl PhaserLevelEvent {
+    pub fn new(channel: u8, value: u8) -> Box<PhaserLevelEvent> {
+        Box::new(
+            PhaserLevelEvent {
+                channel: channel,
+                value: value
+            }
+        )
+    }
+}
+impl MIDIEvent for PhaserLevelEvent {
+    pub fn get_bytes(&self) -> Vec<u8> {}
+    pub fn get_property(&self, _: u8) -> Vec<u8> {}
+    pub fn set_property(&mut self, _: u8, bytes: Vec<u8>) {}
+}
+
+
+pub struct DataButtonIncrementEvent {
+    channel: u8,
+    target: Option<u8> // if set, will create RPN event beforehand
+}
+impl DataButtonIncrementEvent {
+    pub fn new(channel: u8, target: Option<u8>) -> Box<DataButtonIncrementEvent> {
+        Box::new(
+            DataButtonIncrementEvent {
+                channel: channel,
+                target: target
+            }
+        )
+    } 
+}
+impl MIDIEvent for DataButtonIncrementEvent {
+    pub fn get_bytes(&self) -> Vec<u8> {}
+    pub fn get_property(&self, _: u8) -> Vec<u8> {}
+    pub fn set_property(&mut self, _: u8, bytes: Vec<u8>) {}
+}
+
+pub struct DataButtonDecrementEvent {
+    channel: u8
+    target: Option<u8> // if set, will create RPN event beforehand
+}
+impl DataButtonDecrementEvent {
+    pub fn new(channel: u8, target: Option<u8>) -> Box<DataButtonDecrementEvent> {
+        Box::new(
+            DataButtonDecrementEvent {
+                channel: channel,
+                target: target
+            }
+        )
+    }
+}
+impl MIDIEvent for DataButtonDecrementEvent {
+    pub fn get_bytes(&self) -> Vec<u8> {}
+    pub fn get_property(&self, _: u8) -> Vec<u8> {}
+    pub fn set_property(&mut self, _: u8, bytes: Vec<u8>) {}
+}
+
+
+pub struct RegisteredParameterNumberEvent {
+    channel:u8,
+    target: u8 // Status byte of the controllerchangeevent
+}
+impl RegisteredParameterNumberEvent {
+    pub fn new(channel: u8, target: u8) -> Box<RegisteredParameterNumberEvent> {
+        Box::new(
+            RegisteredParameterNumberEvent {
+                channel: channel,
+                target: target
+            }
+        )
+    }
+}
+impl MIDIEvent for RegisteredParameterNumberEvent {
+    pub fn get_bytes(&self) -> Vec<u8> {}
+    pub fn get_property(&self, _: u8) -> Vec<u8> {}
+    pub fn set_property(&mut self, _: u8, bytes: Vec<u8>) {}
+}
+
+
+pub struct NonRegisteredParameterNumberEvent {
+    channel:u8,
+    value: u16
+}
+impl NonRegisteredParameterNumberEvent {
+    pub fn new(channel: u8, value: u16) -> Box<NonRegisteredParameterNumberEvent> {
+        Box::new(
+            NonRegisteredParameterNumberEvent {
+                channel: channel,
+                value: value
+            }
+        )
+    }
+}
+impl MIDIEvent for NonRegisteredParameterNumberEvent {
+    pub fn get_bytes(&self) -> Vec<u8> {}
+    pub fn get_property(&self, _: u8) -> Vec<u8> {}
+    pub fn set_property(&mut self, _: u8, bytes: Vec<u8>) {}
+}
+
+pub struct AllControllersOffEvent {
+    channel: u8
+}
+impl AllControllersOffEvent {
+    pub fn new(channel: u8) -> Box<AllControllersOffEvent> {
+        Box::new(
+            AllControllersOffEvent {
+                channel: channel
+            }
+        )
+    }
+}
+impl MIDIEvent for AllControllersOffEvent {
+    pub fn get_bytes(&self) -> Vec<u8> {}
+    pub fn get_property(&self, _: u8) -> Vec<u8> {}
+    pub fn set_property(&mut self, _: u8, bytes: Vec<u8>) {}
+}
+
+pub struct LocalKeyBoardEnableEvent {
+    channel: u8
+}
+impl LocalKeyBoardEnableEvent {
+    pub fn new(channel: u8) -> Box<LocalKeyBoardEnableEvent> {
+        Box::new(
+            LocalKeyBoardEnableEvent {
+                channel: channel
+            }
+        )
+    }
+}
+impl MIDIEvent for LocalKeyBoardEnableEvent {
+    pub fn get_bytes(&self) -> Vec<u8> {}
+    pub fn get_property(&self, _: u8) -> Vec<u8> {}
+    pub fn set_property(&mut self, _: u8, bytes: Vec<u8>) {}
+}
+
+pub struct LocalKeyBoardDisableEvent {
+    channel: u8
+}
+impl LocalKeyBoardDisableEvent {
+    pub fn new(channel: u8) -> Box<LocalKeyBoardDisableEvent> {
+        Box::new(
+            LocalKeyBoardDisableEvent {
+                channel: channel
+            }
+        )
+    }
+}
+impl MIDIEvent for LocalKeyBoardDisableEvent {
+    pub fn get_bytes(&self) -> Vec<u8> {}
+    pub fn get_property(&self, _: u8) -> Vec<u8> {}
+    pub fn set_property(&mut self, _: u8, bytes: Vec<u8>) {}
+}
+
+
+pub struct AllNotesOffEvent {
+    channel: u8
+}
+impl AllNotesOffEvent {
+    pub fn new(channel: u8) -> Box<AllNotesOffEvent> {
+        Box::new(
+            AllNotesOffEvent {
+                channel: channel
+            }
+        )
+    }
+}
+impl MIDIEvent for AllNotesOffEvent {
+    pub fn get_bytes(&self) -> Vec<u8> {}
+    pub fn get_property(&self, _: u8) -> Vec<u8> {}
+    pub fn set_property(&mut self, _: u8, bytes: Vec<u8>) {}
+}
+
+pub struct AllSoundOffEvent {
+    channel: u8
+}
+impl AllSoundOffEvent {
+    pub fn new(channel: u8) -> Box<AllSoundOffEvent> {
+        Box::new(
+            AllSoundOffEvent {
+                channel: channel
+            }
+        )
+    }
+}
+impl MIDIEvent for AllSoundOffEvent {
+    pub fn get_bytes(&self) -> Vec<u8> {}
+    pub fn get_property(&self, _: u8) -> Vec<u8> {}
+    pub fn set_property(&mut self, _: u8, bytes: Vec<u8>) {}
+}
+
+
+pub struct OmniOffEvent {
+    channel: u8
+}
+impl OmniOffEvent {
+    pub fn new(channel: u8) -> Box<OmniOffEvent> {
+        Box::new(
+            OmniOffEvent {
+                channel: channel
+            }
+        )
+    }
+}
+impl MIDIEvent for OmniOffEvent {
+    pub fn get_bytes(&self) -> Vec<u8> {}
+    pub fn get_property(&self, _: u8) -> Vec<u8> {}
+    pub fn set_property(&mut self, _: u8, bytes: Vec<u8>) {}
+}
+
+
+pub struct OmniOnEvent {
+    channel: u8
+}
+impl OmniOnEvent {
+    pub fn new(channel: u8) -> Box<OmniOnEvent> {
+        Box::new(
+            OmniOnEvent {
+                channel: channel
+            }
+        )
+    }
+}
+impl MIDIEvent for OmniOnEvent {
+    pub fn get_bytes(&self) -> Vec<u8> {}
+    pub fn get_property(&self, _: u8) -> Vec<u8> {}
+    pub fn set_property(&mut self, _: u8, bytes: Vec<u8>) {}
+}
+
+
+pub struct MonophonicOperationEvent {
+    channel: u8,
+    value: u8
+}
+impl MonophonicOperationEvent {
+    pub fn new(channel: u8, value: u8) -> Box<MonophonicOperationEvent> {
+        Box::new(
+            MonophonicOperationEvent {
+                channel: channel,
+                value: value
+            }
+        )
+    }
+}
+impl MIDIEvent for MonophonicOperationEvent {
+    pub fn get_bytes(&self) -> Vec<u8> {}
+    pub fn get_property(&self, _: u8) -> Vec<u8> {}
+    pub fn set_property(&mut self, _: u8, bytes: Vec<u8>) {}
+}
+
+
+pub struct PolyphonicOperationEvent {
+    channel: u8
+}
+impl PolyphonicOperationEvent {
+    pub fn new(channel: u8) -> Box<PolyphonicOperationEvent> {
+        Box::new(
+            PolyphonicOperationEvent {
+                channel: channel
+            }
+        )
+    }
+}
+impl MIDIEvent for PolyphonicOperationEvent {
+    pub fn get_bytes(&self) -> Vec<u8> {}
+    pub fn get_property(&self, _: u8) -> Vec<u8> {}
+    pub fn set_property(&mut self, _: u8, bytes: Vec<u8>) {}
+}
+
+// End ControlChangeEvents
 pub struct ControlChangeEvent {
 	channel: u8,
 	controller: u8,
 	value: u8
 }
+
 impl ControlChangeEvent {
     pub fn new(channel: u8, controller: u8, value:u8) -> Box<ControlChangeEvent> {
         Box::new(
@@ -1228,6 +2423,7 @@ impl ControlChangeEvent {
         )
     }
 }
+
 impl MIDIEvent for ControlChangeEvent {
     fn as_bytes(&self) -> Vec<u8> {
         vec![
