@@ -321,6 +321,7 @@ impl TextEvent {
         )
     }
 }
+
 impl MIDIEvent for TextEvent {
     fn as_bytes(&self) -> Vec<u8> {
         let text_bytes = self.text.as_bytes();
@@ -1213,6 +1214,26 @@ impl MIDIEvent for AfterTouchEvent {
 }
 
 //ControlChangeEvents
+fn gen_coarse_fine_bytes(channel: u8, value: u16, coarse_offset: u8, fine_offset: u8) -> Vec<u8> {
+    let mut output: Vec<u8> = Vec::new();
+
+    // MSB
+    if (value > 0x7F) {
+        output.push(0xB | channel);
+        output.push(coarse_offset);
+        output.push((value >> 7) as u8);
+    }
+
+    // LSB
+    if (value & 0x7F != 0) {
+        output.push(0xB | channel);
+        output.push(fine_offset);
+        output.push((value & 0x7F) as u8);
+    }
+
+    output
+}
+
 pub struct BankSelectEvent {
     channel: u8,
     value: u16 // (technically u14)
@@ -1229,24 +1250,11 @@ impl BankSelectEvent {
 }
 impl MIDIEvent for BankSelectEvent {
     pub fn get_bytes(&self) -> Vec<u8> {
-        // This event is actually expressed as 2 separate 'MSB' and 'LSB' events in the standard
-        let mut output: Vec<u8> = Vec::new();
-
-        // MSB
-        if (self.value > 0x7F) {
-            output.push(0xB | self.channel);
-            output.push(0x00);
-            output.push((value >> 7) as u8);
-        }
-
-        // LSB
-        if (self.value & 0x7F != 0) {
-            output.push(0xB | self.channel);
-            output.push(0x00);
-            output.push((value & 0x7F) as u8);
-        }
-
-        output
+        gen_coarse_fine_bytes(
+            self.channel,
+            self.value,
+            0x00, 0x20
+        )
     }
     pub fn get_property(&self, argument: u8) -> Vec<u8> {
         match argument {
@@ -1272,40 +1280,28 @@ impl MIDIEvent for BankSelectEvent {
         }
     }
 }
-pub struct ModulationWheel {
+
+pub struct ModulationWheelEvent {
     channel: u8,
     value: u16
 }
-impl ModulationWheel {
-    pub fn new(channel: u8, value: u16) -> Box<ModulationWheelEvent> {
+impl ModulationWheelEvent {
+    pub fn new(channel: u8, value: u16) -> Box<ModulationWheelEventEvent> {
         Box::new(
-            ModulationWheelEvent {
+            ModulationWheelEventEvent {
                 channel: channel,
                 value: value
             }
         }
     }
 }
-impl MIDIEvent for ModulationWheel {
+impl MIDIEvent for ModulationWheelEvent {
     pub fn get_bytes(&self) -> Vec<u8> {
-        // This event is actually expressed as 2 separate 'MSB' and 'LSB' events in the standard
-        let mut output: Vec<u8> = Vec::new();
-
-        // MSB
-        if (self.value > 0x7F) {
-            output.push(0xB | self.channel);
-            output.push(0x00);
-            output.push((value >> 7) as u8);
-        }
-
-        // LSB
-        if (self.value & 0x7F != 0) {
-            output.push(0xB | self.channel);
-            output.push(0x00);
-            output.push((value & 0x7F) as u8);
-        }
-
-        output
+        gen_coarse_fine_bytes(
+            self.channel,
+            self.value,
+            0x01, 0x21
+        )
     }
     pub fn get_property(&self, argument: u8) -> Vec<u8> {
         match argument {
@@ -1347,24 +1343,11 @@ impl BreathControllerEvent {
 }
 impl MIDIEvent for BreathControllerEvent {
     pub fn get_bytes(&self) -> Vec<u8> {
-        // This event is actually expressed as 2 separate 'MSB' and 'LSB' events in the standard
-        let mut output: Vec<u8> = Vec::new();
-
-        // MSB
-        if (self.value > 0x7F) {
-            output.push(0xB | self.channel);
-            output.push(0x00);
-            output.push((value >> 7) as u8);
-        }
-
-        // LSB
-        if (self.value & 0x7F != 0) {
-            output.push(0xB | self.channel);
-            output.push(0x00);
-            output.push((value & 0x7F) as u8);
-        }
-
-        output
+        gen_coarse_fine_bytes(
+            self.channel,
+            self.value,
+            0x02, 0x22
+        )
     }
     pub fn get_property(&self, argument: u8) -> Vec<u8> {
         match argument {
@@ -1406,24 +1389,11 @@ impl FootPedalEvent {
 }
 impl MIDIEvent for FootPedalEvent {
     pub fn get_bytes(&self) -> Vec<u8> {
-        // This event is actually expressed as 2 separate 'MSB' and 'LSB' events in the standard
-        let mut output: Vec<u8> = Vec::new();
-
-        // MSB
-        if (self.value > 0x7F) {
-            output.push(0xB | self.channel);
-            output.push(0x00);
-            output.push((value >> 7) as u8);
-        }
-
-        // LSB
-        if (self.value & 0x7F != 0) {
-            output.push(0xB | self.channel);
-            output.push(0x00);
-            output.push((value & 0x7F) as u8);
-        }
-
-        output
+        gen_coarse_fine_bytes(
+            self.channel,
+            self.value,
+            0x04, 0x24
+        )
     }
     pub fn get_property(&self, argument: u8) -> Vec<u8> {
         match argument {
@@ -1466,24 +1436,11 @@ impl PortamentoTimeEvent {
 }
 impl MIDIEvent for PortamentoTimeEvent {
     pub fn get_bytes(&self) -> Vec<u8> {
-        // This event is actually expressed as 2 separate 'MSB' and 'LSB' events in the standard
-        let mut output: Vec<u8> = Vec::new();
-
-        // MSB
-        if (self.value > 0x7F) {
-            output.push(0xB | self.channel);
-            output.push(0x00);
-            output.push((value >> 7) as u8);
-        }
-
-        // LSB
-        if (self.value & 0x7F != 0) {
-            output.push(0xB | self.channel);
-            output.push(0x00);
-            output.push((value & 0x7F) as u8);
-        }
-
-        output
+        gen_coarse_fine_bytes(
+            self.channel,
+            self.value,
+            0x05, 0x25
+        )
     }
     pub fn get_property(&self, argument: u8) -> Vec<u8> {
         match argument {
@@ -1527,10 +1484,30 @@ impl DataEntrySliderEvent {
     }
 }
 impl MIDIEvent for DataEntrySliderEvent {
-    pub fn get_bytes(&self) -> Vec<u8> {}
+    pub fn get_bytes(&self) -> Vec<u8> {
+        let mut output: Vec<u8> = Vec::new();
+
+        // if target is defined, include an RPN event before the DataEntrySlider event bytes
+        match self.target {
+            Some(target) => {
+                let rpn = RegisteredParameterNumberEvent::new(self.channel, target);
+                output.extend(rpn.as_bytes().iter().copied());
+            }
+            None => ()
+        }
+        let suboutput = gen_coarse_fine_bytes(
+            self.channel,
+            self.value,
+            0x06, 0x26
+        );
+        output.extend(suboutput.iter().copied());
+
+        output
+    }
     pub fn get_property(&self, _: u8) -> Vec<u8> {}
     pub fn set_property(&mut self, _: u8, bytes: Vec<u8>) {}
 }
+
 pub struct VolumeEvent {
     channel: u8,
     value: u16 // (technically u14)
@@ -1545,26 +1522,14 @@ impl VolumeEvent {
         )
     }
 }
+
 impl MIDIEvent for VolumeEvent {
     pub fn get_bytes(&self) -> Vec<u8> {
-        // This event is actually expressed as 2 separate 'MSB' and 'LSB' events in the standard
-        let mut output: Vec<u8> = Vec::new();
-
-        // MSB
-        if (self.value > 0x7F) {
-            output.push(0xB | self.channel);
-            output.push(0x00);
-            output.push((value >> 7) as u8);
-        }
-
-        // LSB
-        if (self.value & 0x7F != 0) {
-            output.push(0xB | self.channel);
-            output.push(0x00);
-            output.push((value & 0x7F) as u8);
-        }
-
-        output
+        gen_coarse_fine_bytes(
+            self.channel,
+            self.value,
+            0x07, 0x27
+        )
     }
     pub fn get_property(&self, argument: u8) -> Vec<u8> {
         match argument {
@@ -1589,9 +1554,6 @@ impl MIDIEvent for VolumeEvent {
             }
         }
     }
-    pub fn get_bytes(&self) -> Vec<u8> {}
-    pub fn get_property(&self, _: u8) -> Vec<u8> {}
-    pub fn set_property(&mut self, _: u8, bytes: Vec<u8>) {}
 }
 pub struct BalanceEvent {
     channel: u8,
@@ -1609,24 +1571,11 @@ impl BalanceEvent {
 }
 impl MIDIEvent for BalanceEvent {
     pub fn get_bytes(&self) -> Vec<u8> {
-        // This event is actually expressed as 2 separate 'MSB' and 'LSB' events in the standard
-        let mut output: Vec<u8> = Vec::new();
-
-        // MSB
-        if (self.value > 0x7F) {
-            output.push(0xB | self.channel);
-            output.push(0x00);
-            output.push((value >> 7) as u8);
-        }
-
-        // LSB
-        if (self.value & 0x7F != 0) {
-            output.push(0xB | self.channel);
-            output.push(0x00);
-            output.push((value & 0x7F) as u8);
-        }
-
-        output
+        gen_coarse_fine_bytes(
+            self.channel,
+            self.value,
+            0x08, 0x28
+        )
     }
     pub fn get_property(&self, argument: u8) -> Vec<u8> {
         match argument {
@@ -1651,9 +1600,6 @@ impl MIDIEvent for BalanceEvent {
             }
         }
     }
-    pub fn get_bytes(&self) -> Vec<u8> {}
-    pub fn get_property(&self, _: u8) -> Vec<u8> {}
-    pub fn set_property(&mut self, _: u8, bytes: Vec<u8>) {}
 }
 
 
@@ -1672,28 +1618,58 @@ impl PanEvent {
     }
 }
 impl MIDIEvent for PanEvent {
-    pub fn get_bytes(&self) -> Vec<u8> {}
-    pub fn get_property(&self, _: u8) -> Vec<u8> {}
-    pub fn set_property(&mut self, _: u8, bytes: Vec<u8>) {}
     pub fn get_bytes(&self) -> Vec<u8> {
-        // This event is actually expressed as 2 separate 'MSB' and 'LSB' events in the standard
-        let mut output: Vec<u8> = Vec::new();
-
-        // MSB
-        if (self.value > 0x7F) {
-            output.push(0xB | self.channel);
-            output.push(0x00);
-            output.push((value >> 7) as u8);
+        gen_coarse_fine_bytes(
+            self.channel,
+            self.value,
+            0x0A, 0x2A
+        )
+    }
+    pub fn get_property(&self, argument: u8) -> Vec<u8> {
+        match argument {
+            0 => {
+                vec![self.channel]
+            }
+            _ => {
+                vec![
+                    (self.value >> 8) as u8,
+                    (self.value & 0xFF) as u8
+                ]
+            }
         }
-
-        // LSB
-        if (self.value & 0x7F != 0) {
-            output.push(0xB | self.channel);
-            output.push(0x00);
-            output.push((value & 0x7F) as u8);
+    }
+    pub fn set_property(&mut self, argument: u8, bytes: Vec<u8>) {
+        match argument {
+            0 => {
+                self.channel = bytes[0];
+            }
+            _ => {
+                self.value = (bytes[0] as u16 << 8) + (bytes[1] as u16);
+            }
         }
-
-        output
+    }
+}
+pub struct ExpressionEvent {
+    channel: u8,
+    value: u16 // (technically u14)
+}
+impl ExpressionEvent {
+    pub fn new(channel: u8, value: u16) -> Box<ExpressionEvent> {
+        Box::new(
+            ExpressionEvent {
+                channel: channel,
+                value: value
+            }
+        )
+    }
+}
+impl MIDIEvent for ExpressionEvent {
+    pub fn get_bytes(&self) -> Vec<u8> {
+        gen_coarse_fine_bytes(
+            self.channel,
+            self.value,
+            0x0B, 0x2B
+        )
     }
     pub fn get_property(&self, argument: u8) -> Vec<u8> {
         match argument {
@@ -1720,7 +1696,6 @@ impl MIDIEvent for PanEvent {
     }
 }
 
-
 pub struct EffectControlEvent {
     channel: u8,
     which: u8, // (0-1)
@@ -1738,31 +1713,97 @@ impl EffectControlEvent {
     }
 }
 impl MIDIEvent for EffectControlEvent {
-    pub fn get_bytes(&self) -> Vec<u8> {}
-    pub fn get_property(&self, _: u8) -> Vec<u8> {}
-    pub fn set_property(&mut self, _: u8, bytes: Vec<u8>) {}
+    pub fn get_bytes(&self) -> Vec<u8> {
+        gen_coarse_fine_bytes(
+            self.channel,
+            self.value,
+            0x0C + self.which
+        )
+    }
+    pub fn get_property(&self, argument: u8) -> Vec<u8> {
+        match argument {
+            0 => {
+                vec![self.channel]
+            }
+            1 => {
+                vec![
+                    (self.value >> 8) as u8,
+                    (self.value & 0xFF) as u8
+                ]
+            }
+            _ => {
+                vec![self.which]
+            }
+        }
+    }
+    pub fn set_property(&mut self, argument: u8, bytes: Vec<u8>) {
+        match argument {
+            0 => {
+                self.channel = bytes[0];
+            }
+            1 => {
+                self.value = (bytes[0] as u16 << 8) + (bytes[1] as u16);
+            }
+            _ => {
+                self.which = self.bytes[0]
+            }
+        }
+    }
 }
 
 pub struct SliderEvent {
     channel: u8,
-    slider: u8, // (0-3)
+    which: u8, // (0-3)
     value: u8 // (technically u7)
 }
 impl SliderEvent {
-    pub fn new(channel: u8, slider: u8, value: u8) -> Box<SliderEvent> {
+    pub fn new(channel: u8, which: u8, value: u8) -> Box<SliderEvent> {
         Box::new(
             SliderEvent {
                 channel: channel,
-                slider: slider,
+                which: which,
                 value: value
             }
         )
     }
 }
 impl MIDIEvent for SliderEvent {
-    pub fn get_bytes(&self) -> Vec<u8> {}
-    pub fn get_property(&self, _: u8) -> Vec<u8> {}
-    pub fn set_property(&mut self, _: u8, bytes: Vec<u8>) {}
+    pub fn get_bytes(&self) -> Vec<u8> {
+        vec![
+            0xB | self.channel,
+            0x10 + self.which as u8,
+            self.value
+        ]
+    }
+    pub fn get_property(&self, argument: u8) -> Vec<u8> {
+        match argument {
+            0 => {
+                vec![self.channel]
+            }
+            1 => {
+                vec![
+                    (self.value >> 8) as u8,
+                    (self.value & 0xFF) as u8
+                ]
+            }
+            _ => {
+                vec![self.which]
+            }
+        }
+    }
+    pub fn set_property(&mut self, argument: u8, bytes: Vec<u8>) {
+        match argument {
+            0 => {
+                self.channel = bytes[0];
+            }
+            1 => {
+                self.value = (bytes[0] as u16 << 8) + (bytes[1] as u16);
+            }
+            _ => {
+                self.which = self.bytes[0]
+            }
+        }
+    }
 }
 
 pub struct HoldPedalEvent {
@@ -1780,9 +1821,33 @@ impl HoldPedalEvent {
     }
 }
 impl MIDIEvent for HoldPedalEvent {
-    pub fn get_bytes(&self) -> Vec<u8> {}
-    pub fn get_property(&self, _: u8) -> Vec<u8> {}
-    pub fn set_property(&mut self, _: u8, bytes: Vec<u8>) {}
+    pub fn get_bytes(&self) -> Vec<u8> {
+        vec![
+            0xB0 | self.channel,
+            0x40,
+            self.value
+        ]
+    }
+    pub fn get_property(&self, argument: u8) -> Vec<u8> {
+        match argument {
+            0 => {
+                vec![self.channel]
+            }
+            _ => {
+                vec![self.value]
+            }
+        }
+    }
+    pub fn set_property(&mut self, argument: u8, bytes: Vec<u8>) {
+        match argument {
+            0 => {
+                self.channel = bytes[0];
+            }
+            _ => {
+                self.value = bytes[0];
+            }
+        }
+    }
 }
 
 
@@ -1798,18 +1863,43 @@ impl PortamentoEvent {
                 value: value
             }
         )
-    } 
+    }
 }
 impl MIDIEvent for PortamentoEvent {
-    pub fn get_bytes(&self) -> Vec<u8> {}
-    pub fn get_property(&self, _: u8) -> Vec<u8> {}
-    pub fn set_property(&mut self, _: u8, bytes: Vec<u8>) {}
+    pub fn get_bytes(&self) -> vec<u8> {
+        vec![
+            0xb0 | self.channel,
+            0x41,
+            self.value
+        ]
+    }
+    pub fn get_property(&self, argument: u8) -> Vec<u8> {
+        match argument {
+            0 => {
+                vec![self.channel]
+            }
+            _ => {
+                vec![self.value]
+            }
+        }
+    }
+    pub fn set_property(&mut self, argument: u8, bytes: Vec<u8>) {
+        match argument {
+            0 => {
+                self.channel = bytes[0];
+            }
+            _ => {
+                self.value = bytes[0];
+            }
+        }
+    }
 }
 
 pub struct SustenutoEvent {
     channel: u8,
     value: u8
 }
+
 impl SustenutoEvent {
     pub fn new(channel: u8, value: u8) -> Box<SustenutoEvent> {
         Box::new(
@@ -1818,12 +1908,36 @@ impl SustenutoEvent {
                 value: value
             }
         )
-    } 
+    }
 }
 impl MIDIEvent for SustenutoEvent {
-    pub fn get_bytes(&self) -> Vec<u8> {}
-    pub fn get_property(&self, _: u8) -> Vec<u8> {}
-    pub fn set_property(&mut self, _: u8, bytes: Vec<u8>) {}
+    pub fn get_bytes(&self) -> vec<u8> {
+        vec![
+            0xb0 | self.channel,
+            0x42,
+            self.value
+        ]
+    }
+    pub fn get_property(&self, argument: u8) -> Vec<u8> {
+        match argument {
+            0 => {
+                vec![self.channel]
+            }
+            _ => {
+                vec![self.value]
+            }
+        }
+    }
+    pub fn set_property(&mut self, argument: u8, bytes: Vec<u8>) {
+        match argument {
+            0 => {
+                self.channel = bytes[0];
+            }
+            _ => {
+                self.value = bytes[0];
+            }
+        }
+    }
 }
 
 pub struct SoftPedalEvent {
@@ -1838,12 +1952,36 @@ impl SoftPedalEvent {
                 value: value
             }
         )
-    } 
+    }
 }
 impl MIDIEvent for SoftPedalEvent {
-    pub fn get_bytes(&self) -> Vec<u8> {}
-    pub fn get_property(&self, _: u8) -> Vec<u8> {}
-    pub fn set_property(&mut self, _: u8, bytes: Vec<u8>) {}
+    pub fn get_bytes(&self) -> vec<u8> {
+        vec![
+            0xb0 | self.channel,
+            0x43,
+            self.value
+        ]
+    }
+    pub fn get_property(&self, argument: u8) -> Vec<u8> {
+        match argument {
+            0 => {
+                vec![self.channel]
+            }
+            _ => {
+                vec![self.value]
+            }
+        }
+    }
+    pub fn set_property(&mut self, argument: u8, bytes: Vec<u8>) {
+        match argument {
+            0 => {
+                self.channel = bytes[0];
+            }
+            _ => {
+                self.value = bytes[0];
+            }
+        }
+    }
 }
 
 pub struct LegatoEvent {
@@ -1861,9 +1999,33 @@ impl LegatoEvent {
     } 
 }
 impl MIDIEvent for LegatoEvent {
-    pub fn get_bytes(&self) -> Vec<u8> {}
-    pub fn get_property(&self, _: u8) -> Vec<u8> {}
-    pub fn set_property(&mut self, _: u8, bytes: Vec<u8>) {}
+    pub fn get_bytes(&self) -> vec<u8> {
+        vec![
+            0xb0 | self.channel,
+            0x44,
+            self.value
+        ]
+    }
+    pub fn get_property(&self, argument: u8) -> Vec<u8> {
+        match argument {
+            0 => {
+                vec![self.channel]
+            }
+            _ => {
+                vec![self.value]
+            }
+        }
+    }
+    pub fn set_property(&mut self, argument: u8, bytes: Vec<u8>) {
+        match argument {
+            0 => {
+                self.channel = bytes[0];
+            }
+            _ => {
+                self.value = bytes[0];
+            }
+        }
+    }
 }
 
 pub struct Hold2PedalEvent { // TODO: Bettwe name? Fade pedal?
@@ -1881,9 +2043,33 @@ impl Hold2PedalEvent {
     } 
 }
 impl MIDIEvent for Hold2PedalEvent {
-    pub fn get_bytes(&self) -> Vec<u8> {}
-    pub fn get_property(&self, _: u8) -> Vec<u8> {}
-    pub fn set_property(&mut self, _: u8, bytes: Vec<u8>) {}
+    pub fn get_bytes(&self) -> vec<u8> {
+        vec![
+            0xb0 | self.channel,
+            0x45,
+            self.value
+        ]
+    }
+    pub fn get_property(&self, argument: u8) -> Vec<u8> {
+        match argument {
+            0 => {
+                vec![self.channel]
+            }
+            _ => {
+                vec![self.value]
+            }
+        }
+    }
+    pub fn set_property(&mut self, argument: u8, bytes: Vec<u8>) {
+        match argument {
+            0 => {
+                self.channel = bytes[0];
+            }
+            _ => {
+                self.value = bytes[0];
+            }
+        }
+    }
 }
 
 pub struct SoundVariationEvent {
@@ -1901,9 +2087,33 @@ impl SoundVariationEvent {
     }
 }
 impl MIDIEvent for SoundVariationEvent {
-    pub fn get_bytes(&self) -> Vec<u8> {}
-    pub fn get_property(&self, _: u8) -> Vec<u8> {}
-    pub fn set_property(&mut self, _: u8, bytes: Vec<u8>) {}
+    pub fn get_bytes(&self) -> vec<u8> {
+        vec![
+            0xb0 | self.channel,
+            0x46,
+            self.value
+        ]
+    }
+    pub fn get_property(&self, argument: u8) -> Vec<u8> {
+        match argument {
+            0 => {
+                vec![self.channel]
+            }
+            _ => {
+                vec![self.value]
+            }
+        }
+    }
+    pub fn set_property(&mut self, argument: u8, bytes: Vec<u8>) {
+        match argument {
+            0 => {
+                self.channel = bytes[0];
+            }
+            _ => {
+                self.value = bytes[0];
+            }
+        }
+    }
 }
 
 pub struct SoundTimbreEvent {
@@ -1921,28 +2131,76 @@ impl SoundTimbreEvent {
     }
 }
 impl MIDIEvent for SoundTimbreEvent {
-    pub fn get_bytes(&self) -> Vec<u8> {}
-    pub fn get_property(&self, _: u8) -> Vec<u8> {}
-    pub fn set_property(&mut self, _: u8, bytes: Vec<u8>) {}
+    pub fn get_bytes(&self) -> vec<u8> {
+        vec![
+            0xb0 | self.channel,
+            0x47,
+            self.value
+        ]
+    }
+    pub fn get_property(&self, argument: u8) -> Vec<u8> {
+        match argument {
+            0 => {
+                vec![self.channel]
+            }
+            _ => {
+                vec![self.value]
+            }
+        }
+    }
+    pub fn set_property(&mut self, argument: u8, bytes: Vec<u8>) {
+        match argument {
+            0 => {
+                self.channel = bytes[0];
+            }
+            _ => {
+                self.value = bytes[0];
+            }
+        }
+    }
 }
 
-pub struct SoundReleaseEvent {
+pub struct SoundReleaseTimeEvent {
     channel: u8,
     value: u8
 }
-impl SoundReleaseEvent {
-    pub fn new(channel: u8, value: u8) -> Box<SoundReleaseEvent> {
+impl SoundReleaseTimeEvent {
+    pub fn new(channel: u8, value: u8) -> Box<SoundReleaseTimeEvent> {
         Box::new(
-            SoundReleaseEvent {
+            SoundReleaseTimeEvent {
                 channel: channel,
                 value: value
             }
         )
     }
-impl MIDIEvent for SoundReleaseEvent {
-    pub fn get_bytes(&self) -> Vec<u8> {}
-    pub fn get_property(&self, _: u8) -> Vec<u8> {}
-    pub fn set_property(&mut self, _: u8, bytes: Vec<u8>) {}
+impl MIDIEvent for SoundReleaseTimeEvent {
+    pub fn get_bytes(&self) -> vec<u8> {
+        vec![
+            0xb0 | self.channel,
+            0x48,
+            self.value
+        ]
+    }
+    pub fn get_property(&self, argument: u8) -> Vec<u8> {
+        match argument {
+            0 => {
+                vec![self.channel]
+            }
+            _ => {
+                vec![self.value]
+            }
+        }
+    }
+    pub fn set_property(&mut self, argument: u8, bytes: Vec<u8>) {
+        match argument {
+            0 => {
+                self.channel = bytes[0];
+            }
+            _ => {
+                self.value = bytes[0];
+            }
+        }
+    }
 }
 
 pub struct SoundAttackEvent {
@@ -1959,9 +2217,33 @@ impl SoundAttackEvent {
         )
     }
 impl MIDIEvent for SoundAttackEvent {
-    pub fn get_bytes(&self) -> Vec<u8> {}
-    pub fn get_property(&self, _: u8) -> Vec<u8> {}
-    pub fn set_property(&mut self, _: u8, bytes: Vec<u8>) {}
+    pub fn get_bytes(&self) -> vec<u8> {
+        vec![
+            0xb0 | self.channel,
+            0x49,
+            self.value
+        ]
+    }
+    pub fn get_property(&self, argument: u8) -> Vec<u8> {
+        match argument {
+            0 => {
+                vec![self.channel]
+            }
+            _ => {
+                vec![self.value]
+            }
+        }
+    }
+    pub fn set_property(&mut self, argument: u8, bytes: Vec<u8>) {
+        match argument {
+            0 => {
+                self.channel = bytes[0];
+            }
+            _ => {
+                self.value = bytes[0];
+            }
+        }
+    }
 }
 
 
@@ -1981,9 +2263,33 @@ impl SoundBrightnessEvent {
 }
 
 impl MIDIEvent for SoundBrightnessEvent {
-    pub fn get_bytes(&self) -> Vec<u8> {}
-    pub fn get_property(&self, _: u8) -> Vec<u8> {}
-    pub fn set_property(&mut self, _: u8, bytes: Vec<u8>) {}
+    pub fn get_bytes(&self) -> vec<u8> {
+        vec![
+            0xb0 | self.channel,
+            0x4A,
+            self.value
+        ]
+    }
+    pub fn get_property(&self, argument: u8) -> Vec<u8> {
+        match argument {
+            0 => {
+                vec![self.channel]
+            }
+            _ => {
+                vec![self.value]
+            }
+        }
+    }
+    pub fn set_property(&mut self, argument: u8, bytes: Vec<u8>) {
+        match argument {
+            0 => {
+                self.channel = bytes[0];
+            }
+            _ => {
+                self.value = bytes[0];
+            }
+        }
+    }
 }
 
 
@@ -2004,9 +2310,33 @@ impl SoundControlEvent {
     }
 }
 impl MIDIEvent for SoundControlEvent {
-    pub fn get_bytes(&self) -> Vec<u8> {}
-    pub fn get_property(&self, _: u8) -> Vec<u8> {}
-    pub fn set_property(&mut self, _: u8, bytes: Vec<u8>) {}
+    pub fn get_bytes(&self) -> vec<u8> {
+        vec![
+            0xb0 | self.channel,
+            0x4B + self.which,
+            self.value
+        ]
+    }
+    pub fn get_property(&self, argument: u8) -> vec<u8> {
+        match argument {
+            0 => {
+                self.value
+            }
+            _ => {
+                self.which
+            }
+        }
+    }
+    pub fn set_property(&mut self, argument: u8, bytes: vec<u8>) {
+        match argument {
+            0 => {
+                self.value = bytes[0]
+            }
+            _ => {
+                self.which = bytes[0]
+            }
+        }
+    }
 }
 
 pub struct GeneralButtonOnEvent {
@@ -2024,9 +2354,32 @@ impl GeneralButtonOnEvent {
     }
 }
 impl MIDIEvent for GeneralButtonOnEvent {
-    pub fn get_bytes(&self) -> Vec<u8> {}
-    pub fn get_property(&self, _: u8) -> Vec<u8> {}
-    pub fn set_property(&mut self, _: u8, bytes: Vec<u8>) {}
+    pub fn get_bytes(&self) -> Vec<u8> {
+        vec![
+            0xB0 | self.channel,
+            0x50 + self.which,
+            0b01000000
+    }
+    pub fn get_property(&self, argument: u8) -> Vec<u8> {
+        match argument {
+            0 => {
+                vec![self.channel]
+            }
+            _ => {
+                vec![self.which]
+            }
+        }
+    }
+    pub fn set_property(&mut self, argument: u8, bytes: Vec<u8>) {
+        match argument {
+            0 => {
+                self.channel = bytes[0];
+            }
+            _ => {
+                self.which = bytes[0];
+            }
+        }
+    }
 }
 
 
@@ -2045,16 +2398,39 @@ impl GeneralButtonOffEvent {
     }
 }
 impl MIDIEvent for GeneralButtonOffEvent {
-    pub fn get_bytes(&self) -> Vec<u8> {}
-    pub fn get_property(&self, _: u8) -> Vec<u8> {}
-    pub fn set_property(&mut self, _: u8, bytes: Vec<u8>) {}
+    pub fn get_bytes(&self) -> Vec<u8> {
+        vec![
+            0xB0 | self.channel,
+            0x50 + self.which,
+            0b00000000
+    }
+    pub fn get_property(&self, argument: u8) -> Vec<u8> {
+        match argument {
+            0 => {
+                vec![self.channel]
+            }
+            _ => {
+                vec![self.which]
+            }
+        }
+    }
+    pub fn set_property(&mut self, argument: u8, bytes: Vec<u8>) {
+        match argument {
+            0 => {
+                self.channel = bytes[0];
+            }
+            _ => {
+                self.which = bytes[0];
+            }
+        }
+    }
 }
-
 
 pub struct EffectsLevelEvent {
     channel: u8,
     value: u8
 }
+
 impl EffectsLevelEvent {
     pub fn new(channel: u8, value: u8) -> Box<EffectsLevelEvent> {
         Box::new(
@@ -2066,9 +2442,33 @@ impl EffectsLevelEvent {
     }
 }
 impl MIDIEvent for EffectsLevelEvent {
-    pub fn get_bytes(&self) -> Vec<u8> {}
-    pub fn get_property(&self, _: u8) -> Vec<u8> {}
-    pub fn set_property(&mut self, _: u8, bytes: Vec<u8>) {}
+    pub fn get_bytes(&self) -> vec<u8> {
+        vec![
+            0xb0 | self.channel,
+            0x5B,
+            self.value
+        ]
+    }
+    pub fn get_property(&self, argument: u8) -> Vec<u8> {
+        match argument {
+            0 => {
+                vec![self.channel]
+            }
+            _ => {
+                vec![self.value]
+            }
+        }
+    }
+    pub fn set_property(&mut self, argument: u8, bytes: Vec<u8>) {
+        match argument {
+            0 => {
+                self.channel = bytes[0];
+            }
+            _ => {
+                self.value = bytes[0];
+            }
+        }
+    }
 }
 
 
@@ -2087,9 +2487,33 @@ impl TremuloLevelEvent {
     }
 }
 impl MIDIEvent for TremuloLevelEvent {
-    pub fn get_bytes(&self) -> Vec<u8> {}
-    pub fn get_property(&self, _: u8) -> Vec<u8> {}
-    pub fn set_property(&mut self, _: u8, bytes: Vec<u8>) {}
+    pub fn get_bytes(&self) -> vec<u8> {
+        vec![
+            0xb0 | self.channel,
+            0x5C,
+            self.value
+        ]
+    }
+    pub fn get_property(&self, argument: u8) -> Vec<u8> {
+        match argument {
+            0 => {
+                vec![self.channel]
+            }
+            _ => {
+                vec![self.value]
+            }
+        }
+    }
+    pub fn set_property(&mut self, argument: u8, bytes: Vec<u8>) {
+        match argument {
+            0 => {
+                self.channel = bytes[0];
+            }
+            _ => {
+                self.value = bytes[0];
+            }
+        }
+    }
 }
 
 
@@ -2108,9 +2532,33 @@ impl ChorusLevelEvent {
     }
 }
 impl MIDIEvent for ChorusLevelEvent {
-    pub fn get_bytes(&self) -> Vec<u8> {}
-    pub fn get_property(&self, _: u8) -> Vec<u8> {}
-    pub fn set_property(&mut self, _: u8, bytes: Vec<u8>) {}
+    pub fn get_bytes(&self) -> vec<u8> {
+        vec![
+            0xb0 | self.channel,
+            0x5D,
+            self.value
+        ]
+    }
+    pub fn get_property(&self, argument: u8) -> Vec<u8> {
+        match argument {
+            0 => {
+                vec![self.channel]
+            }
+            _ => {
+                vec![self.value]
+            }
+        }
+    }
+    pub fn set_property(&mut self, argument: u8, bytes: Vec<u8>) {
+        match argument {
+            0 => {
+                self.channel = bytes[0];
+            }
+            _ => {
+                self.value = bytes[0];
+            }
+        }
+    }
 }
 
 pub struct CelesteLevelEvent {
@@ -2128,9 +2576,33 @@ impl CelesteLevelEvent {
     }
 }
 impl MIDIEvent for CelesteLevelEvent {
-    pub fn get_bytes(&self) -> Vec<u8> {}
-    pub fn get_property(&self, _: u8) -> Vec<u8> {}
-    pub fn set_property(&mut self, _: u8, bytes: Vec<u8>) {}
+    pub fn get_bytes(&self) -> vec<u8> {
+        vec![
+            0xb0 | self.channel,
+            0x5E,
+            self.value
+        ]
+    }
+    pub fn get_property(&self, argument: u8) -> Vec<u8> {
+        match argument {
+            0 => {
+                vec![self.channel]
+            }
+            _ => {
+                vec![self.value]
+            }
+        }
+    }
+    pub fn set_property(&mut self, argument: u8, bytes: Vec<u8>) {
+        match argument {
+            0 => {
+                self.channel = bytes[0];
+            }
+            _ => {
+                self.value = bytes[0];
+            }
+        }
+    }
 }
 
 pub struct PhaserLevelEvent {
@@ -2148,9 +2620,33 @@ impl PhaserLevelEvent {
     }
 }
 impl MIDIEvent for PhaserLevelEvent {
-    pub fn get_bytes(&self) -> Vec<u8> {}
-    pub fn get_property(&self, _: u8) -> Vec<u8> {}
-    pub fn set_property(&mut self, _: u8, bytes: Vec<u8>) {}
+    pub fn get_bytes(&self) -> vec<u8> {
+        vec![
+            0xb0 | self.channel,
+            0x5F,
+            self.value
+        ]
+    }
+    pub fn get_property(&self, argument: u8) -> Vec<u8> {
+        match argument {
+            0 => {
+                vec![self.channel]
+            }
+            _ => {
+                vec![self.value]
+            }
+        }
+    }
+    pub fn set_property(&mut self, argument: u8, bytes: Vec<u8>) {
+        match argument {
+            0 => {
+                self.channel = bytes[0];
+            }
+            _ => {
+                self.value = bytes[0];
+            }
+        }
+    }
 }
 
 
@@ -2166,12 +2662,61 @@ impl DataButtonIncrementEvent {
                 target: target
             }
         )
-    } 
+    }
 }
 impl MIDIEvent for DataButtonIncrementEvent {
-    pub fn get_bytes(&self) -> Vec<u8> {}
-    pub fn get_property(&self, _: u8) -> Vec<u8> {}
-    pub fn set_property(&mut self, _: u8, bytes: Vec<u8>) {}
+    pub fn get_bytes(&self) -> Vec<u8> {
+        let mut output = Vec::new();
+
+        // if target is defined, include an RPN event before the DataEntrySlider event bytes
+        match self.target {
+            Some(target) => {
+                let rpn = RegisteredParameterNumberEvent::new(self.channel, target);
+                output.extend(rpn.as_bytes().iter().copied());
+            }
+            None => ()
+        }
+
+        output.push(0xB0 | self.channel);
+        output.push(0x60);
+        output.push(0x00);
+
+        output
+    }
+
+    // target is sent +1, 0 indicating no target
+    pub fn get_property(&self, argument: u8) -> Vec<u8> {
+        match argument {
+            0 => {
+                vec![self.channel]
+            }
+            _ => {
+                match self.target {
+                    Some(n) => {
+                        vec![n + 1]
+                    }
+                    None => {
+                        0
+                    }
+                }
+            }
+        }
+    }
+    // target is received as +1, 0 indicating no target
+    pub fn set_property(&mut self, _: u8, bytes: Vec<u8>) {
+        match argument {
+            0 => {
+                self.channel = bytes[0];
+            }
+            _ => {
+                if bytes[0] > 0 {
+                    self.target = Some(bytes[0]);
+                } else {
+                    self.target = None;
+                }
+            }
+        }
+    }
 }
 
 pub struct DataButtonDecrementEvent {
@@ -2189,30 +2734,106 @@ impl DataButtonDecrementEvent {
     }
 }
 impl MIDIEvent for DataButtonDecrementEvent {
-    pub fn get_bytes(&self) -> Vec<u8> {}
-    pub fn get_property(&self, _: u8) -> Vec<u8> {}
-    pub fn set_property(&mut self, _: u8, bytes: Vec<u8>) {}
+    pub fn get_bytes(&self) -> Vec<u8> {
+        let mut output = Vec::new();
+
+        // if target is defined, include an RPN event before the DataEntrySlider event bytes
+        match self.target {
+            Some(target) => {
+                let rpn = RegisteredParameterNumberEvent::new(self.channel, target);
+                output.extend(rpn.as_bytes().iter().copied());
+            }
+            None => ()
+        }
+
+        output.push(0xB0 | self.channel);
+        output.push(0x61);
+        output.push(0x00);
+
+        output
+    }
+
+    // target is sent +1, 0 indicating no target
+    pub fn get_property(&self, argument: u8) -> Vec<u8> {
+        match argument {
+            0 => {
+                vec![self.channel]
+            }
+            _ => {
+                match self.target {
+                    Some(n) => {
+                        vec![n + 1]
+                    }
+                    None => {
+                        0
+                    }
+                }
+            }
+        }
+    }
+    // target is received as +1, 0 indicating no target
+    pub fn set_property(&mut self, _: u8, bytes: Vec<u8>) {
+        match argument {
+            0 => {
+                self.channel = bytes[0];
+            }
+            _ => {
+                if bytes[0] > 0 {
+                    self.target = Some(bytes[0]);
+                } else {
+                    self.target = None;
+                }
+            }
+        }
+    }
 }
 
 
 pub struct RegisteredParameterNumberEvent {
     channel:u8,
-    target: u8 // Status byte of the controllerchangeevent
+    value: u16
 }
 impl RegisteredParameterNumberEvent {
-    pub fn new(channel: u8, target: u8) -> Box<RegisteredParameterNumberEvent> {
+    pub fn new(channel: u8, value: u8) -> Box<RegisteredParameterNumberEvent> {
         Box::new(
             RegisteredParameterNumberEvent {
                 channel: channel,
-                target: target
+                value: value
             }
         )
     }
 }
 impl MIDIEvent for RegisteredParameterNumberEvent {
-    pub fn get_bytes(&self) -> Vec<u8> {}
-    pub fn get_property(&self, _: u8) -> Vec<u8> {}
-    pub fn set_property(&mut self, _: u8, bytes: Vec<u8>) {}
+    pub fn get_bytes(&self) -> Vec<u8> {
+        gen_coarse_fine_bytes(
+            self.channel,
+            self.value,
+            0x65, 0x64
+        )
+    }
+    pub fn get_property(&self, argument: u8) -> Vec<u8> {
+        match argument {
+            0 => {
+                vec![self.channel]
+            }
+            _ => {
+                vec![
+                    (self.value >> 8) as u8,
+                    (self.value & 0xFF) as u8
+                ]
+            }
+        }
+    }
+    pub fn set_property(&mut self, argument: u8, bytes: Vec<u8>) {
+        match argument {
+            0 => {
+                self.channel = bytes[0];
+            }
+            _ => {
+                self.value = (bytes[0] as u16 << 8) + (bytes[1] as u16);
+            }
+        }
+    }
 }
 
 
@@ -2231,9 +2852,36 @@ impl NonRegisteredParameterNumberEvent {
     }
 }
 impl MIDIEvent for NonRegisteredParameterNumberEvent {
-    pub fn get_bytes(&self) -> Vec<u8> {}
-    pub fn get_property(&self, _: u8) -> Vec<u8> {}
-    pub fn set_property(&mut self, _: u8, bytes: Vec<u8>) {}
+    pub fn get_bytes(&self) -> Vec<u8> {
+        gen_coarse_fine_bytes(
+            self.channel,
+            self.value,
+            0x65, 0x64
+        )
+    }
+    pub fn get_property(&self, argument: u8) -> Vec<u8> {
+        match argument {
+            0 => {
+                vec![self.channel]
+            }
+            _ => {
+                vec![
+                    (self.value >> 8) as u8,
+                    (self.value & 0xFF) as u8
+                ]
+            }
+        }
+    }
+    pub fn set_property(&mut self, argument: u8, bytes: Vec<u8>) {
+        match argument {
+            0 => {
+                self.channel = bytes[0];
+            }
+            _ => {
+                self.value = (bytes[0] as u16 << 8) + (bytes[1] as u16);
+            }
+        }
+    }
 }
 
 pub struct AllControllersOffEvent {
