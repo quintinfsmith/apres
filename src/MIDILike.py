@@ -8,51 +8,56 @@ class NoTickException(Exception):
 class EventNotFound(Exception):
     pass
 
+class AlreadyInMIDI(Exception):
+    pass
+
+class NoMIDI(Exception):
+    pass
 
 class MIDIEvent:
-    def __init__(self, midilike, **kwargs):
-        self._midilike = midilike
-        self.track = 0
-        self.tick = 0
+    def __init__(self, **kwargs):
+        self.uuid = None
 
-        if "uuid" in kwargs.keys():
-            self.uuid = kwargs["uuid"]
-            self.sync()
-        else:
-            if "tick" in kwargs.keys():
-                self.tick = kwargs["tick"]
-            elif "wait" in kwargs.keys():
-                self.tick = self._midilike._track_get_length(self.track) - 1 + kwargs['wait']
+    def pullsync(self):
+        '''update the python object with data from the rust layer'''
+        pass
 
-            if 'track' in kwargs.keys():
-                self.track = kwargs['track']
-
-            self.uuid = self._midilike._event_apply(self.track, self.tick, self)
-
-        self._midilike.events[self.uuid] = self
+    def set_uuid(self, uuid):
+        self.uuid = uuid
 
     def set_property(self, event_number, event_value):
-        self._midilike.set_property(self.uuid, event_number, event_value)
+        if self._midi:
+            self._midi.set_property(self.uuid, event_number, event_value)
 
     def get_property(self, event_number):
-        prop = self._midilike._event_get_property(self.uuid, event_number)
+        if not self._midi:
+            raise NoMIDI()
+
+        prop = self._midi._event_get_property(self.uuid, event_number)
         return prop
 
     def get_position(self):
-        pos = self._midilike._event_get_position(self.uuid)
+        if not self._midi:
+            raise NoMIDI()
+
+        pos = self._midi._event_get_position(self.uuid)
         self.track = pos[0]
         self.tick = pos[1]
         return pos
 
     def move(self, **kwargs):
+        active_track = 0
         if "track" in kwargs.keys():
-            self.track = track
-        if "tick" in kwargs.keys():
-            self.tick = kwargs["tick"]
-        elif "wait" in kwargs.keys():
-            self.tick = self._track_get_length(self.track) - 1 + kwargs['wait']
+            active_track = track
 
-        self._midilike._event_move(self.uuid, self.track, self.tick)
+        if "tick" in kwargs.keys():
+            active_tick = kwargs["tick"]
+        elif "wait" in kwargs.keys():
+            active_tick = self._track_get_length(active_track) - 1 + kwargs['wait']
+        else:
+            active_tick = self._track_get_length(active_track) - 1
+
+        self._midi._event_move(self.uuid, active_track, active_tick)
 
 
 class SequenceNumberEvent(MIDIEvent):
@@ -68,20 +73,18 @@ class SequenceNumberEvent(MIDIEvent):
         ]
         return bytes(output)
 
-    def __init__(self, midilike, **kwargs):
+    def __init__(self, **kwargs):
         if "uuid" not in kwargs.keys():
             self.sequence = kwargs['sequence']
-        super().__init__(midilike, **kwargs)
+        super().__init__(**kwargs)
 
-    def sync(self):
-        self.get_sequence()
-
-    def get_sequence(self):
+    def pullsync(self):
         self.sequence = 0
         for b in self.get_property(0):
             self.sequence *= 256
             self.sequence += b
 
+    def get_sequence(self):
         return self.sequence
 
     def set_sequence(self, sequence):
@@ -98,18 +101,17 @@ class TextEvent(MIDIEvent):
         output.extend(to_variable_length(len(text_bytes)))
         return bytes(output) + text_bytes
 
-    def __init__(self, midilike, **kwargs):
+    def __init__(self, **kwargs):
         if "uuid" not in kwargs.keys():
             self.text = kwargs['text']
-        super().__init__(midilike, **kwargs)
+        super().__init__(**kwargs)
 
-    def sync(self):
-        self.get_text()
-
-    def get_text(self):
+    def pullsync(self):
         text = self.get_property(0)
         bytelist = bytes(text)
         self.text = bytelist.decode("utf8")
+
+    def get_text(self):
         return self.text
 
     def set_text(self, text):
@@ -126,18 +128,17 @@ class CopyRightNoticeEvent(MIDIEvent):
         output.extend(to_variable_length(len(text_bytes)))
         return bytes(output) + text_bytes
 
-    def __init__(self, midilike, **kwargs):
+    def __init__(self, **kwargs):
         if "uuid" not in kwargs.keys():
             self.text = kwargs["text"]
-        super().__init__(midilike, **kwargs)
+        super().__init__(**kwargs)
 
-    def sync(self):
-        self.get_text()
-
-    def get_text(self):
+    def pullsync(self):
         text = self.get_property(0)
         bytelist = bytes(text)
         self.text = bytelist.decode("utf8")
+
+    def get_text(self):
         return self.text
 
     def set_text(self, text):
@@ -153,18 +154,17 @@ class TrackNameEvent(MIDIEvent):
         output.extend(to_variable_length(len(text_bytes)))
         return bytes(output) + text_bytes
 
-    def __init__(self, midilike, **kwargs):
+    def __init__(self, **kwargs):
         if "uuid" not in kwargs.keys():
             self.name = kwargs["name"]
-        super().__init__(midilike, **kwargs)
+        super().__init__(**kwargs)
 
-    def sync(self):
-        self.get_name()
-
-    def get_name(self):
+    def pullsync(self):
         name = self.get_property(0)
         bytelist = bytes(name)
         self.name = bytelist.decode("utf8")
+
+    def get_name(self):
         return self.name
 
     def set_name(self, name):
@@ -180,18 +180,17 @@ class InstrumentNameEvent(MIDIEvent):
         output.extend(to_variable_length(len(text_bytes)))
         return bytes(output) + text_bytes
 
-    def __init__(self, midilike, **kwargs):
+    def __init__(self, **kwargs):
         if "uuid" not in kwargs.keys():
             self.name = kwargs["name"]
-        super().__init__(midilike, **kwargs)
+        super().__init__(**kwargs)
 
-    def sync(self):
-        self.get_name()
-
-    def get_name(self):
+    def pullsync(self):
         name = self.get_property(0)
         bytelist = bytes(name)
         self.name = bytelist.decode("utf8")
+
+    def get_name(self):
         return self.name
 
     def set_name(self, name):
@@ -207,18 +206,17 @@ class LyricEvent(MIDIEvent):
         output.extend(to_variable_length(len(text_bytes)))
         return bytes(output) + text_bytes
 
-    def __init__(self, midilike, **kwargs):
+    def __init__(self, **kwargs):
         if "uuid" not in kwargs.keys():
             self.lyric = kwargs["lyric"]
-        super().__init__(midilike, **kwargs)
+        super().__init__(**kwargs)
 
-    def sync(self):
-        self.get_lyric()
-
-    def get_lyric(self):
+    def pullsync(self):
         lyric = self.get_property(0)
         bytelist = bytes(lyric)
         self.lyric = bytelist.decode("utf8")
+
+    def get_lyric(self):
         return self.lyric
 
     def set_lyric(self, lyric):
@@ -234,18 +232,17 @@ class MarkerEvent(MIDIEvent):
         output.extend(to_variable_length(len(text_bytes)))
         return bytes(output) + text_bytes
 
-    def __init__(self, midilike, **kwargs):
+    def __init__(self, **kwargs):
         if "uuid" not in kwargs.keys():
             self.text = kwargs["text"]
-        super().__init__(midilike, **kwargs)
+        super().__init__(**kwargs)
 
-    def sync(self):
-        self.get_text()
-
-    def get_text(self):
+    def pullsync(self):
         text = self.get_property(0)
         bytelist = bytes(text)
         self.text = bytelist.decode("utf8")
+
+    def get_text(self):
         return self.text
 
     def set_text(self, text):
@@ -261,18 +258,17 @@ class CuePointEvent(MIDIEvent):
         output.extend(to_variable_length(len(text_bytes)))
         return bytes(output) + text_bytes
 
-    def __init__(self, midilike, **kwargs):
+    def __init__(self, **kwargs):
         if "uuid" not in kwargs.keys():
             self.text = kwargs["text"]
-        super().__init__(midilike, **kwargs)
+        super().__init__(**kwargs)
 
-    def sync(self):
-        self.get_text()
-
-    def get_text(self):
+    def pullsync(self):
         text = self.get_property(0)
         bytelist = bytes(text)
         self.text = bytelist.decode("utf8")
+
+    def get_text(self):
         return self.text
 
     def set_text(self, text):
@@ -284,11 +280,11 @@ class EndOfTrackEvent(MIDIEvent):
     def __bytes__(self):
         return bytes([0xFF, 0x2F, 0x00])
 
-    def sync(self):
+    def pullsync(self):
         pass
 
-    def __init__(self, midilike, **kwargs):
-        super().__init__(midilike, **kwargs)
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
 
 class ChannelPrefixEvent(MIDIEvent):
     _rust_id = 9
@@ -296,17 +292,16 @@ class ChannelPrefixEvent(MIDIEvent):
     def __bytes__(self):
         return bytes([0xFF, 0x20, 0x01, self.channel])
 
-    def __init__(self, midilike, **kwargs):
+    def __init__(self, **kwargs):
         if "uuid" not in kwargs.keys():
             self.channel = kwargs["channel"]
-        super().__init__(midilike, **kwargs)
+        super().__init__(**kwargs)
 
-    def sync(self):
-        self.get_channel()
-
-    def get_channel(self):
+    def pullsync(self):
         channel = self.get_property(0)
         self.channel = channel[0]
+
+    def get_channel(self):
         return self.channel
 
     def set_channel(self, channel):
@@ -324,7 +319,7 @@ class SetTempoEvent(MIDIEvent):
             self.us_per_quarter_note % 256
         ])
 
-    def __init__(self, midilike, **kwargs):
+    def __init__(self, **kwargs):
         if "uuid" not in kwargs.keys():
             if "uspqn" in kwargs.keys():
                 self.us_per_quarter_note = kwargs['uspqn']
@@ -335,10 +330,14 @@ class SetTempoEvent(MIDIEvent):
                 else:
                     self.us_per_quarter_note = 60000000 // bpm
 
-        super().__init__(midilike, **kwargs)
+        super().__init__(**kwargs)
 
-    def sync(self):
-        self.get_us_per_quarter_note()
+    def pullsync(self):
+        self.us_per_quarter_note = 0
+        for n in self.get_property(0):
+            self.us_per_quarter_note *= 256
+            self.us_per_quarter_note += n
+
 
     def get_bpm(self):
         usperqn = self.get_us_per_quarter_note()
@@ -350,13 +349,6 @@ class SetTempoEvent(MIDIEvent):
         return output
 
     def get_us_per_quarter_note(self):
-        usqpn = self.get_property(0)
-        self.us_per_quarter_note = 0
-
-        for n in self.get_property(0):
-            self.us_per_quarter_note *= 256
-            self.us_per_quarter_note += n
-
         return self.us_per_quarter_note
 
     def set_bpm(self, bpm):
@@ -380,40 +372,35 @@ class SMPTEOffsetEvent(MIDIEvent):
             self.ff, self.fr
         ])
 
-    def __init__(self, midilike, **kwargs):
+    def __init__(self, **kwargs):
         if "uuid" not in kwargs.keys():
             self.hour = kwargs["hour"]
             self.minute = kwargs["minute"]
             self.second = kwargs["second"]
             self.ff = kwargs["ff"]
             self.fr = kwargs["fr"]
-        super().__init__(midilike, **kwargs)
+        super().__init__(**kwargs)
 
-    def sync(self):
-        self.get_hour()
-        self.get_minute()
-        self.get_second()
-        self.get_ff()
-        self.get_fr()
+    def pullsync(self):
+        self.hour = self.get_property(0)[0]
+        self.minute = self.get_property(1)[0]
+        self.second = self.get_property(2)[0]
+        self.ff = self.get_property(3)[0]
+        self.fr = self.get_property(4)[0]
 
     def get_hour(self):
-        self.hour = self.get_property(0)[0]
         return self.hour
 
     def get_minute(self):
-        self.minute = self.get_property(1)[0]
         return self.minute
 
     def get_second(self):
-        self.second = self.get_property(2)[0]
         return self.second
 
     def get_ff(self):
-        self.ff = self.get_property(3)[0]
         return self.ff
 
     def get_fr(self):
-        self.fr = self.get_property(4)[0]
         return self.fr
 
     def set_hour(self, hour):
@@ -447,34 +434,30 @@ class TimeSignatureEvent(MIDIEvent):
             self.thirtysecondths_per_quarter
         ])
 
-    def __init__(self, midilike, **kwargs):
+    def __init__(self, **kwargs):
         if "uuid" not in kwargs.keys():
             self.numerator = kwargs["numerator"]
             self.denominator = kwargs["denominator"]
             self.clocks_per_metronome = kwargs["cpm"]
             self.thirtysecondths_per_quarter = kwargs["tspqn"]
-        super().__init__(midilike, **kwargs)
+        super().__init__(**kwargs)
 
-    def sync(self):
-        self.get_numerator()
-        self.get_denominator()
-        self.get_clocks_per_metronome()
-        self.get_thirtysecondths_per_quarter_note()
+    def pullsync(self):
+        self.numerator = self.get_property(0)[0]
+        self.denominator = self.get_property(1)[0]
+        self.clocks_per_metronome = self.get_property(3)[0]
+        self.thirtysecondths_per_quarter = self.get_property(4)[0]
 
     def get_numerator(self):
-        self.numerator = self.get_property(0)[0]
         return self.numerator
 
     def get_denominator(self):
-        self.denominator = self.get_property(1)[0]
         return self.denominator
 
     def get_clocks_per_metronome(self):
-        self.clocks_per_metronome = self.get_property(3)[0]
         return self.clocks_per_metronome
 
     def get_thirtysecondths_per_quarter_note(self):
-        self.thirtysecondths_per_quarter = self.get_property(4)[0]
         return self.thirtysecondths_per_quarter
 
     def set_numerator(self, numerator):
@@ -532,16 +515,15 @@ class KeySignatureEvent(MIDIEvent):
         mi, sf = self.misf_map[self.key]
         return bytes([0xFF, 0x59, 0x02, sf, mi])
 
-    def __init__(self, midilike, **kwargs):
+    def __init__(self, **kwargs):
         if "uuid" not in kwargs.keys():
             self.key = kwargs["key"]
-        super().__init__(midilike, **kwargs)
+        super().__init__(**kwargs)
 
-    def sync(self):
-        self.get_key()
+    def pullsync(self):
+        self.key = bytes(self.get_property(0)).decode("utf8")
 
     def get_key(self):
-        self.key = bytes(self.get_property(0)).decode("utf8")
         return self.key
 
     def set_key(self, key):
@@ -558,13 +540,15 @@ class SequencerEvent(MIDIEvent):
         output.extend(to_variable_length(data_length))
         return bytes(output) + self.data
 
-    def __init__(self, midilike, **kwargs):
+    def __init__(self, **kwargs):
         if "uuid" not in kwargs.keys():
             self.data = kwargs["data"]
-        super().__init__(midilike, **kwargs)
+        super().__init__(**kwargs)
+
+    def pullsync(self):
+        self.data = bytes(self.get_property(0))
 
     def get_data(self):
-        self.data = bytes(self.get_property(0))
         return self.data
 
     def set_data(self, data):
@@ -580,29 +564,25 @@ class NoteOnEvent(MIDIEvent):
             self.note,
             self.velocity
         ])
-    def __init__(self, midilike, **kwargs):
-        if "uuid" not in kwargs.keys():
-            self.channel = kwargs["channel"]
-            self.note = kwargs["note"]
-            self.velocity = kwargs["velocity"]
-        super().__init__(midilike, **kwargs)
+    def __init__(self, **kwargs):
+        self.channel = kwargs["channel"]
+        self.note = kwargs["note"]
+        self.velocity = kwargs["velocity"]
+        super().__init__(**kwargs)
 
-    def sync(self):
-        self.get_channel()
-        self.get_note()
-        self.get_velocity()
-
-    def get_channel(self):
+    def pullsync(self):
         prop = self.get_property(0)
         self.channel = prop[0]
+        self.note = self.get_property(1)[0]
+        self.velocity = self.get_property(2)[0]
+
+    def get_channel(self):
         return self.channel
 
     def get_note(self):
-        self.note = self.get_property(1)[0]
         return self.note
 
     def get_velocity(self):
-        self.velocity = self.get_property(2)[0]
         return self.velocity
 
     def set_channel(self, channel):
@@ -626,28 +606,25 @@ class NoteOffEvent(MIDIEvent):
             self.velocity
         ])
 
-    def __init__(self, midilike, **kwargs):
+    def __init__(self, **kwargs):
         if "uuid" not in kwargs.keys():
             self.channel = kwargs["channel"]
             self.note = kwargs["note"]
             self.velocity = kwargs["velocity"]
-        super().__init__(midilike, **kwargs)
+        super().__init__(**kwargs)
 
-    def sync(self):
-        self.get_channel()
-        self.get_note()
-        self.get_velocity()
+    def pullsync(self):
+        self.channel = self.get_property(0)[0]
+        self.note = self.get_property(1)[0]
+        self.velocity = self.get_property(2)[0]
 
     def get_channel(self):
-        self.channel = self.get_property(0)[0]
         return self.channel
 
     def get_note(self):
-        self.note = self.get_property(1)[0]
         return self.note
 
     def get_velocity(self):
-        self.velocity = self.get_property(2)[0]
         return self.velocity
 
     def set_channel(self, channel):
@@ -670,28 +647,25 @@ class PolyphonicKeyPressureEvent(MIDIEvent):
             self.note,
             self.pressure
         ])
-    def __init__(self, midilike, **kwargs):
+    def __init__(self, **kwargs):
         if "uuid" not in kwargs.keys():
             self.channel = kwargs["channel"]
             self.note = kwargs["note"]
             self.pressure = kwargs["pressure"]
-        super().__init__(midilike, **kwargs)
+        super().__init__(**kwargs)
 
-    def sync(self):
-        self.get_channel()
-        self.get_note()
-        self.get_pressure()
+    def pullsync(self):
+        self.channel = self.get_property(0)[0]
+        self.note = self.get_property(1)[0]
+        self.pressure = self.get_property(2)[0]
 
     def get_channel(self):
-        self.channel = self.get_property(0)[0]
         return self.channel
 
     def get_note(self):
-        self.note = self.get_property(1)[0]
         return self.note
 
     def get_pressure(self):
-        self.pressure = self.get_property(2)[0]
         return self.pressure
 
     def set_channel(self, channel):
@@ -715,28 +689,25 @@ class ControlChangeEvent(MIDIEvent):
             self.value
         ])
 
-    def __init__(self, midilike, **kwargs):
+    def __init__(self, **kwargs):
         if "uuid" not in kwargs.keys():
             self.channel = kwargs["channel"]
             self.controller = kwargs["controller"]
             self.value = kwargs["value"]
-        super().__init__(midilike, **kwargs)
+        super().__init__(**kwargs)
 
-    def sync(self):
-        self.get_channel()
-        self.get_controller()
-        self.get_value()
+    def pullsync(self):
+        self.value = self.get_property(2)[0]
+        self.channel = self.get_property(0)[0]
+        self.controller = self.get_property(1)[0]
 
     def get_channel(self):
-        self.channel = self.get_property(0)[0]
         return self.channel
 
     def get_controller(self):
-        self.controller = self.get_property(1)[0]
         return self.controller
 
     def get_value(self):
-        self.value = self.get_property(2)[0]
         return self.value
 
     def set_channel(self, channel):
@@ -759,22 +730,20 @@ class ProgramChangeEvent(MIDIEvent):
             self.program
         ])
 
-    def __init__(self, midilike, **kwargs):
+    def __init__(self, **kwargs):
         if "uuid" not in kwargs.keys():
             self.channel = kwargs["channel"]
             self.program = kwargs["program"]
-        super().__init__(midilike, **kwargs)
+        super().__init__(**kwargs)
 
-    def sync(self):
-        self.get_channel()
-        self.get_program()
+    def pullsync(self):
+        self.channel = self.get_property(0)[0]
+        self.program = self.get_property(1)[0]
 
     def get_channel(self):
-        self.channel = self.get_property(0)[0]
         return self.channel
 
     def get_program(self):
-        self.program = self.get_property(1)[0]
         return self.program
 
     def set_channel(self, channel):
@@ -794,22 +763,20 @@ class ChannelPressureEvent(MIDIEvent):
             self.pressure
         ])
 
-    def __init__(self, midilike, **kwargs):
+    def __init__(self, **kwargs):
         if "uuid" not in kwargs.keys():
             self.channel = kwargs["channel"]
             self.pressure = kwargs["pressure"]
-        super().__init__(midilike, **kwargs)
+        super().__init__(**kwargs)
 
-    def sync(self):
-        self.get_channel()
-        self.get_pressure()
+    def pullsync(self):
+        self.channel = self.get_property(0)[0]
+        self.pressure = self.get_property(1)[0]
 
     def get_channel(self):
-        self.channel = self.get_property(0)[0]
         return self.channel
 
     def get_pressure(self):
-        self.pressure = self.get_property(1)[0]
         return self.pressure
 
     def set_channel(self, channel):
@@ -833,24 +800,23 @@ class PitchWheelChangeEvent(MIDIEvent):
         most = (unsigned_value >> 7) & 0x007F
         return bytes([(0xE0 | self.channel), least, most])
 
-    def __init__(self, midilike, **kwargs):
+    def __init__(self, **kwargs):
         if "uuid" not in kwargs.keys():
             self.channel = kwargs["channel"]
             self.value = kwargs["value"]
-        super().__init__(midilike, **kwargs)
+        super().__init__(**kwargs)
 
-    def sync(self):
-        self.get_channel()
-        self.get_value()
-
-    def get_channel(self):
+    def pullsync(self):
         self.channel = self.get_property(0)[0]
-        return self.channel
 
-    def get_value(self):
         prop = self.get_property(1)
         unsigned_value = (prop[0] * 256) + prop[1]
         self.value = ((unsigned_value * 2) / 0x3FFF) - 1
+
+    def get_channel(self):
+        return self.channel
+
+    def get_value(self):
         return self.value
 
     def set_channel(self, channel):
@@ -875,18 +841,21 @@ class SystemExclusiveEvent(MIDIEvent):
         output.append(0xF7)
         return bytes(output)
 
-    def __init__(self, midilike, **kwargs):
+    def __init__(self, **kwargs):
         if "uuid" not in kwargs.keys():
             self.data = kwargs["data"]
 
-        super().__init__(midilike, **kwargs)
+        super().__init__(**kwargs)
 
-    def sync(self):
-        self.get_data()
+    def pullsync(self):
+        self.data = bytes(self.get_property(0))
 
     def get_data(self):
-        self.data = bytes(self.get_property(0))
         return self.data
+
+    def set_data(self, new_data):
+        self.data = new_data
+        self.set_property(0, new_data)
 
 class MTCQuarterFrameEvent(MIDIEvent):
     _rust_id = 24
@@ -894,16 +863,15 @@ class MTCQuarterFrameEvent(MIDIEvent):
     def __bytes__(self):
         return bytes([0xF1, time_code])
 
-    def __init__(self, midilike, **kwargs):
+    def __init__(self, **kwargs):
         if "uuid" not in kwargs.keys():
             self.time_code = kwargs["time_code"] & 0xFF
-        super().__init__(midilike, kwargs)
+        super().__init__(kwargs)
 
-    def sync(self):
-        self.get_time_code()
+    def pullsync(self):
+        self.time_code = self.get_property(0)[0] & 0xFF
 
     def get_time_code(self):
-        self.time_code = self.get_property(0)[0] & 0xFF
         return self.time_code
 
 class SongPositionPointerEvent(MIDIEvent):
@@ -913,17 +881,16 @@ class SongPositionPointerEvent(MIDIEvent):
         most = (self.beat >> 7) & 0x7F
         return bytes([0xF2, least, most])
 
-    def __init__(self, midilike, **kwargs):
+    def __init__(self, **kwargs):
         if "uuid" not in kwargs.keys():
             self.beat = kwargs["beat"]
-        super().__init__(midilike, **kwargs)
+        super().__init__(**kwargs)
 
-    def sync(self):
-        self.get_beat()
-
-    def get_beat(self):
+    def pullsync(self):
         prop = self.get_property(0)
         self.beat = (prop[0] * 256) + prop[1]
+
+    def get_beat(self):
         return self.beat
 
     def set_beat(self, beat):
@@ -935,16 +902,15 @@ class SongSelectEvent(MIDIEvent):
     def __bytes__(self):
         return bytes([0xF3, self.song & 0xFF])
 
-    def __init__(self, midilike, **kwargs):
+    def __init__(self, **kwargs):
         if "uuid" not in kwrags.keys():
             self.song = kwargs["song"]
-        super().__init__(midilike, **kwargs)
+        super().__init__(**kwargs)
 
-    def sync(self):
-        self.get_song()
+    def pullsync(self):
+        self.song = self.get_property(0)[0]
 
     def get_song(self):
-        self.song = self.get_property(0)[0]
         return self.song
 
     def set_song(self, song):
@@ -986,11 +952,11 @@ class ResetEvent(MIDIEvent):
     def __bytes__(self):
         return bytes([0xFF])
 
-class MIDILike:
+class MIDI:
     """Usable object. Converted from midi files.
         Events are the same midi files from simplicities sake.
     """
-    SO_PATH = "/home/pent/Projects/105/target/release/libRustMidiLib.so"
+    SO_PATH = "/home/pent/Projects/Midas/target/release/libMidas.so"
 
     event_constructors = {
         TextEvent._rust_id: TextEvent,
@@ -1024,24 +990,25 @@ class MIDILike:
     def __init__(self, path=""):
         self.ffi = FFI()
         self.ffi.cdef("""
-            typedef void* MIDILike;
+            typedef void* MIDI;
 
-            MIDILike interpret(const char*);
-            MIDILike new();
-            void save(MIDILike, const char*);
-            uint32_t get_track_length(MIDILike, uint8_t);
-            uint32_t count_tracks(MIDILike);
-            uint64_t count_events(MIDILike);
+            MIDI interpret(const char*);
+            MIDI new();
+            void save(MIDI, const char*);
+            uint32_t get_track_length(MIDI, uint8_t);
+            uint32_t count_tracks(MIDI);
+            uint64_t count_events(MIDI);
 
-            uint8_t* get_event_property(MIDILike, uint64_t, uint8_t);
-            uint8_t get_event_property_length(MIDILike, uint64_t, uint8_t);
-            void set_event_property(MIDILike, uint32_t, const char*);
-            uint8_t get_event_type(MIDILike, uint64_t);
-            uint64_t apply_event(MIDILike, uint8_t, uint64_t, const uint8_t*, uint8_t);
-            void set_event_position(MIDILike, uint64_t, uint8_t, uint64_t);
+            uint8_t* get_event_property(MIDI, uint64_t, uint8_t);
+            uint8_t get_event_property_length(MIDI, uint64_t, uint8_t);
+            void set_event_property(MIDI, uint64_t, uint32_t, const char*);
+            uint8_t get_event_type(MIDI, uint64_t);
+            uint64_t create_event(MIDI, uint8_t, uint64_t, const uint8_t*, uint8_t);
+            void set_event_position(MIDI, uint64_t, uint8_t, uint64_t);
         """)
         self.lib = self.ffi.dlopen(self.SO_PATH)
         self.events = {}
+        self.event_positions = {}
 
         if path:
             self.path = path
@@ -1059,20 +1026,46 @@ class MIDILike:
             self.path = ''
             self.pointer = self.lib.new()
 
+    def add_event(self, event, **kwargs):
+        if event.uuid:
+            raise AlreadyInMIDI()
+
+        active_track = 0
+        if 'track' in kwargs.keys():
+            active_track = kwargs['track']
+
+        if "tick" in kwargs.keys():
+            active_tick = kwargs["tick"]
+        elif "wait" in kwargs.keys():
+            active_tick = self._track_get_length(active_track) - 1 + kwargs['wait']
+        else:
+            active_tick = self._track_get_length(active_track) - 1
+
+        event_uuid = self._pushsync_event(event, active_track, active_tick)
+
+        event.set_uuid(event_uuid)
+        event._midi = self
+
+        self.events[event_uuid] = event
+        self.event_positions[event_uuid] = (active_track, active_tick)
+
+    def _pushsync_event(self, event, track, tick):
+        orig_bytes = bytes(event)
+        event_id = self.lib.create_event(self.pointer, track, tick, orig_bytes, len(orig_bytes))
+        return event_id
 
     def _event_get_position(self, eid):
         tick = self.lib.get_event_tick(self.pointer, eid) - 1
         track = self.lib.get_event_track(self.pointer, eid) - 1
-
         return (track, tick)
 
-    def _track_get_length(self, n):
-        return self.lib.get_track_length(self.pointer, n)
+    def _track_get_length(self, track_number):
+        return self.lib.get_track_length(self.pointer, track_number)
 
-    def _event_get_type(self, uuid):
-        return self.lib.get_event_type(self.pointer, uuid)
+    def _event_get_type(self, event_uuid):
+        return self.lib.get_event_type(self.pointer, event_uuid)
 
-    def _event_set_property(self, n, somevalue):
+    def _event_set_property(self, uuid, index, somevalue):
         class_name = somevalue.__class__.__name__
         if class_name == "bytes":
             pass
@@ -1090,7 +1083,7 @@ class MIDILike:
                 i += 1
             somevalue = working_bytes
 
-        self.lib.set_event_property(self.pointer, n, somevalue)
+        self.lib.set_event_property(self.pointer, uuid, index, somevalue)
 
     def _event_get_property(self, event_uuid, event_property):
         length = self.lib.get_event_property_length(self.pointer, event_uuid, event_property)
@@ -1114,26 +1107,19 @@ class MIDILike:
         fmt_path = bytes(path, 'utf-8')
         self.lib.save(self.pointer, fmt_path)
 
-    def _event_apply(self, track, tick, event):
-        orig_bytes = bytes(event)
-        #self.ffi.memmove(byterep, orig_bytes, len(orig_bytes))
-        event_id = self.lib.apply_event(self.pointer, track, tick, orig_bytes, len(orig_bytes))
-        return event_id
-
     def _event_move(self, event_uuid, new_track, new_tick):
         self.lib.move_event(self.pointer, event_uuid, new_track, new_tick)
 
 
-    def add_event(self, constructor, **kwargs):
-        new_event = constructor(self, **kwargs)
-
-
     ##########################################################
 
-ml = MIDILike()
-ml.add_event(NoteOnEvent, channel=0, velocity=64, note=24, wait=0)
-ml.add_event(NoteOffEvent, channel=0, velocity=0, note=64, wait=120)
+ml = MIDI()
+for x in range(6):
+    note_on = NoteOnEvent(channel=0, velocity=64, note= 64 + (x * 2))
+    note_off = NoteOffEvent(channel=0, velocity=64, note= 64 + (x * 2))
+    ml.add_event(note_on, track=0, wait=0)
+    ml.add_event(note_off, track=0, wait=40)
 ml.save("/home/pent/test2.mid")
 
-#ml = MIDILike(sys.argv[1])
+#ml = MIDI(sys.argv[1])
 #print(ml.tracks[0]._ticks.keys())

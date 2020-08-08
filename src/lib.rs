@@ -176,7 +176,7 @@ pub extern fn get_event_type(midi_ptr: *mut MIDI, event_id: u64) -> u8 {
 }
 
 #[no_mangle]
-pub extern fn apply_event(midi_ptr: *mut MIDI, track: u8, tick: u64, bytes_ptr: *mut u8, byte_length: u8) -> u64 {
+pub extern fn create_event(midi_ptr: *mut MIDI, track: u8, tick: u64, bytes_ptr: *mut u8, byte_length: u8) -> u64 {
     let mut midi = unsafe { Box::from_raw(midi_ptr) };
 
     let mut sub_bytes: Vec<u8> = unsafe { Vec::from_raw_parts(bytes_ptr, byte_length as usize, byte_length as usize) };
@@ -188,7 +188,9 @@ pub extern fn apply_event(midi_ptr: *mut MIDI, track: u8, tick: u64, bytes_ptr: 
             0
         }
     };
+
     sub_bytes.remove(0);
+    sub_bytes.reverse();
     let new_event_id = match midi.process_mtrk_event(lead_byte, &mut sub_bytes, &mut (tick as usize), track as usize, &mut 0x90) {
         Some(created_event) => {
             created_event
@@ -4359,6 +4361,7 @@ impl MIDI {
             current = Vec::new();
             for (current_tick, eid) in track.iter() {
                 current.push((*current_tick - previous_tick, *eid));
+                previous_tick = *current_tick;
             }
             output.push(current);
         }
