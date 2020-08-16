@@ -2,6 +2,7 @@
 name = "Midas"
 version = "1.0.0"
 authors = ["Quintin Smith <smith.quintin@protonmail.com>"]
+description = "MIDI Library with python bindings"
 
 [lib]
 name = "Midas"
