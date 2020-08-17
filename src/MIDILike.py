@@ -1,6 +1,10 @@
 '''Mutable Midi Library'''
 import sys
 from cffi import FFI
+def logg(*msg):
+    with open("logg", "a") as fp:
+        for m in msg:
+            fp.write(str(m) + "\n")
 
 class NoTickException(Exception):
     pass
@@ -41,8 +45,7 @@ class MIDIEvent:
             raise NoMIDI()
 
         pos = self._midi._event_get_position(self.uuid)
-        self.track = pos[0]
-        self.tick = pos[1]
+        self._midi.event_positions[self.uuid] = pos
         return pos
 
     def move(self, **kwargs):
@@ -565,9 +568,10 @@ class NoteOnEvent(MIDIEvent):
             self.velocity
         ])
     def __init__(self, **kwargs):
-        self.channel = kwargs["channel"]
-        self.note = kwargs["note"]
-        self.velocity = kwargs["velocity"]
+        if not "uuid" in kwargs.keys():
+            self.channel = kwargs["channel"]
+            self.note = kwargs["note"]
+            self.velocity = kwargs["velocity"]
         super().__init__(**kwargs)
 
     def pullsync(self):
@@ -1005,26 +1009,45 @@ class MIDI:
             uint8_t get_event_type(MIDI, uint64_t);
             uint64_t create_event(MIDI, uint8_t, uint64_t, const uint8_t*, uint8_t);
             void set_event_position(MIDI, uint64_t, uint8_t, uint64_t);
+            uint64_t get_event_tick(MIDI, uint64_t);
+            uint8_t get_event_track(MIDI, uint64_t);
+
+            void set_ppqn(MIDI, uint16_t);
+            uint16_t get_ppqn(MIDI);
         """)
         self.lib = self.ffi.dlopen(self.SO_PATH)
         self.events = {}
         self.event_positions = {}
+        self.ppqn = 120
 
         if path:
             self.path = path
             fmt_path = bytes(self.path, 'utf-8')
             self.pointer = self.lib.interpret(fmt_path)
+            self.ppqn = self.lib.get_ppqn(self.pointer)
 
             # 0 is reserved, but eids are generated in order.
             # So we don't need to query every individual active id at this point
-            for eid in range(1, self.lib.count_events()):
+    
+            for eid in range(1, self.lib.count_events(self.pointer)):
                 event = self._get_event(eid)
-                event.get_position()
                 self.events[eid] = event
 
         else:
             self.path = ''
             self.pointer = self.lib.new()
+
+    def get_all_events(self):
+        event_list = []
+        for event_id, (track, tick) in self.event_positions.items():
+            event_list.append((tick, event_id))
+        event_list.sort()
+
+        output = []
+        for tick, event_id in event_list:
+            output.append((tick, self.events[event_id]))
+
+        return output
 
     def add_event(self, event, **kwargs):
         if event.uuid:
@@ -1099,7 +1122,12 @@ class MIDI:
         constructor = self.event_constructors[type_num]
 
         # passing uuid will cause it to sync on init
-        event = constructor(self, uuid=event_uuid)
+        event = constructor(uuid=event_uuid)
+        event._midi = self
+        event.set_uuid(event_uuid)
+        event.pullsync()
+        event.get_position()
+
 
         return event
 

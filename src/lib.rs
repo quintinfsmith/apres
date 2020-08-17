@@ -39,6 +39,26 @@ pub extern fn new() -> *mut MIDI {
     Box::into_raw(Box::new( midi ))
 }
 
+#[no_mangle]
+pub extern fn get_ppqn(midi_ptr: *mut MIDI) -> u16 {
+    let mut midi = unsafe { Box::from_raw(midi_ptr) };
+
+    let output = midi.ppqn;
+
+    Box::into_raw(midi);
+
+    output
+
+}
+#[no_mangle]
+pub extern fn set_ppqn(midi_ptr: *mut MIDI, ppqn: u16) {
+    let mut midi = unsafe { Box::from_raw(midi_ptr) };
+
+    midi.ppqn = ppqn;
+
+    Box::into_raw(midi);
+}
+
 // NOTE: all tracks & ticks (not event ids) passed FROM here are + 1, 0 is used to indicate a failure
 #[no_mangle]
 pub extern fn get_event_track(midi_ptr: *mut MIDI, event_id: u64) -> u8 {
