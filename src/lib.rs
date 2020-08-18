@@ -4268,7 +4268,7 @@ impl MIDI {
                             output = Some(self.insert_event(track, *current_deltatime, TimeSignatureEvent::new(dump[0], dump[1],dump[2], dump[3])));
                         }
                         0x59 => {
-                            output = Some(self.insert_event(track, *current_deltatime, KeySignatureEvent::from_mi_sf(dump[0], dump[1])));
+                            output = Some(self.insert_event(track, *current_deltatime, KeySignatureEvent::from_mi_sf(dump[1], dump[0])));
                         }
                         0x7F => {
                             output = Some(self.insert_event(track, *current_deltatime, SequencerSpecificEvent::new(dump)));

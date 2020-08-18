@@ -960,7 +960,7 @@ class MIDI:
     """Usable object. Converted from midi files.
         Events are the same midi files from simplicities sake.
     """
-    SO_PATH = "/home/pent/Projects/Midas/target/release/libMidas.so"
+    SO_PATH = "/usr/lib/libmidas.so"
 
     event_constructors = {
         TextEvent._rust_id: TextEvent,

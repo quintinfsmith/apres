@@ -1,11 +1,11 @@
 [package]
-name = "Midas"
+name = "midas"
 version = "1.0.0"
 authors = ["Quintin Smith <smith.quintin@protonmail.com>"]
 description = "MIDI Library with python bindings"
 
 [lib]
-name = "Midas"
+name = "midas"
 crate-type = ["dylib"]
 
 [dependencies]
