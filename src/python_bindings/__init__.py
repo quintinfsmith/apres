@@ -1,6 +1,9 @@
 '''Mutable Midi Library'''
 import sys
 from cffi import FFI
+from ctypes.util import find_library
+
+
 def logg(*msg):
     with open("logg", "a") as fp:
         for m in msg:
@@ -960,7 +963,7 @@ class MIDI:
     """Usable object. Converted from midi files.
         Events are the same midi files from simplicities sake.
     """
-    SO_PATH = "/usr/lib/libmidas.so"
+    SO_PATH = find_library("midas")
 
     event_constructors = {
         TextEvent._rust_id: TextEvent,
@@ -1139,15 +1142,3 @@ class MIDI:
         self.lib.move_event(self.pointer, event_uuid, new_track, new_tick)
 
 
-    ##########################################################
-
-ml = MIDI()
-for x in range(6):
-    note_on = NoteOnEvent(channel=0, velocity=64, note= 64 + (x * 2))
-    note_off = NoteOffEvent(channel=0, velocity=64, note= 64 + (x * 2))
-    ml.add_event(note_on, track=0, wait=0)
-    ml.add_event(note_off, track=0, wait=40)
-ml.save("/home/pent/test2.mid")
-
-#ml = MIDI(sys.argv[1])
-#print(ml.tracks[0]._ticks.keys())
