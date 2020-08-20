@@ -963,7 +963,7 @@ class MIDI:
     """Usable object. Converted from midi files.
         Events are the same midi files from simplicities sake.
     """
-    SO_PATH = find_library("midas")
+    SO_PATH = find_library("apres")
 
     event_constructors = {
         TextEvent._rust_id: TextEvent,

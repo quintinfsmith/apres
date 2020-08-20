@@ -3936,12 +3936,12 @@ impl MIDIEvent for ResetEvent {
 ///
 /// # Examples
 /// ```
-/// use midas::MIDI;
+/// use apres::MIDI;
 /// // Create a MIDI from a file
 /// let midi = MIDI::from_path("/path/to/file.mid");
 /// ```
 /// ```
-/// use midas::MIDI;
+/// use apres::MIDI;
 /// // Create an empty MIDI file.
 /// let midi = MIDI::new();
 /// ```
