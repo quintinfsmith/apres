@@ -3,6 +3,7 @@ use std::os::raw::c_char;
 use std::fs::File;
 use std::io::prelude::*;
 use std::cmp::{max, min};
+use std::fmt;
 
 use std::mem;
 
@@ -237,6 +238,7 @@ pub extern fn set_event_position(midi_ptr: *mut MIDI, event_id: u64, track: u8, 
 
 
 // For python Bindings
+#[derive(PartialEq, Eq)]
 pub enum MIDIEventType {
     SequenceNumber = 22,
     Text = 1,
@@ -319,12 +321,112 @@ pub enum MIDIEventType {
     MonophonicOperation = 76,
     PolyphonicOperation = 77
 }
+impl fmt::Debug for MIDIEventType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let name = match self {
+            MIDIEventType::SequenceNumber => { "SequenceNumber" }
+            MIDIEventType::Text => { "Text" }
+            MIDIEventType::CopyRightNotice => { "CopyRightNotice" }
+            MIDIEventType::TrackName => { "TrackName" }
+            MIDIEventType::InstrumentName => { "InstrumentName" }
+            MIDIEventType::Lyric => { "Lyric" }
+            MIDIEventType::Marker => { "Marker" }
+            MIDIEventType::CuePoint => { "CuePoint" }
+            MIDIEventType::EndOfTrack => { "EndOfTrack" }
+            MIDIEventType::ChannelPrefix => { "ChannelPrefix" }
+            MIDIEventType::SetTempo => { "SetTempo" }
+            MIDIEventType::SMPTEOffset => { "SMPTEOffset" }
+            MIDIEventType::TimeSignature => { "TimeSignature" }
+            MIDIEventType::KeySignature => { "KeySignature" }
+            MIDIEventType::SequencerSpecific => { "SequencerSpecific" }
 
+            MIDIEventType::NoteOn => { "NoteOn" }
+            MIDIEventType::NoteOff => { "NoteOff" }
+            MIDIEventType::AfterTouch => { "AfterTouch" }
+            MIDIEventType::ControlChange => { "ControlChange" }
+            MIDIEventType::ProgramChange => { "ProgramChange" }
+            MIDIEventType::ChannelPressure => { "ChannelPressure" }
+            MIDIEventType::PitchWheelChange => { "PitchWheelChange" }
+
+            MIDIEventType::SystemExclusive => { "SystemExclusive" }
+            MIDIEventType::MTCQuarterFrame => { "MTCQuarterFrame" }
+            MIDIEventType::SongPositionPointer => { "SongPositionPointer" }
+            MIDIEventType::SongSelect => { "SongSelect" }
+            MIDIEventType::TuneRequest => { "TuneRequest" }
+            MIDIEventType::MIDIClock => { "MIDIClock" }
+            MIDIEventType::MIDIStart => { "MIDIStart" }
+            MIDIEventType::MIDIContinue => { "MIDIContinue" }
+            MIDIEventType::MIDIStop => { "MIDIStop" }
+            MIDIEventType::ActiveSense => { "ActiveSense" }
+            MIDIEventType::Reset => { "Reset" }
+
+            MIDIEventType::BankSelect => { "BankSelect" }
+            MIDIEventType::ModulationWheel => { "ModulationWheel" }
+            MIDIEventType::BreathController => { "BreathController" }
+            MIDIEventType::FootPedal => { "FootPedal" }
+            MIDIEventType::PortamentoTime => { "PortamentoTime" }
+            MIDIEventType::DataEntrySlider => { "DataEntrySlider" }
+            MIDIEventType::Volume => { "Volume" }
+            MIDIEventType::Balance => { "Balance" }
+            MIDIEventType::Pan => { "Pan" }
+            MIDIEventType::Expression => { "Expression" }
+            MIDIEventType::EffectControl => { "EffectControl" }
+            MIDIEventType::Slider => { "Slider" }
+            MIDIEventType::HoldPedal => { "HoldPedal" }
+            MIDIEventType::Portamento => { "Portamento" }
+            MIDIEventType::Sustenuto => { "Sustenuto" }
+            MIDIEventType::SoftPedal => { "SoftPedal" }
+            MIDIEventType::Legato => { "Legato" }
+            MIDIEventType::Hold2Pedal => { "Hold2Pedal" }
+            MIDIEventType::SoundVariation => { "SoundVariation" }
+            MIDIEventType::SoundTimbre => { "SoundTimbre" }
+            MIDIEventType::SoundReleaseTime => { "SoundReleaseTime" }
+            MIDIEventType::SoundAttack => { "SoundAttack" }
+            MIDIEventType::SoundBrightness => { "SoundBrightness" }
+            MIDIEventType::SoundControl => { "SoundControl" }
+            MIDIEventType::GeneralButtonOn => { "GeneralButtonOn" }
+            MIDIEventType::GeneralButtonOff => { "GeneralButtonOff" }
+            MIDIEventType::EffectsLevel => { "EffectsLevel" }
+            MIDIEventType::TremuloLevel => { "TremuloLevel" }
+            MIDIEventType::ChorusLevel => { "ChorusLevel" }
+            MIDIEventType::CelesteLevel => { "CelesteLevel" }
+            MIDIEventType::PhaserLevel => { "PhaserLevel" }
+            MIDIEventType::DataButtonIncrement => { "DataButtonIncrement" }
+            MIDIEventType::DataButtonDecrement => { "DataButtonDecrement" }
+            MIDIEventType::RegisteredParameterNumber => { "RegisteredParameterNumber" }
+            MIDIEventType::NonRegisteredParameterNumber => { "NonRegisteredParameterNumber" }
+            MIDIEventType::AllControllersOff => { "AllControllersOff" }
+            MIDIEventType::LocalKeyboardEnable => { "LocalKeyboardEnable" }
+            MIDIEventType::LocalKeyboardDisable => { "LocalKeyboardDisable" }
+            MIDIEventType::AllNotesOff => { "AllNotesOff" }
+            MIDIEventType::AllSoundOff => { "AllSoundOff" }
+            MIDIEventType::OmniOff => { "OmniOff" }
+            MIDIEventType::OmniOn => { "OmniOn" }
+            MIDIEventType::MonophonicOperation => { "MonophonicOperation" }
+            MIDIEventType::PolyphonicOperation => { "PolyphonicOperation" }
+            _ => "Unknown event type"
+        };
+        write!(f, "{}", name)
+    }
+}
+#[derive(PartialEq, Eq)]
 pub enum MIDICategory {
     Meta,
     ControlChange,
     Voice,
     RealTime
+}
+impl fmt::Debug for MIDICategory {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let name = match self {
+            MIDICategory::Meta => { "Meta" }
+            MIDICategory::ControlChange => { "ControlChange" }
+            MIDICategory::Voice => { "Voice" }
+            MIDICategory::RealTime => { "RealTime" }
+            _ => { "Unknown" }
+        };
+        write!(f, "{} Event", name)
+    }
 }
 
 pub trait MIDIEvent {
@@ -4023,7 +4125,6 @@ impl MIDI {
             let val = chunkcount.entry(chunk_type).or_insert(0);
             *val += 1;
 
-            current_deltatime = 0;
             if chunk_type == ('M' as u8, 'T' as u8, 'h' as u8, 'd' as u8) {
                 pop_n(bytes, 4); // Get Size
                 midi_format = pop_n(bytes, 2) as u16; // Midi Format
@@ -4039,6 +4140,7 @@ impl MIDI {
                 mlo.set_ppqn(ppqn);
                 mlo.set_format(midi_format);
             } else if chunk_type == ('M' as u8, 'T' as u8, 'r' as u8, 'k' as u8) {
+                current_deltatime = 0;
                 track_length = pop_n(bytes, 4);
                 sub_bytes = Vec::new();
                 for _ in 0..track_length {
@@ -4047,12 +4149,14 @@ impl MIDI {
                 sub_bytes.reverse();
                 while sub_bytes.len() > 0 {
                     current_deltatime += get_variable_length_number(&mut sub_bytes) as usize;
+
                     match sub_bytes.pop() {
                         Some(byte) => {
                             mlo.process_mtrk_event(byte, &mut sub_bytes, &mut current_deltatime, current_track, &mut fallback_byte);
                         },
                         None => {}
                     }
+
                 }
                 current_track += 1;
             } else {
@@ -4268,7 +4372,7 @@ impl MIDI {
                             output = Some(self.insert_event(track, *current_deltatime, TimeSignatureEvent::new(dump[0], dump[1],dump[2], dump[3])));
                         }
                         0x59 => {
-                            output = Some(self.insert_event(track, *current_deltatime, KeySignatureEvent::from_mi_sf(dump[1], dump[0])));
+                            //output = Some(self.insert_event(track, *current_deltatime, KeySignatureEvent::from_mi_sf(dump[1], dump[0])));
                         }
                         0x7F => {
                             output = Some(self.insert_event(track, *current_deltatime, SequencerSpecificEvent::new(dump)));
@@ -4326,8 +4430,7 @@ impl MIDI {
                         track_event_bytes.extend(to_variable_length_bytes(*tick_delay).iter().copied());
                         track_event_bytes.extend(working_event.as_bytes());
                     }
-                    None => {
-                    }
+                    None => { }
                 }
             }
 
@@ -4374,11 +4477,12 @@ impl MIDI {
         }
 
         let mut output = Vec::new();
-        let mut previous_tick = 0;
+        let mut previous_tick;
         let mut current;
         for track in tracks.iter_mut() {
             track.sort();
             current = Vec::new();
+            previous_tick = 0;
             for (current_tick, eid) in track.iter() {
                 current.push((*current_tick - previous_tick, *eid));
                 previous_tick = *current_tick;
@@ -4433,7 +4537,7 @@ impl MIDI {
             .or_insert((new_track, new_tick));
     }
 
-    pub fn insert_event(&mut self, track: usize, tick: usize, event: Box<dyn MIDIEvent>) -> u64{
+    pub fn insert_event(&mut self, track: usize, tick: usize, event: Box<dyn MIDIEvent>) -> u64 {
         let new_event_id = self.event_id_gen;
         self.event_id_gen += 1;
 
@@ -4519,15 +4623,16 @@ fn from_twos_complement(value: u32, bits: u8) -> u32 {
 
 fn get_variable_length_number(bytes: &mut Vec<u8>) -> u64 {
     let mut n = 0u64;
+
     loop {
         n <<= 7;
         match bytes.pop() {
             Some(x) => {
-                n += (x & 0x7F) as u64;
+                n |= (x & 0x7F) as u64;
                 if x & 0x80 == 0 {
                     break;
                 }
-            },
+            }
             None => {
                 break;
             }
@@ -4544,11 +4649,11 @@ fn to_variable_length_bytes(number: usize) -> Vec<u8> {
     while working_number > 0 || first_pass {
         tmp = working_number & 0x7F;
         working_number >>= 7;
-        if first_pass {
-            tmp |= 0x00;
-        } else {
+
+        if ! first_pass {
             tmp |= 0x80;
         }
+
         output.push(tmp as u8);
         first_pass = false;
     }
@@ -4648,13 +4753,25 @@ mod tests {
             (2097151, vec![0xFF, 0xFF, 0x7F])
         ];
         let mut output_vector;
-        for (input_number, expected_vector) in test_cases.iter() {
+        let mut output_n;
+        for (input_number, expected_vector) in test_cases.iter_mut() {
             output_vector = to_variable_length_bytes(*input_number);
             assert_eq!(
                 output_vector.as_slice(),
                 expected_vector.as_slice()
             );
+
+
+            expected_vector.reverse();
+            output_n = get_variable_length_number(expected_vector);
+            assert_eq!(
+                *input_number,
+                output_n as usize
+            );
         }
+
+
+
     }
 
 
@@ -4664,6 +4781,9 @@ mod tests {
         assert_eq!(event.as_bytes().as_slice(), &[0xFF, 0x00, 0x02, 0x00, 0x01]);
         event.set_sequence(13607);
         assert_eq!(event.as_bytes().as_slice(), &[0xFF, 0x00, 0x02, 0x35, 0x27]);
+
+        assert_eq!(event.get_category(), MIDICategory::Meta);
+        assert_eq!(event.get_type(), MIDIEventType::SequenceNumber);
     }
 
     #[test]
@@ -4679,6 +4799,9 @@ mod tests {
             event.as_bytes().as_slice(),
             compare_vec.as_slice()
         );
+
+        assert_eq!(event.get_category(), MIDICategory::Meta);
+        assert_eq!(event.get_type(), MIDIEventType::Text);
     }
 
     #[test]
@@ -4694,6 +4817,8 @@ mod tests {
             event.as_bytes().as_slice(),
             compare_vec.as_slice()
         );
+        assert_eq!(event.get_category(), MIDICategory::Meta);
+        assert_eq!(event.get_type(), MIDIEventType::CopyRightNotice);
     }
 
     #[test]
@@ -4709,6 +4834,9 @@ mod tests {
             event.as_bytes().as_slice(),
             compare_vec.as_slice()
         );
+
+        assert_eq!(event.get_category(), MIDICategory::Meta);
+        assert_eq!(event.get_type(), MIDIEventType::TrackName);
     }
 
     #[test]
@@ -4724,6 +4852,8 @@ mod tests {
             event.as_bytes().as_slice(),
             compare_vec.as_slice()
         );
+        assert_eq!(event.get_category(), MIDICategory::Meta);
+        assert_eq!(event.get_type(), MIDIEventType::InstrumentName);
     }
 
     #[test]
@@ -4739,6 +4869,8 @@ mod tests {
             event.as_bytes().as_slice(),
             compare_vec.as_slice()
         );
+        assert_eq!(event.get_category(), MIDICategory::Meta);
+        assert_eq!(event.get_type(), MIDIEventType::Lyric);
     }
 
     #[test]
@@ -4754,6 +4886,8 @@ mod tests {
             event.as_bytes().as_slice(),
             compare_vec.as_slice()
         );
+        assert_eq!(event.get_category(), MIDICategory::Meta);
+        assert_eq!(event.get_type(), MIDIEventType::Marker);
     }
 
     #[test]
@@ -4769,6 +4903,8 @@ mod tests {
             event.as_bytes().as_slice(),
             compare_vec.as_slice()
         );
+        assert_eq!(event.get_category(), MIDICategory::Meta);
+        assert_eq!(event.get_type(), MIDIEventType::CuePoint);
     }
 
     #[test]
@@ -4778,6 +4914,8 @@ mod tests {
             event.as_bytes().as_slice(),
             [0xFF, 0x2F, 0x00]
         );
+        assert_eq!(event.get_category(), MIDICategory::Meta);
+        assert_eq!(event.get_type(), MIDIEventType::EndOfTrack);
     }
 
     #[test]
