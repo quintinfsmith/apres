@@ -238,7 +238,7 @@ pub extern fn set_event_position(midi_ptr: *mut MIDI, event_id: u64, track: u8, 
 
 
 // For python Bindings
-#[derive(PartialEq, Eq)]
+#[derive(PartialEq, Eq, Debug)]
 pub enum MIDIEventType {
     SequenceNumber = 22,
     Text = 1,
@@ -321,94 +321,6 @@ pub enum MIDIEventType {
     MonophonicOperation = 76,
     PolyphonicOperation = 77
 }
-impl fmt::Debug for MIDIEventType {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let name = match self {
-            MIDIEventType::SequenceNumber => { "SequenceNumber" }
-            MIDIEventType::Text => { "Text" }
-            MIDIEventType::CopyRightNotice => { "CopyRightNotice" }
-            MIDIEventType::TrackName => { "TrackName" }
-            MIDIEventType::InstrumentName => { "InstrumentName" }
-            MIDIEventType::Lyric => { "Lyric" }
-            MIDIEventType::Marker => { "Marker" }
-            MIDIEventType::CuePoint => { "CuePoint" }
-            MIDIEventType::EndOfTrack => { "EndOfTrack" }
-            MIDIEventType::ChannelPrefix => { "ChannelPrefix" }
-            MIDIEventType::SetTempo => { "SetTempo" }
-            MIDIEventType::SMPTEOffset => { "SMPTEOffset" }
-            MIDIEventType::TimeSignature => { "TimeSignature" }
-            MIDIEventType::KeySignature => { "KeySignature" }
-            MIDIEventType::SequencerSpecific => { "SequencerSpecific" }
-
-            MIDIEventType::NoteOn => { "NoteOn" }
-            MIDIEventType::NoteOff => { "NoteOff" }
-            MIDIEventType::AfterTouch => { "AfterTouch" }
-            MIDIEventType::ControlChange => { "ControlChange" }
-            MIDIEventType::ProgramChange => { "ProgramChange" }
-            MIDIEventType::ChannelPressure => { "ChannelPressure" }
-            MIDIEventType::PitchWheelChange => { "PitchWheelChange" }
-
-            MIDIEventType::SystemExclusive => { "SystemExclusive" }
-            MIDIEventType::MTCQuarterFrame => { "MTCQuarterFrame" }
-            MIDIEventType::SongPositionPointer => { "SongPositionPointer" }
-            MIDIEventType::SongSelect => { "SongSelect" }
-            MIDIEventType::TuneRequest => { "TuneRequest" }
-            MIDIEventType::MIDIClock => { "MIDIClock" }
-            MIDIEventType::MIDIStart => { "MIDIStart" }
-            MIDIEventType::MIDIContinue => { "MIDIContinue" }
-            MIDIEventType::MIDIStop => { "MIDIStop" }
-            MIDIEventType::ActiveSense => { "ActiveSense" }
-            MIDIEventType::Reset => { "Reset" }
-
-            MIDIEventType::BankSelect => { "BankSelect" }
-            MIDIEventType::ModulationWheel => { "ModulationWheel" }
-            MIDIEventType::BreathController => { "BreathController" }
-            MIDIEventType::FootPedal => { "FootPedal" }
-            MIDIEventType::PortamentoTime => { "PortamentoTime" }
-            MIDIEventType::DataEntrySlider => { "DataEntrySlider" }
-            MIDIEventType::Volume => { "Volume" }
-            MIDIEventType::Balance => { "Balance" }
-            MIDIEventType::Pan => { "Pan" }
-            MIDIEventType::Expression => { "Expression" }
-            MIDIEventType::EffectControl => { "EffectControl" }
-            MIDIEventType::Slider => { "Slider" }
-            MIDIEventType::HoldPedal => { "HoldPedal" }
-            MIDIEventType::Portamento => { "Portamento" }
-            MIDIEventType::Sustenuto => { "Sustenuto" }
-            MIDIEventType::SoftPedal => { "SoftPedal" }
-            MIDIEventType::Legato => { "Legato" }
-            MIDIEventType::Hold2Pedal => { "Hold2Pedal" }
-            MIDIEventType::SoundVariation => { "SoundVariation" }
-            MIDIEventType::SoundTimbre => { "SoundTimbre" }
-            MIDIEventType::SoundReleaseTime => { "SoundReleaseTime" }
-            MIDIEventType::SoundAttack => { "SoundAttack" }
-            MIDIEventType::SoundBrightness => { "SoundBrightness" }
-            MIDIEventType::SoundControl => { "SoundControl" }
-            MIDIEventType::GeneralButtonOn => { "GeneralButtonOn" }
-            MIDIEventType::GeneralButtonOff => { "GeneralButtonOff" }
-            MIDIEventType::EffectsLevel => { "EffectsLevel" }
-            MIDIEventType::TremuloLevel => { "TremuloLevel" }
-            MIDIEventType::ChorusLevel => { "ChorusLevel" }
-            MIDIEventType::CelesteLevel => { "CelesteLevel" }
-            MIDIEventType::PhaserLevel => { "PhaserLevel" }
-            MIDIEventType::DataButtonIncrement => { "DataButtonIncrement" }
-            MIDIEventType::DataButtonDecrement => { "DataButtonDecrement" }
-            MIDIEventType::RegisteredParameterNumber => { "RegisteredParameterNumber" }
-            MIDIEventType::NonRegisteredParameterNumber => { "NonRegisteredParameterNumber" }
-            MIDIEventType::AllControllersOff => { "AllControllersOff" }
-            MIDIEventType::LocalKeyboardEnable => { "LocalKeyboardEnable" }
-            MIDIEventType::LocalKeyboardDisable => { "LocalKeyboardDisable" }
-            MIDIEventType::AllNotesOff => { "AllNotesOff" }
-            MIDIEventType::AllSoundOff => { "AllSoundOff" }
-            MIDIEventType::OmniOff => { "OmniOff" }
-            MIDIEventType::OmniOn => { "OmniOn" }
-            MIDIEventType::MonophonicOperation => { "MonophonicOperation" }
-            MIDIEventType::PolyphonicOperation => { "PolyphonicOperation" }
-            _ => "Unknown event type"
-        };
-        write!(f, "{}", name)
-    }
-}
 #[derive(PartialEq, Eq)]
 pub enum MIDICategory {
     Meta,
@@ -428,7 +340,6 @@ impl fmt::Debug for MIDICategory {
         write!(f, "{} Event", name)
     }
 }
-
 pub trait MIDIEvent {
     fn as_bytes(&self) -> Vec<u8>;
     fn get_category(&self) -> MIDICategory;
@@ -4594,6 +4505,131 @@ impl MIDI {
 
     }
 
+}
+
+pub struct ApresController {
+    event_queue: Vec<Box<dyn MIDIEvent>>,
+    byte_buffer: Vec<u8>,
+    pipe: File
+}
+
+impl ApresController {
+    pub fn new(path: &str) -> ApresController {
+        ApresController {
+            event_queue: Vec::new(),
+            byte_buffer: Vec::new(),
+            pipe: File::open(path).unwrap()
+        }
+    }
+
+    // TODO: Implment timeout
+    fn get_next_byte(&mut self) -> u8 {
+        let mut buffer = [0;1];
+        while true {
+            match self.pipe.read_exact(&mut buffer) {
+                Ok(success) => {
+                    break;
+                }
+                Err(e) => {
+                }
+            }
+        }
+        buffer[0]
+    }
+
+    // TODO: implement the rest of the relevent events (not just channel events)
+    pub fn get_next(&mut self) -> Option<Box<dyn MIDIEvent>> {
+        let lead_byte = self.get_next_byte();
+        match lead_byte {
+            0..=0x7F => {
+                None
+            }
+            0x80..=0xEF => {
+                let channel = lead_byte & 0x0F;
+                match lead_byte & 0xF0 {
+                    0x80 => {
+                        let b = self.get_next_byte();
+                        let c = self.get_next_byte();
+                        Some(NoteOffEvent::new(channel, b, c))
+                    }
+                    0x90 => {
+                        let b = self.get_next_byte();
+                        let c = self.get_next_byte();
+                        if c == 0 {
+                            Some(NoteOffEvent::new(channel, b, c))
+                        } else {
+                            Some(NoteOnEvent::new(channel, b, c))
+                        }
+                    }
+                    0xA0 => {
+                        let b = self.get_next_byte();
+                        let c = self.get_next_byte();
+                        Some(AfterTouchEvent::new(channel, b, c))
+                    }
+                    0xB0 => {
+                        let b = self.get_next_byte();
+                        let c = self.get_next_byte();
+                        Some(ControlChangeEvent::new(channel, b, c))
+                    }
+                    0xC0 => {
+                        let b = self.get_next_byte();
+                        Some(ProgramChangeEvent::new(channel, b))
+                    }
+                    0xD0 => {
+                        let b = self.get_next_byte();
+                        Some(ChannelPressureEvent::new(channel, b))
+                    }
+                    0xE0 => {
+                        let b = self.get_next_byte();
+                        let c = self.get_next_byte();
+                        Some(PitchWheelChangeEvent::new_from_lsb_msb(channel, b, c))
+                    }
+                    _ => { None }
+                }
+            }
+            0xF0 => {
+                None
+            }
+            0xF2 => {
+                None
+            }
+            0xF3 => {
+                None
+            }
+            // System real-time events
+            0xF6 => {
+                let b = self.get_next_byte();
+                None
+            }
+            0xF8 => {
+                Some(Box::new(MIDIClockEvent {}))
+            }
+            0xFA => {
+                Some(Box::new(MIDIStartEvent {}))
+            }
+            0xFB => {
+                Some(Box::new(MIDIContinueEvent {}))
+            }
+            0xFC => {
+                Some(Box::new(MIDIStopEvent {}))
+            }
+            0xFE => {
+                Some(Box::new(ActiveSenseEvent {}))
+            }
+            // 0xFF is NOT meta for controllers
+            0xFF => {
+                Some(Box::new(ResetEvent {}))
+            }
+            // Undefined behaviour (as specified in MIDI standard)
+            0xF1 | 0xF4 | 0xF5 => {
+                None
+            }
+            // Undefined behaviour
+            _ => {
+                None
+            }
+        }
+    }
 }
 
 fn pop_n(bytes: &mut Vec<u8>, n: usize) -> u32 {
