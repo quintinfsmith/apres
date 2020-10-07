@@ -6,6 +6,5 @@ description = "MIDI Library with python bindings"
 
 [lib]
 name = "apres"
-crate-type = ["dylib"]
+crate-type = ["rlib"]
 
-[dependencies]
