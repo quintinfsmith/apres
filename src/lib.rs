@@ -3442,6 +3442,17 @@ pub struct MTCQuarterFrameEvent {
     value: u8
 }
 
+impl MTCQuarterFrameEvent {
+    pub fn new(byte: u8) -> Box<MTCQuarterFrameEvent> {
+        Box::new(
+            MTCQuarterFrameEvent {
+                message_type: byte & 0b11111000 >> 3,
+                value: byte & 0b00000111
+            }
+        )
+    }
+}
+
 impl MIDIEvent for MTCQuarterFrameEvent {
     fn as_bytes(&self) -> Vec<u8> {
         let mut b = 0;
@@ -3495,6 +3506,11 @@ impl SongPositionPointerEvent {
                 beat
             }
         )
+    }
+    pub fn new_from_lsb_msb(lsb: u8, msb: u8) -> Box<SongPositionPointerEvent> {
+        let unsigned_value: f64 = (((msb as u16) << 7) + (lsb as u16)) as f64;
+        let new_value: f64 = ((unsigned_value * 2_f64) as f64 / 0x3FFF as f64) - 1_f64;
+        SongPositionPointerEvent::new(new_value as u16)
     }
 }
 impl MIDIEvent for SongPositionPointerEvent {
@@ -3936,7 +3952,7 @@ impl MIDI {
                 let song = bytes.pop().unwrap();
                 output = Some(self.insert_event(track, *current_deltatime, SongSelectEvent::new(song & 0x7F)));
             }
-            0xF6 | 0xF8 | 0xFA | 0xFB | 0xFC | 0xFE => {
+            0xF1 | 0xF6 | 0xF8 | 0xFA | 0xFB | 0xFC | 0xFE => {
                 // Do Nothing. These are system-realtime and shouldn't be in a file.
             }
             0xF7 => {
@@ -3944,7 +3960,7 @@ impl MIDI {
                 n = pop_n(bytes, varlength as usize);
                 // TODO ADD EVENT
             }
-            0xF1 | 0xF4 | 0xF5 => {
+            0xF4 | 0xF5 | 0xF9 | 0xFD => {
                 // Undefined Behaviour
             }
             0xFF => {
@@ -4046,9 +4062,6 @@ impl MIDI {
                         }
                     }
                 }
-            }
-            _ => {
-                // Undefined Behaviour
             }
         }
 
@@ -4271,7 +4284,6 @@ impl ApresController {
         }
     }
 
-    // TODO: Implment timeout
     fn get_next_byte(&mut self) -> u8 {
         let mut buffer = [0;1];
         loop {
@@ -4279,7 +4291,7 @@ impl ApresController {
                 Ok(_success) => {
                     break;
                 }
-                Err(e) => {
+                Err(_e) => {
                 }
             }
         }
@@ -4337,18 +4349,36 @@ impl ApresController {
                 }
             }
             0xF0 => {
-                None
+                let mut bytedump = vec![0xF0];
+                loop {
+                    match self.get_next_byte() {
+                        0xF7 => {
+                            break;
+                        }
+                        x => {
+                            bytedump.push(x);
+                        }
+                    }
+                }
+                bytedump.push(0xF7);
+                Some(SystemExclusiveEvent::new(bytedump))
+            }
+            0xF1 => {
+                let b = self.get_next_byte();
+                Some(MTCQuarterFrameEvent::new(b))
             }
             0xF2 => {
-                None
+                let b = self.get_next_byte();
+                let c = self.get_next_byte();
+                Some(SongPositionPointerEvent::new_from_lsb_msb(b, c))
             }
             0xF3 => {
-                None
+                let song = self.get_next_byte();
+                Some(SongSelectEvent::new(song))
             }
             // System real-time events
             0xF6 => {
-                let b = self.get_next_byte();
-                None
+                Some(Box::new(TuneRequestEvent {}))
             }
             0xF8 => {
                 Some(Box::new(MIDIClockEvent {}))
@@ -4370,7 +4400,7 @@ impl ApresController {
                 Some(Box::new(ResetEvent {}))
             }
             // Undefined behaviour (as specified in MIDI standard)
-            0xF1 | 0xF4 | 0xF5 => {
+            0xF4 | 0xF5 | 0xF9 | 0xFD => {
                 None
             }
             // Undefined behaviour
