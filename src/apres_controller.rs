@@ -39,39 +39,39 @@ impl ApresController {
                     0x80 => {
                         let b = self.get_next_byte();
                         let c = self.get_next_byte();
-                        Some(NoteOffEvent::new(channel, b, c))
+                        Some(Box::new(NoteOffEvent::new(channel, b, c)))
                     }
                     0x90 => {
                         let b = self.get_next_byte();
                         let c = self.get_next_byte();
                         if c == 0 {
-                            Some(NoteOffEvent::new(channel, b, c))
+                            Some(Box::new(NoteOffEvent::new(channel, b, c)))
                         } else {
-                            Some(NoteOnEvent::new(channel, b, c))
+                            Some(Box::new(NoteOnEvent::new(channel, b, c)))
                         }
                     }
                     0xA0 => {
                         let b = self.get_next_byte();
                         let c = self.get_next_byte();
-                        Some(AfterTouchEvent::new(channel, b, c))
+                        Some(Box::new(AfterTouchEvent::new(channel, b, c)))
                     }
                     0xB0 => {
                         let b = self.get_next_byte();
                         let c = self.get_next_byte();
-                        Some(ControlChangeEvent::new(channel, b, c))
+                        Some(Box::new(ControlChangeEvent::new(channel, b, c)))
                     }
                     0xC0 => {
                         let b = self.get_next_byte();
-                        Some(ProgramChangeEvent::new(channel, b))
+                        Some(Box::new(ProgramChangeEvent::new(channel, b)))
                     }
                     0xD0 => {
                         let b = self.get_next_byte();
-                        Some(ChannelPressureEvent::new(channel, b))
+                        Some(Box::new(ChannelPressureEvent::new(channel, b)))
                     }
                     0xE0 => {
                         let b = self.get_next_byte();
                         let c = self.get_next_byte();
-                        Some(PitchWheelChangeEvent::new_from_lsb_msb(channel, b, c))
+                        Some(Box::new(PitchWheelChangeEvent::new_from_lsb_msb(channel, b, c)))
                     }
                     _ => { None }
                 }
@@ -89,20 +89,20 @@ impl ApresController {
                     }
                 }
                 bytedump.push(0xF7);
-                Some(SystemExclusiveEvent::new(bytedump))
+                Some(Box::new(SystemExclusiveEvent::new(bytedump)))
             }
             0xF1 => {
                 let b = self.get_next_byte();
-                Some(MTCQuarterFrameEvent::new(b))
+                Some(Box::new(MTCQuarterFrameEvent::new(b)))
             }
             0xF2 => {
                 let b = self.get_next_byte();
                 let c = self.get_next_byte();
-                Some(SongPositionPointerEvent::new_from_lsb_msb(b, c))
+                Some(Box::new(SongPositionPointerEvent::new_from_lsb_msb(b, c)))
             }
             0xF3 => {
                 let song = self.get_next_byte();
-                Some(SongSelectEvent::new(song))
+                Some(Box::new(SongSelectEvent::new(song)))
             }
             // System real-time events
             0xF6 => {

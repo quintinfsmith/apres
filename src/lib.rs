@@ -111,12 +111,10 @@ pub struct SequenceNumberEvent {
 }
 
 impl SequenceNumberEvent {
-    pub fn new(sequence: u16) -> Box<SequenceNumberEvent> {
-        Box::new(
-            SequenceNumberEvent {
-                sequence
-            }
-        )
+    pub fn new(sequence: u16) -> SequenceNumberEvent {
+        SequenceNumberEvent {
+            sequence
+        }
     }
 
     pub fn set_sequence(&mut self, new_sequence: u16) {
@@ -152,12 +150,10 @@ pub struct TextEvent {
     text: String
 }
 impl TextEvent {
-    pub fn new(text: String) -> Box<TextEvent> {
-        Box::new(
-            TextEvent {
-                text
-            }
-        )
+    pub fn new(text: String) -> TextEvent {
+        TextEvent {
+            text
+        }
     }
 }
 
@@ -189,12 +185,10 @@ pub struct CopyRightNoticeEvent {
     text: String
 }
 impl CopyRightNoticeEvent {
-    pub fn new(text: String) -> Box<CopyRightNoticeEvent> {
-        Box::new(
-            CopyRightNoticeEvent {
-                text
-            }
-        )
+    pub fn new(text: String) -> CopyRightNoticeEvent {
+        CopyRightNoticeEvent {
+            text
+        }
     }
 }
 impl MIDIEvent for CopyRightNoticeEvent {
@@ -230,12 +224,10 @@ pub struct TrackNameEvent {
     track_name: String
 }
 impl TrackNameEvent {
-    pub fn new(track_name: String) -> Box<TrackNameEvent> {
-        Box::new(
-            TrackNameEvent {
-                track_name
-            }
-        )
+    pub fn new(track_name: String) -> TrackNameEvent {
+        TrackNameEvent {
+            track_name
+        }
     }
 }
 impl MIDIEvent for TrackNameEvent {
@@ -267,12 +259,10 @@ pub struct InstrumentNameEvent {
 }
 
 impl InstrumentNameEvent {
-    pub fn new(instrument_name: String) -> Box<InstrumentNameEvent> {
-        Box::new(
-            InstrumentNameEvent {
-                instrument_name
-            }
-        )
+    pub fn new(instrument_name: String) -> InstrumentNameEvent {
+        InstrumentNameEvent {
+            instrument_name
+        }
     }
 }
 
@@ -304,12 +294,10 @@ pub struct LyricEvent {
     lyric: String
 }
 impl LyricEvent {
-    pub fn new(lyric: String) -> Box<LyricEvent> {
-        Box::new(
-            LyricEvent {
-                lyric
-            }
-        )
+    pub fn new(lyric: String) -> LyricEvent {
+        LyricEvent {
+            lyric
+        }
     }
 }
 impl MIDIEvent for LyricEvent {
@@ -340,12 +328,10 @@ pub struct MarkerEvent {
     text: String
 }
 impl MarkerEvent {
-    pub fn new(text: String) -> Box<MarkerEvent> {
-        Box::new(
-            MarkerEvent {
-                text
-            }
-        )
+    pub fn new(text: String) -> MarkerEvent {
+        MarkerEvent {
+            text
+        }
     }
 }
 impl MIDIEvent for MarkerEvent {
@@ -376,12 +362,10 @@ pub struct CuePointEvent {
     text: String
 }
 impl CuePointEvent {
-    pub fn new(text: String) -> Box<CuePointEvent> {
-        Box::new(
-            CuePointEvent {
-                text
-            }
-        )
+    pub fn new(text: String) -> CuePointEvent {
+        CuePointEvent {
+            text
+        }
     }
 }
 impl MIDIEvent for CuePointEvent {
@@ -411,8 +395,8 @@ impl MIDIEvent for CuePointEvent {
 
 pub struct EndOfTrackEvent { }
 impl EndOfTrackEvent {
-    pub fn new() -> Box<EndOfTrackEvent> {
-        Box::new(EndOfTrackEvent {})
+    pub fn new() -> EndOfTrackEvent {
+        EndOfTrackEvent {}
     }
 }
 impl MIDIEvent for EndOfTrackEvent {
@@ -437,12 +421,10 @@ pub struct ChannelPrefixEvent {
     channel: u8
 }
 impl ChannelPrefixEvent {
-    pub fn new(channel: u8) -> Box<ChannelPrefixEvent> {
-        Box::new(
-            ChannelPrefixEvent {
-                channel
-            }
-        )
+    pub fn new(channel: u8) -> ChannelPrefixEvent {
+        ChannelPrefixEvent {
+            channel
+        }
     }
     pub fn set_channel(&mut self, new_channel: u8) {
         self.channel = new_channel;
@@ -472,12 +454,10 @@ pub struct SetTempoEvent {
 }
 
 impl SetTempoEvent {
-    pub fn new(us_per_quarter_note: u32) -> Box<SetTempoEvent> {
-        Box::new(
-            SetTempoEvent {
-                us_per_quarter_note: min(us_per_quarter_note, 0x00FFFFFF)
-            }
-        )
+    pub fn new(us_per_quarter_note: u32) -> SetTempoEvent {
+        SetTempoEvent {
+            us_per_quarter_note: min(us_per_quarter_note, 0x00FFFFFF)
+        }
     }
 
     pub fn set_bpm(&mut self, bpm: f64) {
@@ -544,16 +524,14 @@ pub struct SMPTEOffsetEvent {
     fr: u8
 }
 impl SMPTEOffsetEvent {
-    pub fn new(hour: u8, minute: u8, second: u8, ff: u8, fr: u8) -> Box<SMPTEOffsetEvent> {
-        Box::new(
-            SMPTEOffsetEvent {
-                hour,
-                minute,
-                second,
-                ff,
-                fr
-            }
-        )
+    pub fn new(hour: u8, minute: u8, second: u8, ff: u8, fr: u8) -> SMPTEOffsetEvent {
+        SMPTEOffsetEvent {
+            hour,
+            minute,
+            second,
+            ff,
+            fr
+        }
     }
 }
 
@@ -621,15 +599,13 @@ pub struct TimeSignatureEvent {
 }
 
 impl TimeSignatureEvent {
-    pub fn new(numerator: u8, denominator: u8, cpm: u8, tspq: u8) -> Box<TimeSignatureEvent> {
-        Box::new(
-            TimeSignatureEvent {
-                numerator,
-                denominator,
-                clocks_per_metronome: cpm,
-                thirtysecondths_per_quarter: tspq
-            }
-        )
+    pub fn new(numerator: u8, denominator: u8, cpm: u8, tspq: u8) -> TimeSignatureEvent {
+        TimeSignatureEvent {
+            numerator,
+            denominator,
+            clocks_per_metronome: cpm,
+            thirtysecondths_per_quarter: tspq
+        }
     }
 }
 impl MIDIEvent for TimeSignatureEvent {
@@ -687,17 +663,15 @@ pub struct KeySignatureEvent {
     key: String
 }
 impl KeySignatureEvent {
-    pub fn from_mi_sf(mi: u8, sf: u8) -> Box<KeySignatureEvent> {
+    pub fn from_mi_sf(mi: u8, sf: u8) -> KeySignatureEvent {
         let key = KeySignatureEvent::get_key_from_mi_sf(mi, sf);
         KeySignatureEvent::new(key)
     }
 
-    pub fn new(key: String) -> Box<KeySignatureEvent> {
-        Box::new(
-            KeySignatureEvent {
-                key
-            }
-        )
+    pub fn new(key: String) -> KeySignatureEvent {
+        KeySignatureEvent {
+            key
+        }
     }
 
     pub fn get_mi_sf(&self) -> (u8, u8) {
@@ -774,12 +748,10 @@ pub struct SequencerSpecificEvent {
 }
 
 impl SequencerSpecificEvent {
-    fn new(data: Vec<u8>) -> Box<SequencerSpecificEvent> {
-        Box::new(
-            SequencerSpecificEvent {
-                data: data.clone()
-            }
-        )
+    fn new(data: Vec<u8>) -> SequencerSpecificEvent {
+        SequencerSpecificEvent {
+            data: data.clone()
+        }
     }
 }
 
@@ -815,14 +787,12 @@ pub struct NoteOnEvent {
 }
 
 impl NoteOnEvent {
-    pub fn new(channel: u8, note: u8, velocity: u8) -> Box<NoteOnEvent> {
-        Box::new(
-            NoteOnEvent {
-                channel: channel & 0x0F,
-                note: note & 0x7F,
-                velocity: velocity & 0x7F
-            }
-        )
+    pub fn new(channel: u8, note: u8, velocity: u8) -> NoteOnEvent {
+        NoteOnEvent {
+            channel: channel & 0x0F,
+            note: note & 0x7F,
+            velocity: velocity & 0x7F
+        }
     }
 
 }
@@ -882,14 +852,12 @@ pub struct NoteOffEvent{
 	velocity: u8
 }
 impl NoteOffEvent {
-    pub fn new(channel: u8, note: u8, velocity: u8) -> Box<NoteOffEvent> {
-        Box::new(
-            NoteOffEvent {
-                channel: channel & 0x0F,
-                note: note & 0x7F,
-                velocity: velocity & 0x7F
-            }
-        )
+    pub fn new(channel: u8, note: u8, velocity: u8) -> NoteOffEvent {
+        NoteOffEvent {
+            channel: channel & 0x0F,
+            note: note & 0x7F,
+            velocity: velocity & 0x7F
+        }
     }
 }
 impl MIDIEvent for NoteOffEvent {
@@ -947,14 +915,12 @@ pub struct AfterTouchEvent {
 	pressure: u8
 }
 impl AfterTouchEvent {
-    pub fn new(channel: u8, note: u8, pressure: u8) -> Box<AfterTouchEvent> {
-        Box::new(
-            AfterTouchEvent {
-                channel: channel & 0x0F,
-                note: note & 0x7F,
-                pressure: pressure & 0x7F
-            }
-        )
+    pub fn new(channel: u8, note: u8, pressure: u8) -> AfterTouchEvent {
+        AfterTouchEvent {
+            channel: channel & 0x0F,
+            note: note & 0x7F,
+            pressure: pressure & 0x7F
+        }
     }
 }
 impl MIDIEvent for AfterTouchEvent {
@@ -1031,13 +997,11 @@ pub struct BankSelectEvent {
     value: u16 // (technically u14)
 }
 impl BankSelectEvent {
-    pub fn new(channel: u8, value: u16) -> Box<BankSelectEvent> {
-        Box::new(
-            BankSelectEvent {
-                channel,
-                value
-            }
-        )
+    pub fn new(channel: u8, value: u16) -> BankSelectEvent {
+        BankSelectEvent {
+            channel,
+            value
+        }
     }
 }
 
@@ -1084,13 +1048,11 @@ pub struct ModulationWheelEvent {
     value: u16
 }
 impl ModulationWheelEvent {
-    pub fn new(channel: u8, value: u16) -> Box<ModulationWheelEvent> {
-        Box::new(
-            ModulationWheelEvent {
-                channel,
-                value
-            }
-        )
+    pub fn new(channel: u8, value: u16) -> ModulationWheelEvent {
+        ModulationWheelEvent {
+            channel,
+            value
+        }
     }
 }
 
@@ -1135,13 +1097,11 @@ pub struct BreathControllerEvent {
     value: u16 // (technically u14)
 }
 impl BreathControllerEvent {
-    pub fn new(channel: u8, value: u16) -> Box<BreathControllerEvent> {
-        Box::new(
-            BreathControllerEvent {
-                channel,
-                value
-            }
-        )
+    pub fn new(channel: u8, value: u16) -> BreathControllerEvent {
+        BreathControllerEvent {
+            channel,
+            value
+        }
     }
 }
 impl MIDIEvent for BreathControllerEvent {
@@ -1184,13 +1144,11 @@ pub struct FootPedalEvent {
     value: u16 // (technically u14)
 }
 impl FootPedalEvent {
-    pub fn new(channel: u8, value: u16) -> Box<FootPedalEvent> {
-        Box::new(
-            FootPedalEvent {
-                channel,
-                value
-            }
-        )
+    pub fn new(channel: u8, value: u16) -> FootPedalEvent {
+        FootPedalEvent {
+            channel,
+            value
+        }
     }
 }
 impl MIDIEvent for FootPedalEvent {
@@ -1234,13 +1192,11 @@ pub struct PortamentoTimeEvent {
     value: u16 // (technically u14)
 }
 impl PortamentoTimeEvent {
-    pub fn new(channel: u8, value: u16) -> Box<PortamentoTimeEvent> {
-        Box::new(
-            PortamentoTimeEvent {
-                channel,
-                value
-            }
-        )
+    pub fn new(channel: u8, value: u16) -> PortamentoTimeEvent {
+        PortamentoTimeEvent {
+            channel,
+            value
+        }
     }
 }
 impl MIDIEvent for PortamentoTimeEvent {
@@ -1285,14 +1241,12 @@ pub struct DataEntrySliderEvent {
     target: Option<u16> // if set, will create RPN event beforehand
 }
 impl DataEntrySliderEvent {
-    pub fn new(channel: u8, value: u16, target: Option<u16>) -> Box<DataEntrySliderEvent> {
-        Box::new(
-            DataEntrySliderEvent {
-                channel,
-                value,
-                target
-            }
-        )
+    pub fn new(channel: u8, value: u16, target: Option<u16>) -> DataEntrySliderEvent {
+        DataEntrySliderEvent {
+            channel,
+            value,
+            target
+        }
     }
 }
 impl MIDIEvent for DataEntrySliderEvent {
@@ -1373,13 +1327,11 @@ pub struct VolumeEvent {
     value: u16 // (technically u14)
 }
 impl VolumeEvent {
-    pub fn new(channel: u8, value: u16) -> Box<VolumeEvent> {
-        Box::new(
-            VolumeEvent {
-                channel,
-                value
-            }
-        )
+    pub fn new(channel: u8, value: u16) -> VolumeEvent {
+        VolumeEvent {
+            channel,
+            value
+        }
     }
 }
 
@@ -1423,13 +1375,11 @@ pub struct BalanceEvent {
     value: u16 // (technically u14)
 }
 impl BalanceEvent {
-    pub fn new(channel: u8, value: u16) -> Box<BalanceEvent> {
-        Box::new(
-            BalanceEvent {
-                channel,
-                value
-            }
-        )
+    pub fn new(channel: u8, value: u16) -> BalanceEvent {
+        BalanceEvent {
+            channel,
+            value
+        }
     }
 }
 impl MIDIEvent for BalanceEvent {
@@ -1475,13 +1425,11 @@ pub struct PanEvent {
     value: u16 // (technically u14)
 }
 impl PanEvent {
-    pub fn new(channel: u8, value: u16) -> Box<PanEvent> {
-        Box::new(
-            PanEvent {
-                channel,
-                value
-            }
-        )
+    pub fn new(channel: u8, value: u16) -> PanEvent {
+        PanEvent {
+            channel,
+            value
+        }
     }
 }
 impl MIDIEvent for PanEvent {
@@ -1524,13 +1472,11 @@ pub struct ExpressionEvent {
     value: u16 // (technically u14)
 }
 impl ExpressionEvent {
-    pub fn new(channel: u8, value: u16) -> Box<ExpressionEvent> {
-        Box::new(
-            ExpressionEvent {
-                channel,
-                value
-            }
-        )
+    pub fn new(channel: u8, value: u16) -> ExpressionEvent {
+        ExpressionEvent {
+            channel,
+            value
+        }
     }
 }
 impl MIDIEvent for ExpressionEvent {
@@ -1575,14 +1521,12 @@ pub struct EffectControlEvent {
     value: u16 // (technically u14)
 }
 impl EffectControlEvent {
-    pub fn new(channel: u8, which: u8, value: u16) -> Box<EffectControlEvent> {
-        Box::new(
-            EffectControlEvent {
-                channel,
-                which,
-                value
-            }
-        )
+    pub fn new(channel: u8, which: u8, value: u16) -> EffectControlEvent {
+        EffectControlEvent {
+            channel,
+            which,
+            value
+        }
     }
 }
 impl MIDIEvent for EffectControlEvent {
@@ -1633,14 +1577,12 @@ pub struct SliderEvent {
     value: u8 // (technically u7)
 }
 impl SliderEvent {
-    pub fn new(channel: u8, which: u8, value: u8) -> Box<SliderEvent> {
-        Box::new(
-            SliderEvent {
-                channel,
-                which,
-                value
-            }
-        )
+    pub fn new(channel: u8, which: u8, value: u8) -> SliderEvent {
+        SliderEvent {
+            channel,
+            which,
+            value
+        }
     }
 }
 impl MIDIEvent for SliderEvent {
@@ -1687,13 +1629,11 @@ pub struct HoldPedalEvent {
     value: u8
 }
 impl HoldPedalEvent {
-    pub fn new(channel: u8, value: u8) -> Box<HoldPedalEvent> {
-        Box::new(
-            HoldPedalEvent {
-                channel,
-                value
-            }
-        )
+    pub fn new(channel: u8, value: u8) -> HoldPedalEvent {
+        HoldPedalEvent {
+            channel,
+            value
+        }
     }
 }
 impl MIDIEvent for HoldPedalEvent {
@@ -1735,13 +1675,11 @@ pub struct PortamentoEvent {
     value: u8
 }
 impl PortamentoEvent {
-    pub fn new(channel: u8, value: u8) -> Box<PortamentoEvent> {
-        Box::new(
-            PortamentoEvent {
-                channel,
-                value
-            }
-        )
+    pub fn new(channel: u8, value: u8) -> PortamentoEvent {
+        PortamentoEvent {
+            channel,
+            value
+        }
     }
 }
 impl MIDIEvent for PortamentoEvent {
@@ -1783,13 +1721,11 @@ pub struct SustenutoEvent {
 }
 
 impl SustenutoEvent {
-    pub fn new(channel: u8, value: u8) -> Box<SustenutoEvent> {
-        Box::new(
-            SustenutoEvent {
-                channel,
-                value
-            }
-        )
+    pub fn new(channel: u8, value: u8) -> SustenutoEvent {
+        SustenutoEvent {
+            channel,
+            value
+        }
     }
 }
 impl MIDIEvent for SustenutoEvent {
@@ -1830,13 +1766,11 @@ pub struct SoftPedalEvent {
     value: u8
 }
 impl SoftPedalEvent {
-    pub fn new(channel: u8, value: u8) -> Box<SoftPedalEvent> {
-        Box::new(
-            SoftPedalEvent {
-                channel,
-                value
-            }
-        )
+    pub fn new(channel: u8, value: u8) -> SoftPedalEvent {
+        SoftPedalEvent {
+            channel,
+            value
+        }
     }
 }
 impl MIDIEvent for SoftPedalEvent {
@@ -1877,13 +1811,11 @@ pub struct LegatoEvent {
     value: u8
 }
 impl LegatoEvent {
-    pub fn new(channel: u8, value: u8) -> Box<LegatoEvent> {
-        Box::new(
-            LegatoEvent {
-                channel,
-                value
-            }
-        )
+    pub fn new(channel: u8, value: u8) -> LegatoEvent {
+        LegatoEvent {
+            channel,
+            value
+        }
     }
 }
 impl MIDIEvent for LegatoEvent {
@@ -1925,13 +1857,11 @@ pub struct Hold2PedalEvent { // TODO: Bettwe name? Fade pedal?
     value: u8
 }
 impl Hold2PedalEvent {
-    pub fn new(channel: u8, value: u8) -> Box<Hold2PedalEvent> {
-        Box::new(
-            Hold2PedalEvent {
-                channel,
-                value
-            }
-        )
+    pub fn new(channel: u8, value: u8) -> Hold2PedalEvent {
+        Hold2PedalEvent {
+            channel,
+            value
+        }
     }
 }
 impl MIDIEvent for Hold2PedalEvent {
@@ -1972,13 +1902,11 @@ pub struct SoundVariationEvent {
     value: u8
 }
 impl SoundVariationEvent {
-    pub fn new(channel: u8, value: u8) -> Box<SoundVariationEvent> {
-        Box::new(
-            SoundVariationEvent {
-                channel,
-                value
-            }
-        )
+    pub fn new(channel: u8, value: u8) -> SoundVariationEvent {
+        SoundVariationEvent {
+            channel,
+            value
+        }
     }
 }
 impl MIDIEvent for SoundVariationEvent {
@@ -2019,13 +1947,11 @@ pub struct SoundTimbreEvent {
     value: u8
 }
 impl SoundTimbreEvent {
-    pub fn new(channel: u8, value: u8) -> Box<SoundTimbreEvent> {
-        Box::new(
-            SoundTimbreEvent {
-                channel,
-                value
-            }
-        )
+    pub fn new(channel: u8, value: u8) -> SoundTimbreEvent {
+        SoundTimbreEvent {
+            channel,
+            value
+        }
     }
 }
 impl MIDIEvent for SoundTimbreEvent {
@@ -2066,13 +1992,11 @@ pub struct SoundReleaseTimeEvent {
     value: u8
 }
 impl SoundReleaseTimeEvent {
-    pub fn new(channel: u8, value: u8) -> Box<SoundReleaseTimeEvent> {
-        Box::new(
-            SoundReleaseTimeEvent {
-                channel,
-                value
-            }
-        )
+    pub fn new(channel: u8, value: u8) -> SoundReleaseTimeEvent {
+        SoundReleaseTimeEvent {
+            channel,
+            value
+        }
     }
 }
 impl MIDIEvent for SoundReleaseTimeEvent {
@@ -2113,13 +2037,11 @@ pub struct SoundAttackEvent {
     value: u8
 }
 impl SoundAttackEvent {
-    pub fn new(channel: u8, value: u8) -> Box<SoundAttackEvent> {
-        Box::new(
-            SoundAttackEvent {
-                channel,
-                value
-            }
-        )
+    pub fn new(channel: u8, value: u8) -> SoundAttackEvent {
+        SoundAttackEvent {
+            channel,
+            value
+        }
     }
 }
 impl MIDIEvent for SoundAttackEvent {
@@ -2161,13 +2083,11 @@ pub struct SoundBrightnessEvent {
     value: u8
 }
 impl SoundBrightnessEvent {
-    pub fn new(channel: u8, value: u8) -> Box<SoundBrightnessEvent> {
-        Box::new(
-            SoundBrightnessEvent {
-                channel,
-                value
-            }
-        )
+    pub fn new(channel: u8, value: u8) -> SoundBrightnessEvent {
+        SoundBrightnessEvent {
+            channel,
+            value
+        }
     }
 }
 
@@ -2211,14 +2131,12 @@ pub struct SoundControlEvent {
     value: u8
 }
 impl SoundControlEvent {
-    pub fn new(channel: u8, which: u8, value: u8) -> Box<SoundControlEvent> {
-        Box::new(
-            SoundControlEvent {
-                channel,
-                which,
-                value
-            }
-        )
+    pub fn new(channel: u8, which: u8, value: u8) -> SoundControlEvent {
+        SoundControlEvent {
+            channel,
+            which,
+            value
+        }
     }
 }
 impl MIDIEvent for SoundControlEvent {
@@ -2259,13 +2177,11 @@ pub struct GeneralButtonOnEvent {
     which: u8 //(0-3)
 }
 impl GeneralButtonOnEvent {
-    pub fn new(channel: u8, which: u8) -> Box<GeneralButtonOnEvent> {
-        Box::new(
-            GeneralButtonOnEvent {
-                channel,
-                which
-            }
-        )
+    pub fn new(channel: u8, which: u8) -> GeneralButtonOnEvent {
+        GeneralButtonOnEvent {
+            channel,
+            which
+        }
     }
 }
 impl MIDIEvent for GeneralButtonOnEvent {
@@ -2307,13 +2223,11 @@ pub struct GeneralButtonOffEvent {
     which: u8 //(0-3)
 }
 impl GeneralButtonOffEvent {
-    pub fn new(channel: u8, which: u8) -> Box<GeneralButtonOffEvent> {
-        Box::new(
-            GeneralButtonOffEvent {
-                channel,
-                which
-            }
-        )
+    pub fn new(channel: u8, which: u8) -> GeneralButtonOffEvent {
+        GeneralButtonOffEvent {
+            channel,
+            which
+        }
     }
 }
 impl MIDIEvent for GeneralButtonOffEvent {
@@ -2355,13 +2269,11 @@ pub struct EffectsLevelEvent {
 }
 
 impl EffectsLevelEvent {
-    pub fn new(channel: u8, value: u8) -> Box<EffectsLevelEvent> {
-        Box::new(
-            EffectsLevelEvent {
-                channel,
-                value
-            }
-        )
+    pub fn new(channel: u8, value: u8) -> EffectsLevelEvent {
+        EffectsLevelEvent {
+            channel,
+            value
+        }
     }
 }
 impl MIDIEvent for EffectsLevelEvent {
@@ -2403,13 +2315,11 @@ pub struct TremuloLevelEvent {
     value: u8
 }
 impl TremuloLevelEvent {
-    pub fn new(channel: u8, value: u8) -> Box<TremuloLevelEvent> {
-        Box::new(
-            TremuloLevelEvent {
-                channel,
-                value
-            }
-        )
+    pub fn new(channel: u8, value: u8) -> TremuloLevelEvent {
+        TremuloLevelEvent {
+            channel,
+            value
+        }
     }
 }
 impl MIDIEvent for TremuloLevelEvent {
@@ -2451,13 +2361,11 @@ pub struct ChorusLevelEvent {
     value: u8
 }
 impl ChorusLevelEvent {
-    pub fn new(channel: u8, value: u8) -> Box<ChorusLevelEvent> {
-        Box::new(
-            ChorusLevelEvent {
-                channel,
-                value
-            }
-        )
+    pub fn new(channel: u8, value: u8) -> ChorusLevelEvent {
+        ChorusLevelEvent {
+            channel,
+            value
+        }
     }
 }
 impl MIDIEvent for ChorusLevelEvent {
@@ -2498,13 +2406,11 @@ pub struct CelesteLevelEvent {
     value: u8
 }
 impl CelesteLevelEvent {
-    pub fn new(channel: u8, value: u8) -> Box<CelesteLevelEvent> {
-        Box::new(
-            CelesteLevelEvent {
-                channel,
-                value
-            }
-        )
+    pub fn new(channel: u8, value: u8) -> CelesteLevelEvent {
+        CelesteLevelEvent {
+            channel,
+            value
+        }
     }
 }
 impl MIDIEvent for CelesteLevelEvent {
@@ -2545,13 +2451,11 @@ pub struct PhaserLevelEvent {
     value: u8
 }
 impl PhaserLevelEvent {
-    pub fn new(channel: u8, value: u8) -> Box<PhaserLevelEvent> {
-        Box::new(
-            PhaserLevelEvent {
-                channel,
-                value
-            }
-        )
+    pub fn new(channel: u8, value: u8) -> PhaserLevelEvent {
+        PhaserLevelEvent {
+            channel,
+            value
+        }
     }
 }
 impl MIDIEvent for PhaserLevelEvent {
@@ -2593,13 +2497,11 @@ pub struct DataButtonIncrementEvent {
     target: Option<u16> // if set, will create RPN event beforehand
 }
 impl DataButtonIncrementEvent {
-    pub fn new(channel: u8, target: Option<u16>) -> Box<DataButtonIncrementEvent> {
-        Box::new(
-            DataButtonIncrementEvent {
-                channel,
-                target
-            }
-        )
+    pub fn new(channel: u8, target: Option<u16>) -> DataButtonIncrementEvent {
+        DataButtonIncrementEvent {
+            channel,
+            target
+        }
     }
 }
 impl MIDIEvent for DataButtonIncrementEvent {
@@ -2669,13 +2571,11 @@ pub struct DataButtonDecrementEvent {
     target: Option<u16> // if set, will create RPN event beforehand
 }
 impl DataButtonDecrementEvent {
-    pub fn new(channel: u8, target: Option<u16>) -> Box<DataButtonDecrementEvent> {
-        Box::new(
-            DataButtonDecrementEvent {
-                channel,
-                target
-            }
-        )
+    pub fn new(channel: u8, target: Option<u16>) -> DataButtonDecrementEvent {
+        DataButtonDecrementEvent {
+            channel,
+            target
+        }
     }
 }
 impl MIDIEvent for DataButtonDecrementEvent {
@@ -2746,13 +2646,11 @@ pub struct RegisteredParameterNumberEvent {
     value: u16
 }
 impl RegisteredParameterNumberEvent {
-    pub fn new(channel: u8, value: u16) -> Box<RegisteredParameterNumberEvent> {
-        Box::new(
-            RegisteredParameterNumberEvent {
-                channel,
-                value
-            }
-        )
+    pub fn new(channel: u8, value: u16) -> RegisteredParameterNumberEvent {
+        RegisteredParameterNumberEvent {
+            channel,
+            value
+        }
     }
 }
 
@@ -2800,13 +2698,11 @@ pub struct NonRegisteredParameterNumberEvent {
     value: u16
 }
 impl NonRegisteredParameterNumberEvent {
-    pub fn new(channel: u8, value: u16) -> Box<NonRegisteredParameterNumberEvent> {
-        Box::new(
-            NonRegisteredParameterNumberEvent {
-                channel,
-                value
-            }
-        )
+    pub fn new(channel: u8, value: u16) -> NonRegisteredParameterNumberEvent {
+        NonRegisteredParameterNumberEvent {
+            channel,
+            value
+        }
     }
 }
 impl MIDIEvent for NonRegisteredParameterNumberEvent {
@@ -2849,12 +2745,10 @@ pub struct AllControllersOffEvent {
     channel: u8
 }
 impl AllControllersOffEvent {
-    pub fn new(channel: u8) -> Box<AllControllersOffEvent> {
-        Box::new(
-            AllControllersOffEvent {
-                channel
-            }
-        )
+    pub fn new(channel: u8) -> AllControllersOffEvent {
+        AllControllersOffEvent {
+            channel
+        }
     }
 }
 impl MIDIEvent for AllControllersOffEvent {
@@ -2879,12 +2773,10 @@ pub struct LocalKeyboardEnableEvent {
     channel: u8
 }
 impl LocalKeyboardEnableEvent {
-    pub fn new(channel: u8) -> Box<LocalKeyboardEnableEvent> {
-        Box::new(
-            LocalKeyboardEnableEvent {
-                channel
-            }
-        )
+    pub fn new(channel: u8) -> LocalKeyboardEnableEvent {
+        LocalKeyboardEnableEvent {
+            channel
+        }
     }
 }
 impl MIDIEvent for LocalKeyboardEnableEvent {
@@ -2909,12 +2801,10 @@ pub struct LocalKeyboardDisableEvent {
     channel: u8
 }
 impl LocalKeyboardDisableEvent {
-    pub fn new(channel: u8) -> Box<LocalKeyboardDisableEvent> {
-        Box::new(
-            LocalKeyboardDisableEvent {
-                channel
-            }
-        )
+    pub fn new(channel: u8) -> LocalKeyboardDisableEvent {
+        LocalKeyboardDisableEvent {
+            channel
+        }
     }
 }
 impl MIDIEvent for LocalKeyboardDisableEvent {
@@ -2940,12 +2830,10 @@ pub struct AllNotesOffEvent {
     channel: u8
 }
 impl AllNotesOffEvent {
-    pub fn new(channel: u8) -> Box<AllNotesOffEvent> {
-        Box::new(
-            AllNotesOffEvent {
-                channel
-            }
-        )
+    pub fn new(channel: u8) -> AllNotesOffEvent {
+        AllNotesOffEvent {
+            channel
+        }
     }
 }
 impl MIDIEvent for AllNotesOffEvent {
@@ -2970,12 +2858,10 @@ pub struct AllSoundOffEvent {
     channel: u8
 }
 impl AllSoundOffEvent {
-    pub fn new(channel: u8) -> Box<AllSoundOffEvent> {
-        Box::new(
-            AllSoundOffEvent {
-                channel
-            }
-        )
+    pub fn new(channel: u8) -> AllSoundOffEvent {
+        AllSoundOffEvent {
+            channel
+        }
     }
 }
 impl MIDIEvent for AllSoundOffEvent {
@@ -3001,12 +2887,10 @@ pub struct OmniOffEvent {
     channel: u8
 }
 impl OmniOffEvent {
-    pub fn new(channel: u8) -> Box<OmniOffEvent> {
-        Box::new(
-            OmniOffEvent {
-                channel
-            }
-        )
+    pub fn new(channel: u8) -> OmniOffEvent {
+        OmniOffEvent {
+            channel
+        }
     }
 }
 impl MIDIEvent for OmniOffEvent {
@@ -3032,12 +2916,10 @@ pub struct OmniOnEvent {
     channel: u8
 }
 impl OmniOnEvent {
-    pub fn new(channel: u8) -> Box<OmniOnEvent> {
-        Box::new(
-            OmniOnEvent {
-                channel
-            }
-        )
+    pub fn new(channel: u8) -> OmniOnEvent {
+        OmniOnEvent {
+            channel
+        }
     }
 }
 impl MIDIEvent for OmniOnEvent {
@@ -3064,13 +2946,11 @@ pub struct MonophonicOperationEvent {
     value: u8
 }
 impl MonophonicOperationEvent {
-    pub fn new(channel: u8, value: u8) -> Box<MonophonicOperationEvent> {
-        Box::new(
-            MonophonicOperationEvent {
-                channel,
-                value
-            }
-        )
+    pub fn new(channel: u8, value: u8) -> MonophonicOperationEvent {
+        MonophonicOperationEvent {
+            channel,
+            value
+        }
     }
 }
 impl MIDIEvent for MonophonicOperationEvent {
@@ -3110,12 +2990,10 @@ pub struct PolyphonicOperationEvent {
     channel: u8
 }
 impl PolyphonicOperationEvent {
-    pub fn new(channel: u8) -> Box<PolyphonicOperationEvent> {
-        Box::new(
-            PolyphonicOperationEvent {
-                channel
-            }
-        )
+    pub fn new(channel: u8) -> PolyphonicOperationEvent {
+        PolyphonicOperationEvent {
+            channel
+        }
     }
 }
 impl MIDIEvent for PolyphonicOperationEvent {
@@ -3143,14 +3021,12 @@ pub struct ControlChangeEvent {
 }
 
 impl ControlChangeEvent {
-    pub fn new(channel: u8, controller: u8, value:u8) -> Box<ControlChangeEvent> {
-        Box::new(
-            ControlChangeEvent {
-                channel: channel & 0x0F,
-                controller: controller & 0x7F,
-                value: value & 0x7F
-            }
-        )
+    pub fn new(channel: u8, controller: u8, value:u8) -> ControlChangeEvent {
+        ControlChangeEvent {
+            channel: channel & 0x0F,
+            controller: controller & 0x7F,
+            value: value & 0x7F
+        }
     }
 }
 
@@ -3207,13 +3083,11 @@ pub struct ProgramChangeEvent {
     program: u8,
 }
 impl ProgramChangeEvent {
-    pub fn new(channel: u8, program: u8) -> Box<ProgramChangeEvent> {
-        Box::new(
-            ProgramChangeEvent {
-                channel: channel & 0x0F,
-                program: program & 0x7F
-            }
-        )
+    pub fn new(channel: u8, program: u8) -> ProgramChangeEvent {
+        ProgramChangeEvent {
+            channel: channel & 0x0F,
+            program: program & 0x7F
+        }
     }
 }
 impl MIDIEvent for ProgramChangeEvent {
@@ -3262,13 +3136,11 @@ pub struct ChannelPressureEvent {
     pressure: u8
 }
 impl ChannelPressureEvent {
-    pub fn new(channel: u8, pressure: u8) -> Box<ChannelPressureEvent> {
-        Box::new(
-            ChannelPressureEvent {
-                channel: channel & 0x0F,
-                pressure: pressure & 0x7F
-            }
-        )
+    pub fn new(channel: u8, pressure: u8) -> ChannelPressureEvent {
+        ChannelPressureEvent {
+            channel: channel & 0x0F,
+            pressure: pressure & 0x7F
+        }
     }
 }
 
@@ -3318,15 +3190,13 @@ pub struct PitchWheelChangeEvent {
 }
 
 impl PitchWheelChangeEvent {
-    pub fn new(channel: u8, value: f64) -> Box<PitchWheelChangeEvent> {
-        Box::new(
-            PitchWheelChangeEvent {
-                channel: channel & 0x0F,
-                value
-            }
-        )
+    pub fn new(channel: u8, value: f64) -> PitchWheelChangeEvent {
+        PitchWheelChangeEvent {
+            channel: channel & 0x0F,
+            value
+        }
     }
-    pub fn new_from_lsb_msb(channel: u8, lsb: u8, msb: u8) -> Box<PitchWheelChangeEvent> {
+    pub fn new_from_lsb_msb(channel: u8, lsb: u8, msb: u8) -> PitchWheelChangeEvent {
         let unsigned_value: f64 = (((msb as u16) << 7) + (lsb as u16)) as f64;
         let new_value: f64 = ((unsigned_value * 2_f64) as f64 / 0x3FFF as f64) - 1_f64;
         PitchWheelChangeEvent::new(channel, new_value)
@@ -3405,12 +3275,10 @@ pub struct SystemExclusiveEvent {
     data: Vec<u8>
 }
 impl SystemExclusiveEvent {
-    pub fn new(data: Vec<u8>) -> Box<SystemExclusiveEvent> {
-        Box::new(
-            SystemExclusiveEvent {
-                data: data.clone()
-            }
-        )
+    pub fn new(data: Vec<u8>) -> SystemExclusiveEvent {
+        SystemExclusiveEvent {
+            data: data.clone()
+        }
     }
 }
 
@@ -3443,13 +3311,11 @@ pub struct MTCQuarterFrameEvent {
 }
 
 impl MTCQuarterFrameEvent {
-    pub fn new(byte: u8) -> Box<MTCQuarterFrameEvent> {
-        Box::new(
-            MTCQuarterFrameEvent {
-                message_type: byte & 0b11111000 >> 3,
-                value: byte & 0b00000111
-            }
-        )
+    pub fn new(byte: u8) -> MTCQuarterFrameEvent {
+        MTCQuarterFrameEvent {
+            message_type: byte & 0b11111000 >> 3,
+            value: byte & 0b00000111
+        }
     }
 }
 
@@ -3500,14 +3366,12 @@ pub struct SongPositionPointerEvent {
     beat: u16
 }
 impl SongPositionPointerEvent {
-    pub fn new(beat: u16) -> Box<SongPositionPointerEvent> {
-        Box::new(
-            SongPositionPointerEvent {
-                beat
-            }
-        )
+    pub fn new(beat: u16) -> SongPositionPointerEvent {
+        SongPositionPointerEvent {
+            beat
+        }
     }
-    pub fn new_from_lsb_msb(lsb: u8, msb: u8) -> Box<SongPositionPointerEvent> {
+    pub fn new_from_lsb_msb(lsb: u8, msb: u8) -> SongPositionPointerEvent {
         let unsigned_value: f64 = (((msb as u16) << 7) + (lsb as u16)) as f64;
         let new_value: f64 = ((unsigned_value * 2_f64) as f64 / 0x3FFF as f64) - 1_f64;
         SongPositionPointerEvent::new(new_value as u16)
@@ -3545,12 +3409,10 @@ pub struct SongSelectEvent {
     song: u8
 }
 impl SongSelectEvent {
-    pub fn new(song: u8) -> Box<SongSelectEvent> {
-        Box::new(
-            SongSelectEvent {
-                song
-            }
-        )
+    pub fn new(song: u8) -> SongSelectEvent {
+        SongSelectEvent {
+            song
+        }
     }
 }
 impl MIDIEvent for SongSelectEvent {
@@ -3854,8 +3716,6 @@ impl MIDI {
 
         let n: u32;
         let varlength: u64;
-
-
         match leadbyte {
             0..=0x7F => {
                  // Implicitly a Channel Event
@@ -3870,7 +3730,8 @@ impl MIDI {
                         channel = leadbyte & 0x0F;
                         let note = bytes.pop().unwrap();
                         let velocity = bytes.pop().unwrap();
-                        output = Some(self.insert_event(track, *current_deltatime, NoteOffEvent::new(channel, note, velocity)));
+                        let event = NoteOffEvent::new(channel, note, velocity);
+                        output = Some(self.insert_event(track, *current_deltatime, Box::new(event)));
                     }
                     0x9 => {
                         channel = leadbyte & 0x0F;
@@ -3878,39 +3739,45 @@ impl MIDI {
                         let velocity = bytes.pop().unwrap();
                         // Convert fake NoteOff (NoteOn where velocity is 0) to real NoteOff
                         if velocity == 0 {
-                            output = Some(self.insert_event(track, *current_deltatime, NoteOffEvent::new(channel, note, velocity)));
+                            let event = NoteOffEvent::new(channel, note, velocity);
+                            output = Some(self.insert_event(track, *current_deltatime, Box::new(event)));
                         } else {
-                            output = Some(self.insert_event(track, *current_deltatime, NoteOnEvent::new(channel, note, velocity)));
+                            let event = NoteOnEvent::new(channel, note, velocity);
+                            output = Some(self.insert_event(track, *current_deltatime, Box::new(event)));
                         }
                     }
                     0xA => {
                         channel = leadbyte & 0x0F;
                         let note = bytes.pop().unwrap();
                         let velocity = bytes.pop().unwrap();
-                        output = Some(self.insert_event(track, *current_deltatime, AfterTouchEvent::new(channel, note, velocity)));
+                        let event = AfterTouchEvent::new(channel, note, velocity);
+                        output = Some(self.insert_event(track, *current_deltatime, Box::new(event)));
                     }
                     0xB => {
                         channel = leadbyte & 0x0F;
                         let controller = bytes.pop().unwrap();
                         let value = bytes.pop().unwrap();
-                        output = Some(self.insert_event(track, *current_deltatime, ControlChangeEvent::new(channel, controller, value)));
+                        let event = ControlChangeEvent::new(channel, controller, value);
+                        output = Some(self.insert_event(track, *current_deltatime, Box::new(event)));
                     }
                     0xC => {
                         channel = leadbyte & 0x0F;
                         let new_program = bytes.pop().unwrap();
-                        output = Some(self.insert_event(track, *current_deltatime, ProgramChangeEvent::new(channel, new_program)));
+                        let event = ProgramChangeEvent::new(channel, new_program);
+                        output = Some(self.insert_event(track, *current_deltatime, Box::new(event)));
                     }
                     0xD => {
                         channel = leadbyte & 0x0F;
                         let pressure = bytes.pop().unwrap();
-                        output = Some(self.insert_event(track, *current_deltatime, ChannelPressureEvent::new(channel, pressure)));
+                        let event = ChannelPressureEvent::new(channel, pressure);
+                        output = Some(self.insert_event(track, *current_deltatime, Box::new(event)));
                     }
                     0xE => {
                         channel = leadbyte & 0x0F;
                         let least_significant_byte = bytes.pop().unwrap();
                         let most_significant_byte = bytes.pop().unwrap();
-                        let new_event = PitchWheelChangeEvent::new_from_lsb_msb(channel, least_significant_byte, most_significant_byte);
-                        output = Some(self.insert_event(track, *current_deltatime, new_event));
+                        let event = PitchWheelChangeEvent::new_from_lsb_msb(channel, least_significant_byte, most_significant_byte);
+                        output = Some(self.insert_event(track, *current_deltatime, Box::new(event)));
                     }
                     _ => {
                         //undefined behavior
@@ -3938,7 +3805,8 @@ impl MIDI {
                     }
                 }
 
-                output = Some(self.insert_event(track, *current_deltatime, SystemExclusiveEvent::new(bytedump)));
+                let event = SystemExclusiveEvent::new(bytedump);
+                output = Some(self.insert_event(track, *current_deltatime, Box::new(event)));
             }
             0xF2 => {
                 // Song Position Pointer
@@ -3946,11 +3814,13 @@ impl MIDI {
                 let most_significant_byte = bytes.pop().unwrap();
 
                 let beat = ((most_significant_byte as u16) << 7) + (least_significant_byte as u16);
-                output = Some(self.insert_event(track, *current_deltatime, SongPositionPointerEvent::new(beat)));
+                let event = SongPositionPointerEvent::new(beat);
+                output = Some(self.insert_event(track, *current_deltatime, Box::new(event)));
             }
             0xF3 => {
                 let song = bytes.pop().unwrap();
-                output = Some(self.insert_event(track, *current_deltatime, SongSelectEvent::new(song & 0x7F)));
+                let event = SongSelectEvent::new(song & 0x7F);
+                output = Some(self.insert_event(track, *current_deltatime, Box::new(event)));
             }
             0xF1 | 0xF6 | 0xF8 | 0xFA | 0xFB | 0xFC | 0xFE => {
                 // Do Nothing. These are system-realtime and shouldn't be in a file.
@@ -3967,7 +3837,8 @@ impl MIDI {
                 let meta_byte = bytes.pop().unwrap(); // Meta Type
                 varlength = get_variable_length_number(bytes);
                 if meta_byte == 0x51 {
-                    output = Some(self.insert_event(track, *current_deltatime, SetTempoEvent::new(pop_n(bytes, varlength as usize))));
+                    let event = SetTempoEvent::new(pop_n(bytes, varlength as usize));
+                    output = Some(self.insert_event(track, *current_deltatime, Box::new(event)));
                 } else {
                     let mut bytedump = Vec::new();
                     for _ in 0..varlength {
@@ -3984,7 +3855,8 @@ impl MIDI {
                         0x01 => {
                             match std::str::from_utf8(bytedump.as_slice()) {
                                 Ok(textdump) => {
-                                    output = Some(self.insert_event(track, *current_deltatime, TextEvent::new(textdump.to_string())));
+                                    let event = TextEvent::new(textdump.to_string());
+                                    output = Some(self.insert_event(track, *current_deltatime, Box::new(event)));
                                 }
                                 Err(_e) => {}
                             };
@@ -3992,7 +3864,8 @@ impl MIDI {
                         0x02 => {
                             match std::str::from_utf8(bytedump.as_slice()) {
                                 Ok(textdump) => {
-                                    output = Some(self.insert_event(track, *current_deltatime, CopyRightNoticeEvent::new(textdump.to_string())));
+                                    let event = CopyRightNoticeEvent::new(textdump.to_string());
+                                    output = Some(self.insert_event(track, *current_deltatime, Box::new(event)));
                                 }
                                 Err(_e) => {}
                             };
@@ -4000,7 +3873,8 @@ impl MIDI {
                         0x03 => {
                             match std::str::from_utf8(bytedump.as_slice()) {
                                 Ok(textdump) => {
-                                    output = Some(self.insert_event(track, *current_deltatime, TrackNameEvent::new(textdump.to_string())));
+                                    let event = TrackNameEvent::new(textdump.to_string());
+                                    output = Some(self.insert_event(track, *current_deltatime, Box::new(event)));
                                 }
                                 Err(_e) => {}
                             };
@@ -4008,7 +3882,8 @@ impl MIDI {
                         0x04 => {
                             match std::str::from_utf8(bytedump.as_slice()) {
                                 Ok(textdump) => {
-                                    output = Some(self.insert_event(track, *current_deltatime, InstrumentNameEvent::new(textdump.to_string())));
+                                    let event = InstrumentNameEvent::new(textdump.to_string());
+                                    output = Some(self.insert_event(track, *current_deltatime, Box::new(event)));
                                 }
                                 Err(_e) => {}
                             };
@@ -4016,7 +3891,8 @@ impl MIDI {
                         0x05 => {
                             match std::str::from_utf8(bytedump.as_slice()) {
                                 Ok(textdump) => {
-                                    output = Some(self.insert_event(track, *current_deltatime, LyricEvent::new(textdump.to_string())));
+                                    let event = LyricEvent::new(textdump.to_string());
+                                    output = Some(self.insert_event(track, *current_deltatime, Box::new(event)));
                                 }
                                 Err(_e) => {}
                             };
@@ -4024,7 +3900,8 @@ impl MIDI {
                         0x06 => {
                             match std::str::from_utf8(bytedump.as_slice()) {
                                 Ok(textdump) => {
-                                    output = Some(self.insert_event(track, *current_deltatime, MarkerEvent::new(textdump.to_string())));
+                                    let event = MarkerEvent::new(textdump.to_string());
+                                    output = Some(self.insert_event(track, *current_deltatime, Box::new(event)));
                                 }
                                 Err(_e) => {}
                             };
@@ -4032,31 +3909,36 @@ impl MIDI {
                         0x07 => {
                             match std::str::from_utf8(bytedump.as_slice()) {
                                 Ok(textdump) => {
-                                    output = Some(self.insert_event(track, *current_deltatime, CuePointEvent::new(textdump.to_string())));
+                                    let event = CuePointEvent::new(textdump.to_string());
+                                    output = Some(self.insert_event(track, *current_deltatime, Box::new(event)));
                                 }
                                 Err(_e) => {}
                             };
                         }
                         0x20 => {
-                            output = Some(self.insert_event(track, *current_deltatime, ChannelPrefixEvent::new(bytedump[0])));
+                            let event = ChannelPrefixEvent::new(bytedump[0]);
+                            output = Some(self.insert_event(track, *current_deltatime, Box::new(event)));
                         }
                         0x2F => {
                             // I *think* EndOfTrack events can be safely ignored, since it has to be the last event in a track and the track knows how long it is.
-                            //output = Some(self.insert_event(track, *current_deltatime, EndOfTrackEvent::new() ));
+                            //let event = EndOfTrackEvent::new() );
                         }
                         0x51 => {
                         }
                         0x54 => {
-                            output = Some(self.insert_event(track, *current_deltatime, SMPTEOffsetEvent::new(bytedump[0], bytedump[1], bytedump[2], bytedump[3], bytedump[4])));
+                            let event = SMPTEOffsetEvent::new(bytedump[0], bytedump[1], bytedump[2], bytedump[3], bytedump[4]);
+                            output = Some(self.insert_event(track, *current_deltatime, Box::new(event)));
                         }
                         0x58 => {
-                            output = Some(self.insert_event(track, *current_deltatime, TimeSignatureEvent::new(bytedump[0], bytedump[1], bytedump[2], bytedump[3])));
+                            let event = TimeSignatureEvent::new(bytedump[0], bytedump[1], bytedump[2], bytedump[3]);
+                            output = Some(self.insert_event(track, *current_deltatime, Box::new(event)));
                         }
                         0x59 => {
-                            //output = Some(self.insert_event(track, *current_deltatime, KeySignatureEvent::from_mi_sf(bytedump[1], dump[0])));
+                            //let event = KeySignatureEvent::from_mi_sf(bytedump[1], dump[0]);
                         }
                         0x7F => {
-                            output = Some(self.insert_event(track, *current_deltatime, SequencerSpecificEvent::new(bytedump)));
+                            let event = SequencerSpecificEvent::new(bytedump);
+                            output = Some(self.insert_event(track, *current_deltatime, Box::new(event)));
                         }
                         _ => {
                         }
