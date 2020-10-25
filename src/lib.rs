@@ -3582,15 +3582,32 @@ impl MIDIEvent for ResetEvent {
 /// Can represent a file or a real-time performance.
 ///
 /// # Examples
+/// Load a Song
 /// ```
 /// use apres::MIDI;
 /// // Create a MIDI from a file
 /// let midi = MIDI::from_path("/path/to/file.mid");
 /// ```
+/// Create a new MIDI
 /// ```
 /// use apres::MIDI;
 /// // Create an empty MIDI file.
 /// let midi = MIDI::new();
+/// ```
+/// Creating a song
+/// ```
+/// use apres::{MIDI, NoteOnEvent, NoteOffEvent};
+/// // Create an empty MIDI file.
+/// let mut midi = MIDI::new();
+///
+/// // Press midi note 64 (Middle E) on the first track (0) at the first position (0 ticks)
+/// midi.insert_event(0, 0, Box::new(NoteOnEvent::new(64, 100, 100)));
+///
+/// // Release midi note 64 (Middle E) on the first track (0) one beat later (120 ticks)
+/// midi.push_event(0, 120, Box::new(NoteOnEvent::new(64, 100, 100)));
+///
+/// // Save it to a file
+/// midi.save("beep.mid");
 /// ```
 pub struct MIDI {
     ppqn: u16,
@@ -3602,6 +3619,7 @@ pub struct MIDI {
 
 
 impl MIDI {
+    /// Construct a new, empty MIDI
     pub fn new() -> MIDI {
         MIDI {
             event_id_gen: 1, // Reserve 0 for passing 'none' to bindings
@@ -3612,6 +3630,7 @@ impl MIDI {
         }
     }
 
+    /// Construct a new MIDI from a .mid file
     pub fn from_path(file_path: &str) -> MIDI {
         let mut midibytes = Vec::new();
         match File::open(file_path.to_string()) {
@@ -3711,7 +3730,7 @@ impl MIDI {
         mlo
     }
 
-    pub fn process_mtrk_event(&mut self, leadbyte: u8, bytes: &mut Vec<u8>, current_deltatime: &mut usize, track: usize, fallback_cmd: &mut u8) -> Option<u64> {
+    fn process_mtrk_event(&mut self, leadbyte: u8, bytes: &mut Vec<u8>, current_deltatime: &mut usize, track: usize, fallback_cmd: &mut u8) -> Option<u64> {
         let mut output = None;
 
         let n: u32;
@@ -4006,7 +4025,8 @@ impl MIDI {
         output
     }
 
-    pub fn save(&self, path: String) {
+    /// Save the MIDI Object to a file
+    pub fn save(&self, path: &str) {
         let bytes = self.as_bytes();
         match File::create(path) {
             Ok(mut file) => {
@@ -4017,10 +4037,13 @@ impl MIDI {
         }
     }
 
+    /// Get the track and tick of an event, given its id
     pub fn get_event_position(&self, event_id: u64) -> Option<&(usize, usize)> {
         self.event_positions.get(&event_id)
     }
 
+    /// Get a list of tracks, each populated by lists of event ids.
+    /// Each list in each track represents a 'tick', so it could be empty
     pub fn get_tracks(&self) -> Vec<Vec<(usize, u64)>> {
         let mut tracks = Vec::new();
         for (eid, (track, tick)) in self.event_positions.iter() {
@@ -4090,12 +4113,14 @@ impl MIDI {
         self.midi_format
     }
 
+    /// Change the track or position of an event, given it id in the MIDI
     pub fn move_event(&mut self, new_track: usize, new_tick: usize, event_id: u64) {
         self.event_positions.entry(event_id)
             .and_modify(|pair| { *pair = (new_track, new_tick); })
             .or_insert((new_track, new_tick));
     }
 
+    /// Insert an event into the track
     pub fn insert_event(&mut self, track: usize, tick: usize, event: Box<dyn MIDIEvent>) -> u64 {
         let new_event_id = self.event_id_gen;
         self.event_id_gen += 1;
@@ -4107,6 +4132,7 @@ impl MIDI {
         new_event_id
     }
 
+    /// Insert an event after the latest event in the track
     pub fn push_event(&mut self, track: usize, wait: usize, event: Box<dyn MIDIEvent>) -> u64 {
         let new_event_id = self.event_id_gen;
 
@@ -4292,8 +4318,8 @@ mod tests {
     #[test]
     fn test_add_event() {
         let mut midi = MIDI::new();
-        let on_event = midi.push_event(0, 0, NoteOnEvent::new(0, 64, 100));
-        let off_event = midi.push_event(0, 119, NoteOffEvent::new(0, 64, 0));
+        let on_event = midi.push_event(0, 0, Box::new(NoteOnEvent::new(0, 64, 100)));
+        let off_event = midi.push_event(0, 119, Box::new(NoteOffEvent::new(0, 64, 0)));
 
         assert_eq!(on_event, 1);
         assert_eq!(off_event, 2);
