@@ -32,7 +32,7 @@ pub extern fn interpret(path: *const c_char) -> *mut MIDI {
     };
 
     let clean_path = cstr_path.to_str().expect("Not a valid UTF-8 string");
-    let midi = MIDI::from_path(clean_path.to_string());
+    let midi = MIDI::from_path(clean_path);
     Box::into_raw(Box::new( midi ))
 }
 

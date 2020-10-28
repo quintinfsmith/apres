@@ -2,6 +2,7 @@
 import sys
 from cffi import FFI
 from ctypes.util import find_library
+import os
 
 
 def logg(*msg):
@@ -964,7 +965,7 @@ class MIDI:
     """Usable object. Converted from midi files.
         Events are the same midi files from simplicities sake.
     """
-    SO_PATH = find_library("apres_bindings")
+    SO_PATH = "libapres_bindings.so"
 
     event_constructors = {
         TextEvent._rust_id: TextEvent,
@@ -1019,7 +1020,9 @@ class MIDI:
             void set_ppqn(MIDI, uint16_t);
             uint16_t get_ppqn(MIDI);
         """)
-        self.lib = self.ffi.dlopen(self.SO_PATH)
+
+        abs_dir = os.path.dirname(os.path.realpath(__file__))
+        self.lib = self.ffi.dlopen(abs_dir + '/' + self.SO_PATH)
         self.events = {}
         self.event_positions = {}
         self.ppqn = 120

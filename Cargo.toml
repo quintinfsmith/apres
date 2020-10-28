@@ -6,7 +6,7 @@ edition = "2018"
 description = "External bindings for apres MIDI library"
 
 [dependencies]
-apres = { path = "/home/pent/Projects/apres/" }
+apres = "^0.1.0"
 
 [lib]
 name = "apres_bindings"
