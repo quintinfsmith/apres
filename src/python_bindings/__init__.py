@@ -965,8 +965,6 @@ class MIDI:
     """Usable object. Converted from midi files.
         Events are the same midi files from simplicities sake.
     """
-    SO_PATH = "libapres_bindings.so"
-
     event_constructors = {
         TextEvent._rust_id: TextEvent,
         CopyRightNoticeEvent._rust_id: CopyRightNoticeEvent,
@@ -1021,8 +1019,13 @@ class MIDI:
             uint16_t get_ppqn(MIDI);
         """)
 
-        abs_dir = os.path.dirname(os.path.realpath(__file__))
-        self.lib = self.ffi.dlopen(abs_dir + '/' + self.SO_PATH)
+        lib_path = None
+        for prefix in [site.USER_BASE, sys.prefix]:
+            if os.path.isfile("%s/apres/libapres_bindings.so" % prefix):
+                lib_path = "%s/apres/libapres_bindings.so" % prefix
+                break
+
+        self.lib = ffi.dlopen(lib_path)
         self.events = {}
         self.event_positions = {}
         self.ppqn = 120
