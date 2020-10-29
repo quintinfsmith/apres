@@ -2,25 +2,25 @@
 A MIDI library
 ## Installation
 In Cargo.toml
-```
+```toml
 [dependencies]
 apres = { git = "https://github.com/quintinfsmith/apres" }
 ```
 ## Usage Examples
 Load a Song
-```
+```rust
 use apres::MIDI;
 Create a MIDI from a file
 let midi = MIDI::from_path("/path/to/file.mid");
 ```
 Create a new MIDI
-```
+```rust
 use apres::MIDI;
 // Create an empty MIDI file.
 let midi = MIDI::new();
 ```
 Creating a song
-```
+```rust
 use apres::{MIDI, NoteOnEvent, NoteOffEvent};
 // Create an empty MIDI file.
 let mut midi = MIDI::new();
