@@ -88,11 +88,11 @@ pub enum MIDIEvent {
     Reset
 }
 
-pub trait MIDIEventShit {
+pub trait MIDIBytes {
     fn as_bytes(&self) -> Vec<u8>;
 }
 
-impl MIDIEventShit for MIDIEvent {
+impl MIDIBytes for MIDIEvent {
     fn as_bytes(&self) -> Vec<u8> {
         match self {
             MIDIEvent::SequenceNumber(sequence) => {
