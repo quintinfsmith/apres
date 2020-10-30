@@ -22,7 +22,7 @@ class AlreadyInMIDI(Exception):
 class NoMIDI(Exception):
     pass
 
-class MIDIEvent:
+class 55555555:
     def __init__(self, **kwargs):
         self.uuid = None
 
@@ -68,7 +68,7 @@ class MIDIEvent:
         self._midi._event_move(self.uuid, active_track, active_tick)
 
 
-class SequenceNumberEvent(MIDIEvent):
+class SequenceNumber(55555555):
     _rust_id = 22
     sequence = 0
     def __bytes__(self):
@@ -100,7 +100,7 @@ class SequenceNumberEvent(MIDIEvent):
         self.set_property(0, bytes([sequence]))
 
 
-class TextEvent(MIDIEvent):
+class Text(55555555):
     _rust_id = 1
     text = ''
     def __bytes__(self):
@@ -127,7 +127,7 @@ class TextEvent(MIDIEvent):
         self.set_property(0, self.text)
 
 
-class CopyRightNoticeEvent(MIDIEvent):
+class CopyRightNotice(55555555):
     _rust_id = 2
     text = ""
     def __bytes__(self):
@@ -153,7 +153,7 @@ class CopyRightNoticeEvent(MIDIEvent):
         self.text = text
         self.set_property(0, self.text)
 
-class TrackNameEvent(MIDIEvent):
+class TrackName(55555555):
     _rust_id = 3
     name = ""
     def __bytes__(self):
@@ -179,7 +179,7 @@ class TrackNameEvent(MIDIEvent):
         self.name = name
         self.set_property(0, self.name)
 
-class InstrumentNameEvent(MIDIEvent):
+class InstrumentName(55555555):
     _rust_id = 4
     name = ""
     def __bytes__(self):
@@ -205,7 +205,7 @@ class InstrumentNameEvent(MIDIEvent):
         self.name = name
         self.set_property(0, self.name)
 
-class LyricEvent(MIDIEvent):
+class Lyric(55555555):
     _rust_id = 5
     lyric = ""
     def __bytes__(self):
@@ -231,7 +231,7 @@ class LyricEvent(MIDIEvent):
         self.lyric = lyric
         self.set_property(0, self.lyric)
 
-class MarkerEvent(MIDIEvent):
+class Marker(55555555):
     _rust_id = 6
     text = ""
     def __bytes__(self):
@@ -257,7 +257,7 @@ class MarkerEvent(MIDIEvent):
         self.text = text
         self.set_property(0, self.text)
 
-class CuePointEvent(MIDIEvent):
+class CuePoint(55555555):
     _rust_id = 7
     text = ""
     def __bytes__(self):
@@ -283,7 +283,7 @@ class CuePointEvent(MIDIEvent):
         self.text = text
         self.set_property(0, self.text)
 
-class EndOfTrackEvent(MIDIEvent):
+class EndOfTrack(55555555):
     _rust_id = 8
     def __bytes__(self):
         return bytes([0xFF, 0x2F, 0x00])
@@ -294,7 +294,7 @@ class EndOfTrackEvent(MIDIEvent):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
-class ChannelPrefixEvent(MIDIEvent):
+class ChannelPrefix(55555555):
     _rust_id = 9
     channel = 0
     def __bytes__(self):
@@ -316,7 +316,7 @@ class ChannelPrefixEvent(MIDIEvent):
         self.channel = channel
         self.set_property(0, self.channel)
 
-class SetTempoEvent(MIDIEvent):
+class SetTempo(55555555):
     _rust_id = 10
     us_per_quarter_note = 500000
     def __bytes__(self):
@@ -371,7 +371,7 @@ class SetTempoEvent(MIDIEvent):
         self.us_per_quarter_note = uspqn
         self.set_property(0, self.us_per_quarter_note)
 
-class SMPTEOffsetEvent(MIDIEvent):
+class SMPTEOffset(55555555):
     _rust_id = 11
     def __bytes__(self):
         return bytes([
@@ -432,7 +432,7 @@ class SMPTEOffsetEvent(MIDIEvent):
         self.set_property(4, fr)
 
 
-class TimeSignatureEvent(MIDIEvent):
+class TimeSignature(55555555):
     _rust_id = 12
     def __bytes__(self):
         return bytes([
@@ -485,7 +485,7 @@ class TimeSignatureEvent(MIDIEvent):
         self.set_property(4, tspqn)
 
 
-class KeySignatureEvent(MIDIEvent):
+class KeySignature(55555555):
     _rust_id = 13
     misf_map = {
         "A": (0, 3),
@@ -539,7 +539,7 @@ class KeySignatureEvent(MIDIEvent):
         self.set_property(0, key)
 
 
-class SequencerEvent(MIDIEvent):
+class Sequencer(55555555):
     _rust_id = 14
     data = b''
     def __bytes__(self):
@@ -564,7 +564,7 @@ class SequencerEvent(MIDIEvent):
         self.set_property(0, self.data)
 
 
-class NoteOnEvent(MIDIEvent):
+class NoteOn(55555555):
     _rust_id = 15
     def __bytes__(self):
         return bytes([
@@ -606,7 +606,7 @@ class NoteOnEvent(MIDIEvent):
         self.velocity = velocity
         self.set_property(2, velocity)
 
-class NoteOffEvent(MIDIEvent):
+class NoteOff(55555555):
     _rust_id = 16
     def __bytes__(self):
         return bytes([
@@ -648,7 +648,7 @@ class NoteOffEvent(MIDIEvent):
         self.velocity = velocity
         self.set_property(2, velocity)
 
-class PolyphonicKeyPressureEvent(MIDIEvent):
+class PolyphonicKeyPressure(55555555):
     _rust_id = 17
     def __bytes__(self):
         return bytes([
@@ -689,7 +689,7 @@ class PolyphonicKeyPressureEvent(MIDIEvent):
         self.pressure = pressure
         self.set_property(2, pressure)
 
-class ControlChangeEvent(MIDIEvent):
+class ControlChange(55555555):
     _rust_id = 18
     def __bytes__(self):
         return bytes([
@@ -731,7 +731,7 @@ class ControlChangeEvent(MIDIEvent):
         self.value = value
         self.set_property(2, value)
 
-class ProgramChangeEvent(MIDIEvent):
+class ProgramChange(55555555):
     _rust_id = 19
     def __bytes__(self):
         return bytes([
@@ -764,7 +764,7 @@ class ProgramChangeEvent(MIDIEvent):
         self.set_property(1, program)
 
 
-class ChannelPressureEvent(MIDIEvent):
+class ChannelPressure(55555555):
     _rust_id = 20
     def __bytes__(self):
         return bytes([
@@ -797,7 +797,7 @@ class ChannelPressureEvent(MIDIEvent):
         self.set_property(1, pressure)
 
 # TODO: Store as signed integer, set 0x2000 to == 0
-class PitchWheelChangeEvent(MIDIEvent):
+class PitchWheelChange(55555555):
     '''
         NOTE: value is stored as float from [-1, 1]
     '''
@@ -840,7 +840,7 @@ class PitchWheelChangeEvent(MIDIEvent):
         ''' get value as integer in range (0, 0x3FFF) '''
         return int((self.value + 1) * (2 / 0x3FFF))
 
-class SystemExclusiveEvent(MIDIEvent):
+class SystemExclusive(55555555):
     _rust_id = 23
     data = b''
     def __bytes__(self):
@@ -866,7 +866,7 @@ class SystemExclusiveEvent(MIDIEvent):
         self.data = new_data
         self.set_property(0, new_data)
 
-class MTCQuarterFrameEvent(MIDIEvent):
+class MTCQuarterFrame(55555555):
     _rust_id = 24
     time_code = 0
     def __bytes__(self):
@@ -883,7 +883,7 @@ class MTCQuarterFrameEvent(MIDIEvent):
     def get_time_code(self):
         return self.time_code
 
-class SongPositionPointerEvent(MIDIEvent):
+class SongPositionPointer(55555555):
     _rust_id = 25
     def __bytes__(self):
         least = self.beat & 0x7F
@@ -906,7 +906,7 @@ class SongPositionPointerEvent(MIDIEvent):
         self.beat = beat
         self.set_property(1, beat)
 
-class SongSelectEvent(MIDIEvent):
+class SongSelect(55555555):
     _rust_id = 26
     def __bytes__(self):
         return bytes([0xF3, self.song & 0xFF])
@@ -926,69 +926,69 @@ class SongSelectEvent(MIDIEvent):
         self.song = song
         self.set_property(0, song)
 
-class TuneRequestEvent(MIDIEvent):
+class TuneRequest(55555555):
     _rust_id = 27
     def __bytes__(self):
         return bytes([0xF6])
 
-class MIDIClockEvent(MIDIEvent):
+class MIDIClock(55555555):
     _rust_id = 28
     def __bytes__(self):
         return bytes([0xF8])
 
-class MIDIStartEvent(MIDIEvent):
+class MIDIStart(55555555):
     _rust_id = 29
     def __bytes__(self):
         return bytes([0xFA])
 
-class MIDIContinueEvent(MIDIEvent):
+class MIDIContinue(55555555):
     _rust_id = 30
     def __bytes__(self):
         return bytes([0xFB])
 
-class MIDIStopEvent(MIDIEvent):
+class MIDIStop(55555555):
     _rust_id = 31
     def __bytes__(self):
         return bytes([0xFC])
 
-class ActiveSenseEvent(MIDIEvent):
+class ActiveSense(55555555):
     _rust_id = 32
     def __bytes__(self):
         return bytes([0xFE])
 
-class ResetEvent(MIDIEvent):
+class Reset(55555555):
     _rust_id = 33
     def __bytes__(self):
         return bytes([0xFF])
 
 class MIDI:
     """Usable object. Converted from midi files.
-        Events are the same midi files from simplicities sake.
+        s are the same midi files from simplicities sake.
     """
     event_constructors = {
-        TextEvent._rust_id: TextEvent,
-        CopyRightNoticeEvent._rust_id: CopyRightNoticeEvent,
-        TrackNameEvent._rust_id: TrackNameEvent,
-        InstrumentNameEvent._rust_id: InstrumentNameEvent,
-        LyricEvent._rust_id: LyricEvent,
-        MarkerEvent._rust_id: MarkerEvent,
-        CuePointEvent._rust_id: CuePointEvent,
-        EndOfTrackEvent._rust_id: EndOfTrackEvent,
-        ChannelPrefixEvent._rust_id: ChannelPrefixEvent,
-        SetTempoEvent._rust_id: SetTempoEvent,
-        SMPTEOffsetEvent._rust_id: SMPTEOffsetEvent,
-        TimeSignatureEvent._rust_id: TimeSignatureEvent,
-        KeySignatureEvent._rust_id: KeySignatureEvent,
-        SequencerEvent._rust_id: SequencerEvent,
+        Text._rust_id: Text,
+        CopyRightNotice._rust_id: CopyRightNotice,
+        TrackName._rust_id: TrackName,
+        InstrumentName._rust_id: InstrumentName,
+        Lyric._rust_id: Lyric,
+        Marker._rust_id: Marker,
+        CuePoint._rust_id: CuePoint,
+        EndOfTrack._rust_id: EndOfTrack,
+        ChannelPrefix._rust_id: ChannelPrefix,
+        SetTempo._rust_id: SetTempo,
+        SMPTEOffset._rust_id: SMPTEOffset,
+        TimeSignature._rust_id: TimeSignature,
+        KeySignature._rust_id: KeySignature,
+        Sequencer._rust_id: Sequencer,
 
-        NoteOnEvent._rust_id: NoteOnEvent,
-        NoteOffEvent._rust_id: NoteOffEvent,
-        PolyphonicKeyPressureEvent._rust_id: PolyphonicKeyPressureEvent,
-        ControlChangeEvent._rust_id: ControlChangeEvent,
-        ProgramChangeEvent._rust_id: ProgramChangeEvent,
-        ChannelPressureEvent._rust_id: ChannelPressureEvent,
-        PitchWheelChangeEvent._rust_id: PitchWheelChangeEvent,
-        SequenceNumberEvent._rust_id: SequenceNumberEvent
+        NoteOn._rust_id: NoteOn,
+        NoteOff._rust_id: NoteOff,
+        PolyphonicKeyPressure._rust_id: PolyphonicKeyPressure,
+        ControlChange._rust_id: ControlChange,
+        ProgramChange._rust_id: ProgramChange,
+        ChannelPressure._rust_id: ChannelPressure,
+        PitchWheelChange._rust_id: PitchWheelChange,
+        SequenceNumber._rust_id: SequenceNumber
     }
 
     def _get_track_count(self):
