@@ -6,10 +6,10 @@ use std::cmp::{max, min};
 use std::fmt;
 
 use std::mem;
-
 use std::collections::{HashMap, HashSet};
 
 use apres::*;
+use apres::MIDIEvent::*;
 
 #[no_mangle]
 pub extern fn save(midi_ptr: *mut MIDI, path: *const c_char) {
@@ -20,7 +20,7 @@ pub extern fn save(midi_ptr: *mut MIDI, path: *const c_char) {
     };
 
     let clean_path = cstr_path.to_str().expect("Not a valid UTF-8 string");
-    midi.save(clean_path.to_string());
+    midi.save(clean_path);
 
     Box::into_raw(midi);
 }
@@ -51,8 +51,8 @@ pub extern fn get_ppqn(midi_ptr: *mut MIDI) -> u16 {
     Box::into_raw(midi);
 
     output
-
 }
+
 #[no_mangle]
 pub extern fn set_ppqn(midi_ptr: *mut MIDI, ppqn: u16) {
     let mut midi = unsafe { Box::from_raw(midi_ptr) };
@@ -125,23 +125,22 @@ pub extern fn count_events(midi_ptr: *mut MIDI) -> usize {
 
 
 #[no_mangle]
-pub extern fn set_event_property(midi_ptr: *mut MIDI, event_id: u64, argument: u8, value: *const c_char) {
+pub extern fn replace_event(midi_ptr: *mut MIDI, event_id: u64, bytes_ptr: *mut u8, byte_length: u8) {
+
     let mut midi = unsafe { Box::from_raw(midi_ptr) };
 
-    let cstr_value = unsafe {
-        CStr::from_ptr(value)
-    };
-    let value_vector = cstr_value.to_bytes().to_vec();
+    let mut sub_bytes: Vec<u8> = unsafe { Vec::from_raw_parts(bytes_ptr, byte_length as usize, byte_length as usize) };
 
-    match midi.get_event_mut(event_id) {
-        Some(midievent) => {
-            midievent.set_property(argument, value_vector.clone());
+    match MIDIEvent::from_bytes(&mut sub_bytes) {
+        Ok(new_midi_event) => {
+            midi.replace_event(event_id, new_midi_event);
         }
-        None => ()
-    };
+        Err(_) => ()
+    }
 
     Box::into_raw(midi);
 }
+
 
 #[no_mangle]
 pub extern "C" fn get_event_property(midi_ptr: *mut MIDI, event_id: u64, argument: u8) -> *mut u8 {
@@ -149,7 +148,7 @@ pub extern "C" fn get_event_property(midi_ptr: *mut MIDI, event_id: u64, argumen
     let mut value = Vec::new();
     match midi.get_event(event_id) {
         Some(midievent) => {
-            value = midievent.get_property(argument).clone();
+            value = get_midi_property(midievent, argument);
         }
         None => ()
     };
@@ -166,13 +165,14 @@ pub extern "C" fn get_event_property(midi_ptr: *mut MIDI, event_id: u64, argumen
     array
 }
 
+
 #[no_mangle]
 pub extern fn get_event_property_length(midi_ptr: *mut MIDI, event_id: u64, argument: u8) -> u8 {
     let midi = unsafe { Box::from_raw(midi_ptr) };
     let mut value = Vec::new();
     match midi.get_event(event_id) {
         Some(midievent) => {
-            value = midievent.get_property(argument).clone();
+            value = get_midi_property(midievent, argument);
         }
         None => ()
     };
@@ -203,22 +203,13 @@ pub extern fn create_event(midi_ptr: *mut MIDI, track: u8, tick: u64, bytes_ptr:
     let mut midi = unsafe { Box::from_raw(midi_ptr) };
 
     let mut sub_bytes: Vec<u8> = unsafe { Vec::from_raw_parts(bytes_ptr, byte_length as usize, byte_length as usize) };
-    let mut lead_byte = match sub_bytes.first() {
-        Some(b) => {
-            *b
-        }
-        None => {
-            0
-        }
-    };
 
-    sub_bytes.remove(0);
-    sub_bytes.reverse();
-    let new_event_id = match midi.process_mtrk_event(lead_byte, &mut sub_bytes, &mut (tick as usize), track as usize, &mut 0x90) {
-        Some(created_event) => {
-            created_event
+
+    let new_event_id = match MIDIEvent::from_bytes(&mut sub_bytes) {
+        Ok(new_event) => {
+            midi.insert_event(track as usize, tick as usize, new_event)
         }
-        None => {
+        Err(_e) => {
             0 // 0 is reserved to denote 'no event'
         }
     };
@@ -237,13 +228,8 @@ pub extern fn set_event_position(midi_ptr: *mut MIDI, event_id: u64, track: u8, 
     Box::into_raw(midi);
 }
 
-pub trait External {
-    //For FFI bindings
-    fn set_property(&mut self, argument: u8, bytes: Vec<u8>);
-    fn get_property(&self, argument: u8) -> Vec<u8>;
-}
 
-fn get_midi_type_code(midievent) -> u8 {
+fn get_midi_type_code(midievent: MIDIEvent) -> u8 {
     match midievent {
         SequenceNumber(_) => 22,
         Text(_) => 1,
@@ -253,7 +239,6 @@ fn get_midi_type_code(midievent) -> u8 {
         Lyric(_) => 5,
         Marker(_) => 6,
         CuePoint(_) => 7,
-        EndOfTrack => 8,
         ChannelPrefix(_) => 9,
         SetTempo(_) => 10,
         SMPTEOffset(_, _, _, _, _) => 11,
@@ -273,6 +258,7 @@ fn get_midi_type_code(midievent) -> u8 {
         MTCQuarterFrame(_, _) => 24,
         SongPositionPointer(_) => 25,
         SongSelect(_) => 26,
+
         TuneRequest => 27,
         MIDIClock => 28,
         MIDIStart => 29,
@@ -280,6 +266,7 @@ fn get_midi_type_code(midievent) -> u8 {
         MIDIStop => 31,
         ActiveSense => 32,
         Reset => 33,
+        EndOfTrack => 8,
 
         BankSelect(_, _) => 34,
         ModulationWheel(_, _) => 35,
@@ -324,1713 +311,814 @@ fn get_midi_type_code(midievent) -> u8 {
         OmniOff(_) => 74,
         OmniOn(_) => 75,
         MonophonicOperation(_, _) => 76,
-        PolyphonicOperation(_) => 77
+        PolyphonicOperation(_) => 77,
         _ => 0 // Should be Unreachable
     }
 }
 
-
-impl MIDIEvent for SequenceNumberEvent {
-    fn set_property(&mut self, _argument: u8, bytes: Vec<u8>) {
-        self.sequence = (bytes[1] as u16 * 256) + (bytes[0] as u16);
-    }
-    fn get_property(&self, _: u8) -> Vec<u8> {
-        vec![
-            (self.sequence / 256) as u8,
-            (self.sequence % 256) as u8
-        ]
-    }
-}
-
-impl MIDIEvent for TextEvent {
-    fn set_property(&mut self, _argument: u8, bytes: Vec<u8>) {
-        self.text = std::str::from_utf8(bytes.as_slice()).unwrap().to_string();
-    }
-    fn get_property(&self, _: u8) -> Vec<u8> {
-        self.text.as_bytes().to_vec()
-    }
-}
-
-impl MIDIEvent for CopyRightNoticeEvent {
-    fn set_property(&mut self, _argument: u8, bytes: Vec<u8>) {
-        self.text = std::str::from_utf8(bytes.as_slice()).unwrap().to_string();
-    }
-
-    fn get_property(&self, _: u8) -> Vec<u8> {
-        self.text.as_bytes().to_vec()
-    }
-}
-
-impl MIDIEvent for TrackNameEvent {
-    fn set_property(&mut self, _argument: u8, bytes: Vec<u8>) {
-        self.track_name = std::str::from_utf8(bytes.as_slice()).unwrap().to_string();
-    }
-    fn get_property(&self, _: u8) -> Vec<u8> {
-        self.track_name.as_bytes().to_vec()
-    }
-}
-
-impl MIDIEvent for InstrumentNameEvent {
-    fn set_property(&mut self, _argument: u8, bytes: Vec<u8>) {
-        self.instrument_name = std::str::from_utf8(bytes.as_slice()).unwrap().to_string();
-    }
-    fn get_property(&self, _: u8) -> Vec<u8> {
-        self.instrument_name.as_bytes().to_vec()
-    }
-}
-impl MIDIEvent for LyricEvent {
-    fn set_property(&mut self, _argument: u8, bytes: Vec<u8>) {
-        self.lyric = std::str::from_utf8(bytes.as_slice()).unwrap().to_string();
-    }
-    fn get_property(&self, _: u8) -> Vec<u8> {
-        self.lyric.as_bytes().to_vec()
-    }
-}
-impl MIDIEvent for MarkerEvent {
-    fn set_property(&mut self, _argument: u8, bytes: Vec<u8>) {
-        self.text = std::str::from_utf8(bytes.as_slice()).unwrap().to_string();
-    }
-    fn get_property(&self, _: u8) -> Vec<u8> {
-        self.text.as_bytes().to_vec()
-    }
-}
-impl MIDIEvent for CuePointEvent {
-    fn set_property(&mut self, _argument: u8, bytes: Vec<u8>) {
-        self.text = std::str::from_utf8(bytes.as_slice()).unwrap().to_string();
-    }
-    fn get_property(&self, _: u8) -> Vec<u8> {
-        self.text.as_bytes().to_vec()
-    }
-}
-
-impl MIDIEvent for EndOfTrackEvent {
-    fn set_property(&mut self, _argument: u8, _bytes: Vec<u8>) {
-        // non-applicable
-    }
-    fn get_property(&self, _: u8) -> Vec<u8> {
-        Vec::new()
-    }
-}
-
-impl MIDIEvent for ChannelPrefixEvent {
-    fn set_property(&mut self, _argument: u8, bytes: Vec<u8>) {
-        self.channel = bytes[0];
-    }
-    fn get_property(&self, _: u8) -> Vec<u8> {
-        vec![self.channel]
-    }
-}
-
-impl SetTempoEvent {
-    pub fn new(us_per_quarter_note: u32) -> SetTempoEvent {
-        SetTempoEvent {
-            us_per_quarter_note: min(us_per_quarter_note, 0x00FFFFFF)
+fn get_midi_property(midievent: MIDIEvent, property_index: u8) -> Vec<u8> {
+    match midievent {
+        SequenceNumber(sequence) => {
+            vec![
+                (sequence / 256) as u8,
+                (sequence % 256) as u8
+            ]
         }
-    }
-
-    pub fn set_bpm(&mut self, bpm: f64) {
-        // The minimum BPM is ~3.57(60000000 / u16::MAX)
-        let adj_bpm = if 3.5762788 >= bpm {
-            3.5762788
-        } else {
-            bpm
-        };
-
-        // It's ok to lose the precision here (f64 -> u32) because it's microseconds as percieved by a human
-        self.us_per_quarter_note = if 60000000_f64 / adj_bpm < 0x00FFFFFF as f64 {
-            (60000000_f64 / adj_bpm) as u32
-        } else {
-            0x00FFFFFF
-        };
-    }
-
-    pub fn set_uspqn(&mut self, uspqn: u32) {
-        self.us_per_quarter_note = min(uspqn, 0x00FFFFFF);
-    }
-
-    pub fn get_uspqn(&self) -> u32 {
-        self.us_per_quarter_note
-    }
-
-    pub fn get_bpm(&self) -> f64 {
-        60_000_000 as f64 / self.us_per_quarter_note as f64
-    }
-}
-
-impl MIDIEvent for SetTempoEvent {
-    fn set_property(&mut self, _argument: u8, bytes: Vec<u8>) {
-        self.us_per_quarter_note = (bytes[2] as u32 * 256u32.pow(2)) + (bytes[1] as u32 * 256) + (bytes[0] as u32);
-    }
-    fn get_property(&self, _: u8) -> Vec<u8> {
-        vec![
-            ((self.us_per_quarter_note / 256u32.pow(2)) % 256) as u8,
-            ((self.us_per_quarter_note / 256u32.pow(1)) % 256) as u8,
-            (self.us_per_quarter_note % 256) as u8
-        ]
-    }
-}
-impl MIDIEvent for SMPTEOffsetEvent {
-    fn set_property(&mut self, argument: u8, bytes: Vec<u8>) {
-        match argument {
-            0 => {
-                self.hour = bytes[0];
-            }
-            1 => {
-                self.minute = bytes[0];
-            }
-            2 => {
-                self.second = bytes[0];
-            }
-            3 => {
-                self.ff = bytes[0];
-            }
-            4 => {
-                self.fr = bytes[0];
-            }
-            _ => ()
-        };
-    }
-    fn get_property(&self, argument: u8) -> Vec<u8> {
-        let output = match argument {
-            0 => {
-                self.hour
-            }
-            1 => {
-                self.minute
-            }
-            2 => {
-                self.second
-            }
-            3 => {
-                self.ff
-            }
-            4 => {
-                self.fr
-            }
-            _ => {
-                0
-            }
-        };
-
-        vec![output]
-    }
-}
-
-impl MIDIEvent for TimeSignatureEvent {
-    fn set_property(&mut self, argument: u8, bytes: Vec<u8>) {
-        match argument {
-            0 => {
-                self.numerator = bytes[0];
-            }
-            1 => {
-                self.denominator = bytes[0];
-            }
-            2 => {
-                self.clocks_per_metronome = bytes[0];
-            }
-            3 => {
-                self.thirtysecondths_per_quarter = bytes[0];
-            }
-            _ => ()
-        };
-    }
-    fn get_property(&self, argument: u8) -> Vec<u8> {
-        let output = match argument {
-            0 => {
-                self.numerator
-            }
-            1 => {
-                self.denominator
-            }
-            2 => {
-                self.clocks_per_metronome
-            }
-            3 => {
-                self.thirtysecondths_per_quarter
-            }
-            _ => {
-                0
-            }
-        };
-
-        vec![output]
-    }
-}
-
-impl MIDIEvent for KeySignatureEvent {
-    fn set_property(&mut self, _: u8, bytes: Vec<u8>) {
-        self.key = std::str::from_utf8(bytes.as_slice()).unwrap().to_string();
-    }
-    fn get_property(&self, _: u8) -> Vec<u8> {
-       self.key.as_bytes().to_vec()
-    }
-}
-
-
-// ChannelEvents /////////////////////////
-impl MIDIEvent for NoteOnEvent {
-
-    fn set_property(&mut self, argument: u8, bytes: Vec<u8>) {
-        match argument {
-            0 => {
-                self.channel = bytes[0] & 0x0F;
-            }
-            1 => {
-                self.note = bytes[0] & 0x7F;
-            }
-            2 => {
-                self.velocity = bytes[0] & 0x7F;
-            }
-            _ => ()
-        };
-    }
-
-    fn get_property(&self, argument: u8) -> Vec<u8> {
-        let output = match argument {
-            0 => {
-                self.channel
-            }
-            1 => {
-                self.note
-            }
-            2 => {
-                self.velocity
-            }
-            _ => {
-                0
-            }
-        };
-
-        vec![output]
-    }
-}
-
-impl MIDIEvent for NoteOffEvent {
-    fn set_property(&mut self, argument: u8, bytes: Vec<u8>) {
-        match argument {
-            0 => {
-                self.channel = bytes[0] & 0x0F;
-            }
-            1 => {
-                self.note = bytes[0] & 0x7F;
-            }
-            2 => {
-                self.velocity = bytes[0] & 0x7F;
-            }
-            _ => ()
-        };
-    }
-
-    fn get_property(&self, argument: u8) -> Vec<u8> {
-        let output = match argument {
-            0 => {
-                self.channel
-            }
-            1 => {
-                self.note
-            }
-            2 => {
-                self.velocity
-            }
-            _ => {
-                0
-            }
-        };
-
-        vec![output]
-    }
-}
-
-impl MIDIEvent for AfterTouchEvent {
-    fn set_property(&mut self, argument: u8, bytes: Vec<u8>) {
-        match argument {
-            0 => {
-                self.channel = bytes[0] & 0x0F;
-            }
-            1 => {
-                self.note = bytes[0] & 0x7F;
-            }
-            2 => {
-                self.pressure = bytes[0] & 0x7F;
-            }
-            _ => ()
-        };
-    }
-    fn get_property(&self, argument: u8) -> Vec<u8> {
-        let output = match argument {
-            0 => {
-                self.channel
-            }
-            1 => {
-                self.note
-            }
-            2 => {
-                self.pressure
-            }
-            _ => {
-                0
-            }
-        };
-
-        vec![output]
-    }
-}
-
-
-
-impl MIDIEvent for BankSelectEvent {
-
-
-    fn get_property(&self, argument: u8) -> Vec<u8> {
-        match argument {
-            0 => {
-                vec![self.channel]
-            }
-            _ => {
-                vec![
-                    (self.value >> 8) as u8,
-                    (self.value & 0xFF) as u8
-                ]
-            }
+        Text(text) => {
+            text.as_bytes().to_vec()
         }
-    }
 
-    fn set_property(&mut self, argument: u8, bytes: Vec<u8>) {
-        match argument {
-            0 => {
-                self.channel = bytes[0];
-            }
-            _ => {
-                self.value = ((bytes[0] as u16) << 8) + (bytes[1] as u16);
-            }
+        CopyRightNotice(notice) => {
+            notice.as_bytes().to_vec()
         }
-    }
-}
 
-
-impl MIDIEvent for ModulationWheelEvent {
-
-    fn get_property(&self, argument: u8) -> Vec<u8> {
-        match argument {
-            0 => {
-                vec![self.channel]
-            }
-            _ => {
-                vec![
-                    (self.value >> 8) as u8,
-                    (self.value & 0xFF) as u8
-                ]
-            }
+        TrackName(name) => {
+            name.as_bytes().to_vec()
         }
-    }
-    fn set_property(&mut self, argument: u8, bytes: Vec<u8>) {
-        match argument {
-            0 => {
-                self.channel = bytes[0];
-            }
-            _ => {
-                self.value = ((bytes[0] as u16) << 8) + (bytes[1] as u16);
-            }
-        }
-    }
-}
 
-impl MIDIEvent for BreathControllerEvent {
+        InstrumentName(name) => {
+            name.as_bytes().to_vec()
+        }
 
-    fn get_property(&self, argument: u8) -> Vec<u8> {
-        match argument {
-            0 => {
-                vec![self.channel]
-            }
-            _ => {
-                vec![
-                    (self.value >> 8) as u8,
-                    (self.value & 0xFF) as u8
-                ]
-            }
+        Lyric(lyric) => {
+            lyric.as_bytes().to_vec()
         }
-    }
-    fn set_property(&mut self, argument: u8, bytes: Vec<u8>) {
-        match argument {
-            0 => {
-                self.channel = bytes[0];
-            }
-            _ => {
-                self.value = ((bytes[0] as u16) << 8) + (bytes[1] as u16);
-            }
-        }
-    }
-}
-impl MIDIEvent for FootPedalEvent {
 
-    fn get_property(&self, argument: u8) -> Vec<u8> {
-        match argument {
-            0 => {
-                vec![self.channel]
-            }
-            _ => {
-                vec![
-                    (self.value >> 8) as u8,
-                    (self.value & 0xFF) as u8
-                ]
-            }
+        Marker(text) => {
+            text.as_bytes().to_vec()
         }
-    }
-    fn set_property(&mut self, argument: u8, bytes: Vec<u8>) {
-        match argument {
-            0 => {
-                self.channel = bytes[0];
-            }
-            _ => {
-                self.value = ((bytes[0] as u16) << 8) + (bytes[1] as u16);
-            }
-        }
-    }
-}
 
-impl MIDIEvent for PortamentoTimeEvent {
-    fn get_property(&self, argument: u8) -> Vec<u8> {
-        match argument {
-            0 => {
-                vec![self.channel]
-            }
-            _ => {
-                vec![
-                    (self.value >> 8) as u8,
-                    (self.value & 0xFF) as u8
-                ]
-            }
+        CuePoint(text) => {
+            text.as_bytes().to_vec()
         }
-    }
-    fn set_property(&mut self, argument: u8, bytes: Vec<u8>) {
-        match argument {
-            0 => {
-                self.channel = bytes[0];
-            }
-            _ => {
-                self.value = ((bytes[0] as u16) << 8) + (bytes[1] as u16);
-            }
+
+        ChannelPrefix(channel) => {
+            vec![channel]
         }
-    }
-}
 
-impl MIDIEvent for DataEntrySliderEvent {
+        SetTempo(uspqn) => {
+            vec![
+                ((uspqn / 256u32.pow(2)) % 256) as u8,
+                ((uspqn / 256u32.pow(1)) % 256) as u8,
+                (uspqn % 256) as u8
+            ]
+        }
 
-    fn get_property(&self, argument: u8) -> Vec<u8> {
-        match argument {
-            0 => {
-                vec![self.channel]
-            }
-            1 => {
-                vec![
-                    (self.value >> 8) as u8,
-                    (self.value & 0xFF) as u8
-                ]
-            }
-            _ => {
-                // Sent as +1, 0 indicates None
-                match self.target {
-                    Some(target) => {
-                        vec![
-                            ((target + 1) >> 8) as u8,
-                            ((target + 1) & 0xFF) as u8
-                        ]
-                    }
-                    None => {
-                        vec![0,0]
-                    }
+        SMPTEOffset(hour, minute, second, ff, fr) => {
+            let output = match property_index {
+                0 => {
+                    hour
+                }
+                1 => {
+                    minute
+                }
+                2 => {
+                    second
+                }
+                3 => {
+                    ff
+                }
+                4 => {
+                    fr
+                }
+                _ => {
+                    0
+                }
+            };
+
+            vec![output]
+        }
+
+        TimeSignature(numerator, denominator, cpm, thirtysecondths_per_quarter) => {
+            let output = match property_index {
+                0 => {
+                    numerator
+                }
+                1 => {
+                    denominator
+                }
+                2 => {
+                    cpm
+                }
+                3 => {
+                    thirtysecondths_per_quarter
+                }
+                _ => {
+                    0
+                }
+            };
+
+            vec![output]
+        }
+
+        KeySignature(key) => {
+           key.as_bytes().to_vec()
+        }
+        //SequencerSpecific => 14,
+
+        NoteOn(channel, note, velocity) => {
+            match property_index {
+                0 => {
+                    vec![channel]
+                }
+                1 => {
+                    vec![note]
+                }
+                2 => {
+                    vec![velocity]
+                }
+                _ => {
+                    vec![]
                 }
             }
         }
-    }
 
-    fn set_property(&mut self, argument: u8, bytes: Vec<u8>) {
-        match argument {
-            0 => {
-                self.channel = bytes[0]
-            }
-            1 => {
-                self.value = ((bytes[0] as u16) << 8) + (bytes[1] as u16);
-            }
-            2 => {
-                let tmp_target = ((bytes[0] as u16) << 8) + (bytes[1] as u16) - 1;
-                if tmp_target > 0 {
-                    self.target = Some(tmp_target);
-                } else {
-                    self.target = None;
+        NoteOff(channel, note, velocity) => {
+            match property_index {
+                0 => {
+                    vec![channel]
                 }
-            },
-            _ => {}
-        }
-    }
-}
-
-
-impl MIDIEvent for VolumeEvent {
-
-    fn get_property(&self, argument: u8) -> Vec<u8> {
-        match argument {
-            0 => {
-                vec![self.channel]
-            }
-            _ => {
-                vec![
-                    (self.value >> 8) as u8,
-                    (self.value & 0xFF) as u8
-                ]
-            }
-        }
-    }
-    fn set_property(&mut self, argument: u8, bytes: Vec<u8>) {
-        match argument {
-            0 => {
-                self.channel = bytes[0];
-            }
-            _ => {
-                self.value = ((bytes[0] as u16) << 8) + (bytes[1] as u16);
-            }
-        }
-    }
-}
-impl MIDIEvent for BalanceEvent {
-
-    fn get_property(&self, argument: u8) -> Vec<u8> {
-        match argument {
-            0 => {
-                vec![self.channel]
-            }
-            _ => {
-                vec![
-                    (self.value >> 8) as u8,
-                    (self.value & 0xFF) as u8
-                ]
-            }
-        }
-    }
-    fn set_property(&mut self, argument: u8, bytes: Vec<u8>) {
-        match argument {
-            0 => {
-                self.channel = bytes[0];
-            }
-            _ => {
-                self.value = ((bytes[0] as u16) << 8) + (bytes[1] as u16);
-            }
-        }
-    }
-}
-
-
-impl MIDIEvent for PanEvent {
-
-    fn get_property(&self, argument: u8) -> Vec<u8> {
-        match argument {
-            0 => {
-                vec![self.channel]
-            }
-            _ => {
-                vec![
-                    (self.value >> 8) as u8,
-                    (self.value & 0xFF) as u8
-                ]
-            }
-        }
-    }
-    fn set_property(&mut self, argument: u8, bytes: Vec<u8>) {
-        match argument {
-            0 => {
-                self.channel = bytes[0];
-            }
-            _ => {
-                self.value = ((bytes[0] as u16) << 8) + (bytes[1] as u16);
-            }
-        }
-    }
-}
-impl MIDIEvent for ExpressionEvent {
-
-    fn get_property(&self, argument: u8) -> Vec<u8> {
-        match argument {
-            0 => {
-                vec![self.channel]
-            }
-            _ => {
-                vec![
-                    (self.value >> 8) as u8,
-                    (self.value & 0xFF) as u8
-                ]
-            }
-        }
-    }
-    fn set_property(&mut self, argument: u8, bytes: Vec<u8>) {
-        match argument {
-            0 => {
-                self.channel = bytes[0];
-            }
-            _ => {
-                self.value = ((bytes[0] as u16) << 8) + (bytes[1] as u16);
-            }
-        }
-    }
-}
-
-impl MIDIEvent for EffectControlEvent {
-
-    fn get_property(&self, argument: u8) -> Vec<u8> {
-        match argument {
-            0 => {
-                vec![self.channel]
-            }
-            1 => {
-                vec![
-                    (self.value >> 8) as u8,
-                    (self.value & 0xFF) as u8
-                ]
-            }
-            _ => {
-                vec![self.which]
-            }
-        }
-    }
-    fn set_property(&mut self, argument: u8, bytes: Vec<u8>) {
-        match argument {
-            0 => {
-                self.channel = bytes[0];
-            }
-            1 => {
-                self.value = ((bytes[0] as u16) << 8) + (bytes[1] as u16);
-            }
-            _ => {
-                self.which = bytes[0]
-            }
-        }
-    }
-}
-
-impl MIDIEvent for SliderEvent {
-
-    fn get_property(&self, argument: u8) -> Vec<u8> {
-        match argument {
-            0 => {
-                vec![self.channel]
-            }
-            1 => {
-                vec![self.value]
-            }
-            _ => {
-                vec![self.which]
-            }
-        }
-    }
-    fn set_property(&mut self, argument: u8, bytes: Vec<u8>) {
-        match argument {
-            0 => {
-                self.channel = bytes[0];
-            }
-            1 => {
-                self.value = bytes[0];
-            }
-            _ => {
-                self.which = bytes[0];
-            }
-        }
-    }
-}
-
-impl MIDIEvent for HoldPedalEvent {
-
-    fn get_property(&self, argument: u8) -> Vec<u8> {
-        match argument {
-            0 => {
-                vec![self.channel]
-            }
-            _ => {
-                vec![self.value]
-            }
-        }
-    }
-    fn set_property(&mut self, argument: u8, bytes: Vec<u8>) {
-        match argument {
-            0 => {
-                self.channel = bytes[0];
-            }
-            _ => {
-                self.value = bytes[0];
-            }
-        }
-    }
-}
-
-
-impl MIDIEvent for PortamentoEvent {
-
-    fn get_property(&self, argument: u8) -> Vec<u8> {
-        match argument {
-            0 => {
-                vec![self.channel]
-            }
-            _ => {
-                vec![self.value]
-            }
-        }
-    }
-    fn set_property(&mut self, argument: u8, bytes: Vec<u8>) {
-        match argument {
-            0 => {
-                self.channel = bytes[0];
-            }
-            _ => {
-                self.value = bytes[0];
-            }
-        }
-    }
-}
-
-impl MIDIEvent for SustenutoEvent {
-
-    fn get_property(&self, argument: u8) -> Vec<u8> {
-        match argument {
-            0 => {
-                vec![self.channel]
-            }
-            _ => {
-                vec![self.value]
-            }
-        }
-    }
-    fn set_property(&mut self, argument: u8, bytes: Vec<u8>) {
-        match argument {
-            0 => {
-                self.channel = bytes[0];
-            }
-            _ => {
-                self.value = bytes[0];
-            }
-        }
-    }
-}
-
-impl MIDIEvent for SoftPedalEvent {
-
-    fn get_property(&self, argument: u8) -> Vec<u8> {
-        match argument {
-            0 => {
-                vec![self.channel]
-            }
-            _ => {
-                vec![self.value]
-            }
-        }
-    }
-    fn set_property(&mut self, argument: u8, bytes: Vec<u8>) {
-        match argument {
-            0 => {
-                self.channel = bytes[0];
-            }
-            _ => {
-                self.value = bytes[0];
-            }
-        }
-    }
-}
-
-impl MIDIEvent for LegatoEvent {
-
-    fn get_property(&self, argument: u8) -> Vec<u8> {
-        match argument {
-            0 => {
-                vec![self.channel]
-            }
-            _ => {
-                vec![self.value]
-            }
-        }
-    }
-
-    fn set_property(&mut self, argument: u8, bytes: Vec<u8>) {
-        match argument {
-            0 => {
-                self.channel = bytes[0];
-            }
-            _ => {
-                self.value = bytes[0];
-            }
-        }
-    }
-}
-
-impl MIDIEvent for Hold2PedalEvent {
-
-    fn get_property(&self, argument: u8) -> Vec<u8> {
-        match argument {
-            0 => {
-                vec![self.channel]
-            }
-            _ => {
-                vec![self.value]
-            }
-        }
-    }
-    fn set_property(&mut self, argument: u8, bytes: Vec<u8>) {
-        match argument {
-            0 => {
-                self.channel = bytes[0];
-            }
-            _ => {
-                self.value = bytes[0];
-            }
-        }
-    }
-}
-
-impl MIDIEvent for SoundVariationEvent {
-
-    fn get_property(&self, argument: u8) -> Vec<u8> {
-        match argument {
-            0 => {
-                vec![self.channel]
-            }
-            _ => {
-                vec![self.value]
-            }
-        }
-    }
-    fn set_property(&mut self, argument: u8, bytes: Vec<u8>) {
-        match argument {
-            0 => {
-                self.channel = bytes[0];
-            }
-            _ => {
-                self.value = bytes[0];
-            }
-        }
-    }
-}
-
-impl MIDIEvent for SoundTimbreEvent {
-
-    fn get_property(&self, argument: u8) -> Vec<u8> {
-        match argument {
-            0 => {
-                vec![self.channel]
-            }
-            _ => {
-                vec![self.value]
-            }
-        }
-    }
-    fn set_property(&mut self, argument: u8, bytes: Vec<u8>) {
-        match argument {
-            0 => {
-                self.channel = bytes[0];
-            }
-            _ => {
-                self.value = bytes[0];
-            }
-        }
-    }
-}
-
-impl MIDIEvent for SoundReleaseTimeEvent {
-
-    fn get_property(&self, argument: u8) -> Vec<u8> {
-        match argument {
-            0 => {
-                vec![self.channel]
-            }
-            _ => {
-                vec![self.value]
-            }
-        }
-    }
-    fn set_property(&mut self, argument: u8, bytes: Vec<u8>) {
-        match argument {
-            0 => {
-                self.channel = bytes[0];
-            }
-            _ => {
-                self.value = bytes[0];
-            }
-        }
-    }
-}
-
-impl MIDIEvent for SoundAttackEvent {
-
-    fn get_property(&self, argument: u8) -> Vec<u8> {
-        match argument {
-            0 => {
-                vec![self.channel]
-            }
-            _ => {
-                vec![self.value]
-            }
-        }
-    }
-    fn set_property(&mut self, argument: u8, bytes: Vec<u8>) {
-        match argument {
-            0 => {
-                self.channel = bytes[0];
-            }
-            _ => {
-                self.value = bytes[0];
-            }
-        }
-    }
-}
-
-
-
-impl MIDIEvent for SoundBrightnessEvent {
-
-    fn get_property(&self, argument: u8) -> Vec<u8> {
-        match argument {
-            0 => {
-                vec![self.channel]
-            }
-            _ => {
-                vec![self.value]
-            }
-        }
-    }
-    fn set_property(&mut self, argument: u8, bytes: Vec<u8>) {
-        match argument {
-            0 => {
-                self.channel = bytes[0];
-            }
-            _ => {
-                self.value = bytes[0];
-            }
-        }
-    }
-}
-
-
-impl MIDIEvent for SoundControlEvent {
-
-    fn get_property(&self, argument: u8) -> Vec<u8> {
-        match argument {
-            0 => {
-                vec![self.value]
-            }
-            _ => {
-                vec![self.which]
-            }
-        }
-    }
-    fn set_property(&mut self, argument: u8, bytes: Vec<u8>) {
-        match argument {
-            0 => {
-                self.value = bytes[0]
-            }
-            _ => {
-                self.which = bytes[0]
-            }
-        }
-    }
-}
-
-impl MIDIEvent for GeneralButtonOnEvent {
-
-    fn get_property(&self, argument: u8) -> Vec<u8> {
-        match argument {
-            0 => {
-                vec![self.channel]
-            }
-            _ => {
-                vec![self.which]
-            }
-        }
-    }
-    fn set_property(&mut self, argument: u8, bytes: Vec<u8>) {
-        match argument {
-            0 => {
-                self.channel = bytes[0];
-            }
-            _ => {
-                self.which = bytes[0];
-            }
-        }
-    }
-}
-
-
-impl MIDIEvent for GeneralButtonOffEvent {
-
-    fn get_property(&self, argument: u8) -> Vec<u8> {
-        match argument {
-            0 => {
-                vec![self.channel]
-            }
-            _ => {
-                vec![self.which]
-            }
-        }
-    }
-    fn set_property(&mut self, argument: u8, bytes: Vec<u8>) {
-        match argument {
-            0 => {
-                self.channel = bytes[0];
-            }
-            _ => {
-                self.which = bytes[0];
-            }
-        }
-    }
-}
-
-impl MIDIEvent for EffectsLevelEvent {
-
-    fn get_property(&self, argument: u8) -> Vec<u8> {
-        match argument {
-            0 => {
-                vec![self.channel]
-            }
-            _ => {
-                vec![self.value]
-            }
-        }
-    }
-    fn set_property(&mut self, argument: u8, bytes: Vec<u8>) {
-        match argument {
-            0 => {
-                self.channel = bytes[0];
-            }
-            _ => {
-                self.value = bytes[0];
-            }
-        }
-    }
-}
-
-
-impl MIDIEvent for TremuloLevelEvent {
-
-    fn get_property(&self, argument: u8) -> Vec<u8> {
-        match argument {
-            0 => {
-                vec![self.channel]
-            }
-            _ => {
-                vec![self.value]
-            }
-        }
-    }
-    fn set_property(&mut self, argument: u8, bytes: Vec<u8>) {
-        match argument {
-            0 => {
-                self.channel = bytes[0];
-            }
-            _ => {
-                self.value = bytes[0];
-            }
-        }
-    }
-}
-
-
-impl MIDIEvent for ChorusLevelEvent {
-
-    fn get_property(&self, argument: u8) -> Vec<u8> {
-        match argument {
-            0 => {
-                vec![self.channel]
-            }
-            _ => {
-                vec![self.value]
-            }
-        }
-    }
-    fn set_property(&mut self, argument: u8, bytes: Vec<u8>) {
-        match argument {
-            0 => {
-                self.channel = bytes[0];
-            }
-            _ => {
-                self.value = bytes[0];
-            }
-        }
-    }
-}
-
-impl MIDIEvent for CelesteLevelEvent {
-
-    fn get_property(&self, argument: u8) -> Vec<u8> {
-        match argument {
-            0 => {
-                vec![self.channel]
-            }
-            _ => {
-                vec![self.value]
-            }
-        }
-    }
-    fn set_property(&mut self, argument: u8, bytes: Vec<u8>) {
-        match argument {
-            0 => {
-                self.channel = bytes[0];
-            }
-            _ => {
-                self.value = bytes[0];
-            }
-        }
-    }
-}
-
-impl MIDIEvent for PhaserLevelEvent {
-
-    fn get_property(&self, argument: u8) -> Vec<u8> {
-        match argument {
-            0 => {
-                vec![self.channel]
-            }
-            _ => {
-                vec![self.value]
-            }
-        }
-    }
-    fn set_property(&mut self, argument: u8, bytes: Vec<u8>) {
-        match argument {
-            0 => {
-                self.channel = bytes[0];
-            }
-            _ => {
-                self.value = bytes[0];
-            }
-        }
-    }
-}
-
-
-impl MIDIEvent for DataButtonIncrementEvent {
-
-    // target is sent +1, 0 indicating no target
-    fn get_property(&self, argument: u8) -> Vec<u8> {
-        match argument {
-            0 => {
-                vec![self.channel]
-            }
-            _ => {
-                match self.target {
-                    Some(n) => {
-                        vec![
-                            ((n + 1) >> 8) as u8,
-                            ((n + 1) & 0xFF) as u8
-                        ]
-                    }
-                    None => {
-                        vec![0]
-                    }
+                1 => {
+                    vec![note]
+                }
+                2 => {
+                    vec![velocity]
+                }
+                _ => {
+                    vec![]
                 }
             }
         }
-    }
-    // target is received as +1, 0 indicating no target
-    fn set_property(&mut self, argument: u8, bytes: Vec<u8>) {
-        match argument {
-            0 => {
-                self.channel = bytes[0];
-            }
-            _ => {
-                if bytes[0] > 0 {
-                    self.target = Some(
-                        (((bytes[0] as u16) << 8) + (bytes[1] as u16)) - 1
-                    );
-                } else {
-                    self.target = None;
+
+        AfterTouch(channel, note, pressure) => {
+            match property_index {
+                0 => {
+                   vec![channel]
+                }
+                1 => {
+                    vec![note]
+                }
+                2 => {
+                    vec![pressure]
+                }
+                _ => {
+                    vec![]
                 }
             }
         }
-    }
-}
 
-impl MIDIEvent for DataButtonDecrementEvent {
-
-    // target is sent +1, 0 indicating no target
-    fn get_property(&self, argument: u8) -> Vec<u8> {
-        match argument {
-            0 => {
-                vec![self.channel]
-            }
-            _ => {
-                match self.target {
-                    Some(n) => {
-                        vec![
-                            ((n + 1) >> 8) as u8,
-                            ((n + 1) & 0xFF) as u8
-                        ]
-                    }
-                    None => {
-                        vec![0]
-                    }
+        ControlChange(channel, controller, value) => {
+            match property_index {
+                0 => {
+                   vec![channel]
+                }
+                1 => {
+                    vec![controller]
+                }
+                2 => {
+                    vec![value]
+                }
+                _ => {
+                    vec![]
                 }
             }
         }
-    }
-    // target is received as +1, 0 indicating no target
-    fn set_property(&mut self, argument: u8, bytes: Vec<u8>) {
-        match argument {
-            0 => {
-                self.channel = bytes[0];
-            }
-            _ => {
-                if bytes[0] > 0 {
-                    self.target = Some(
-                        (((bytes[0] as u16) << 8) + (bytes[1] as u16)) - 1
-                    );
-                } else {
-                    self.target = None;
+
+        ProgramChange(channel, program) => {
+            match property_index {
+                0 => {
+                    vec![channel]
+                }
+                1 => {
+                    vec![program]
+                }
+                _ => {
+                    vec![]
                 }
             }
         }
-    }
-}
 
-impl MIDIEvent for RegisteredParameterNumberEvent {
-
-
-    fn get_property(&self, argument: u8) -> Vec<u8> {
-        match argument {
-            0 => {
-                vec![self.channel]
-            }
-            _ => {
-                vec![
-                    (self.value >> 8) as u8,
-                    (self.value & 0xFF) as u8
-                ]
+        ChannelPressure(channel, pressure) => {
+            match property_index {
+                0 => {
+                    vec![channel]
+                }
+                1 => {
+                    vec![pressure]
+                }
+                _ => {
+                    vec![]
+                }
             }
         }
-    }
 
-    fn set_property(&mut self, argument: u8, bytes: Vec<u8>) {
-        match argument {
-            0 => {
-                self.channel = bytes[0];
+        PitchWheelChange(channel, value) => {
+            match property_index {
+                0 => {
+                    vec![ channel ]
+                }
+                1 => {
+                    let unsigned_value = get_pitchwheel_value(value);
+                    vec![
+                        (unsigned_value / 256) as u8,
+                        (unsigned_value % 256) as u8
+                    ]
+                }
+                _ => {
+                    vec![]
+                }
             }
-            _ => {
-                self.value = ((bytes[0] as u16) << 8) + (bytes[1] as u16);
+        }
+
+        SystemExclusive(data) => {
+            data.clone()
+        }
+
+        MTCQuarterFrame(message_type, value) => {
+            match property_index {
+                0 => {
+                   vec![ message_type ]
+                }
+                1 => {
+                   vec![ value ]
+                }
+                _ => {
+                    vec![]
+                }
             }
+        }
+
+        SongPositionPointer(beat) => {
+            vec![
+                (beat / 256) as u8,
+                (beat % 256) as u8
+            ]
+        }
+
+        SongSelect(song) => {
+            vec![
+                song & 0x7F
+            ]
+        }
+
+        BankSelect(channel, value) => {
+            match property_index {
+                0 => {
+                    vec![channel]
+                }
+                1 => {
+                    vec![
+                        (value >> 8) as u8,
+                        (value & 0xFF) as u8
+                    ]
+                }
+                _ => {
+                    vec![]
+                }
+            }
+        }
+
+        ModulationWheel(channel, value) => {
+            match property_index {
+                0 => {
+                    vec![channel]
+                }
+                1 => {
+                    vec![
+                        (value >> 8) as u8,
+                        (value & 0xFF) as u8
+                    ]
+                }
+                _ => {
+                    vec![]
+                }
+            }
+        }
+        BreathController(channel, value) => {
+            match property_index {
+                0 => {
+                    vec![channel]
+                }
+                1 => {
+                    vec![
+                        (value >> 8) as u8,
+                        (value & 0xFF) as u8
+                    ]
+                }
+                _ => {
+                    vec![]
+                }
+            }
+        }
+        FootPedal(channel, value) => {
+            match property_index {
+                0 => {
+                    vec![channel]
+                }
+                1 => {
+                    vec![
+                        (value >> 8) as u8,
+                        (value & 0xFF) as u8
+                    ]
+                }
+                _ => {
+                    vec![]
+                }
+            }
+        }
+        PortamentoTime(channel, value) => {
+            match property_index {
+                0 => {
+                    vec![channel]
+                }
+                1 => {
+                    vec![
+                        (value >> 8) as u8,
+                        (value & 0xFF) as u8
+                    ]
+                }
+                _ => {
+                    vec![]
+                }
+            }
+        }
+        DataEntrySlider(channel, value) => {
+            match property_index {
+                0 => {
+                    vec![channel]
+                }
+                1 => {
+                    vec![
+                        (value >> 8) as u8,
+                        (value & 0xFF) as u8
+                    ]
+                }
+                _ => {
+                    vec![]
+                }
+            }
+        }
+        Volume(channel, value) => {
+            match property_index {
+                0 => {
+                    vec![channel]
+                }
+                1 => {
+                    vec![
+                        (value >> 8) as u8,
+                        (value & 0xFF) as u8
+                    ]
+                }
+                _ => {
+                    vec![]
+                }
+            }
+        }
+        Balance(channel, value) => {
+            match property_index {
+                0 => {
+                    vec![channel]
+                }
+                1 => {
+                    vec![
+                        (value >> 8) as u8,
+                        (value & 0xFF) as u8
+                    ]
+                }
+                _ => {
+                    vec![]
+                }
+            }
+        }
+        Pan(channel, value) => {
+            match property_index {
+                0 => {
+                    vec![channel]
+                }
+                1 => {
+                    vec![
+                        (value >> 8) as u8,
+                        (value & 0xFF) as u8
+                    ]
+                }
+                _ => {
+                    vec![]
+                }
+            }
+        }
+        Expression(channel, value) => {
+            match property_index {
+                0 => {
+                    vec![channel]
+                }
+                1 => {
+                    vec![
+                        (value >> 8) as u8,
+                        (value & 0xFF) as u8
+                    ]
+                }
+                _ => {
+                    vec![]
+                }
+            }
+        }
+        EffectControl(channel, which, value) => {
+            match property_index {
+                0 => {
+                    vec![channel]
+                }
+                1 => {
+                    vec![which]
+                }
+                2 => {
+                    vec![
+                        (value >> 8) as u8,
+                        (value & 0xFF) as u8
+                    ]
+                }
+                _ => {
+                    vec![]
+                }
+            }
+        }
+        Slider(channel, which, value) => {
+            match property_index {
+                0 => {
+                    vec![channel]
+                }
+                1 => {
+                    vec![which]
+                }
+                2 => {
+                    vec![value]
+                }
+                _ => {
+                    vec![]
+                }
+            }
+        }
+        HoldPedal(channel, value) => {
+            match property_index {
+                0 => {
+                    vec![channel]
+                }
+                1 => {
+                    vec![value]
+                }
+                _ => {
+                    vec![]
+                }
+            }
+        }
+        Portamento(channel, value) => {
+            match property_index {
+                0 => {
+                    vec![channel]
+                }
+                1 => {
+                    vec![value]
+                }
+                _ => {
+                    vec![]
+                }
+            }
+        }
+        Sustenuto(channel, value) => {
+            match property_index {
+                0 => {
+                    vec![channel]
+                }
+                1 => {
+                    vec![value]
+                }
+                _ => {
+                    vec![]
+                }
+            }
+        }
+        SoftPedal(channel, value) => {
+            match property_index {
+                0 => {
+                    vec![channel]
+                }
+                1 => {
+                    vec![value]
+                }
+                _ => {
+                    vec![]
+                }
+            }
+        }
+        Legato(channel, value) => {
+            match property_index {
+                0 => {
+                    vec![channel]
+                }
+                1 => {
+                    vec![value]
+                }
+                _ => {
+                    vec![]
+                }
+            }
+        }
+        Hold2Pedal(channel, value) => {
+            match property_index {
+                0 => {
+                    vec![channel]
+                }
+                1 => {
+                    vec![value]
+                }
+                _ => {
+                    vec![]
+                }
+            }
+        }
+        SoundVariation(channel, value) => {
+            match property_index {
+                0 => {
+                    vec![channel]
+                }
+                1 => {
+                    vec![value]
+                }
+                _ => {
+                    vec![]
+                }
+            }
+        }
+        SoundTimbre(channel, value) => {
+            match property_index {
+                0 => {
+                    vec![channel]
+                }
+                1 => {
+                    vec![value]
+                }
+                _ => {
+                    vec![]
+                }
+            }
+        }
+        SoundReleaseTime(channel, value) => {
+            match property_index {
+                0 => {
+                    vec![channel]
+                }
+                1 => {
+                    vec![value]
+                }
+                _ => {
+                    vec![]
+                }
+            }
+        }
+        SoundAttack(channel, value) => {
+            match property_index {
+                0 => {
+                    vec![channel]
+                }
+                1 => {
+                    vec![value]
+                }
+                _ => {
+                    vec![]
+                }
+            }
+        }
+        SoundBrightness(channel, value) => {
+            match property_index {
+                0 => {
+                    vec![channel]
+                }
+                1 => {
+                    vec![value]
+                }
+                _ => {
+                    vec![]
+                }
+            }
+        }
+        SoundControl(channel, which, value) => {
+            match property_index {
+                0 => {
+                    vec![channel]
+                }
+                1 => {
+                    vec![which]
+                }
+                2 => {
+                    vec![value]
+                }
+                _ => {
+                    vec![]
+                }
+            }
+        }
+
+        GeneralButtonOn(channel, which) => {
+            match property_index {
+                0 => {
+                    vec![channel]
+                }
+                1 => {
+                    vec![which]
+                }
+                _ => {
+                    vec![]
+                }
+            }
+        }
+
+        GeneralButtonOff(channel, which) => {
+            match property_index {
+                0 => {
+                    vec![channel]
+                }
+                1 => {
+                    vec![which]
+                }
+                _ => {
+                    vec![]
+                }
+            }
+        }
+
+        EffectsLevel(channel, value) => {
+            match property_index {
+                0 => {
+                    vec![channel]
+                }
+                1 => {
+                    vec![value]
+                }
+                _ => {
+                    vec![]
+                }
+            }
+        }
+
+        TremuloLevel(channel, value) => {
+            match property_index {
+                0 => {
+                    vec![channel]
+                }
+                1 => {
+                    vec![value]
+                }
+                _ => {
+                    vec![]
+                }
+            }
+        }
+
+        ChorusLevel(channel, value) => {
+            match property_index {
+                0 => {
+                    vec![channel]
+                }
+                1 => {
+                    vec![value]
+                }
+                _ => {
+                    vec![]
+                }
+            }
+        }
+
+        CelesteLevel(channel, value) => {
+            match property_index {
+                0 => {
+                    vec![channel]
+                }
+                1 => {
+                    vec![value]
+                }
+                _ => {
+                    vec![]
+                }
+            }
+        }
+
+        PhaserLevel(channel, value) => {
+            match property_index {
+                0 => {
+                    vec![channel]
+                }
+                1 => {
+                    vec![value]
+                }
+                _ => {
+                    vec![]
+                }
+            }
+        }
+
+        DataButtonIncrement(channel) => {
+            match property_index {
+                0 => {
+                    vec![channel]
+                }
+                _ => {
+                    vec![]
+                }
+            }
+        }
+
+        DataButtonDecrement(channel) => {
+            match property_index {
+                0 => {
+                    vec![channel]
+                }
+                _ => {
+                    vec![]
+                }
+            }
+        }
+
+        RegisteredParameterNumber(channel, value) => {
+            match property_index {
+                0 => {
+                    vec![channel]
+                }
+                1 => {
+                    vec![
+                        (value >> 8) as u8,
+                        (value & 0xFF) as u8
+                    ]
+                }
+                _ => {
+                    vec![]
+                }
+            }
+        }
+
+        NonRegisteredParameterNumber(channel, value) => {
+            match property_index {
+                0 => {
+                    vec![channel]
+                }
+                1 => {
+                    vec![
+                        (value >> 8) as u8,
+                        (value & 0xFF) as u8
+                    ]
+                }
+                _ => {
+                    vec![]
+                }
+            }
+        }
+
+        AllControllersOff(channel) => {
+            vec![channel]
+        }
+
+        LocalKeyboardEnable(channel) => {
+            vec![channel]
+        }
+
+        LocalKeyboardDisable(channel) => {
+            vec![channel]
+        }
+
+        AllNotesOff(channel) => {
+            vec![channel]
+        }
+
+        AllSoundOff(channel) => {
+            vec![channel]
+        }
+
+        OmniOff(channel) => {
+            vec![channel]
+        }
+
+        OmniOn(channel) => {
+            vec![channel]
+        }
+
+        MonophonicOperation(channel, value) => {
+            match property_index {
+                0 => {
+                    vec![channel]
+                }
+                1 => {
+                    vec![value]
+                }
+                _ => {
+                    vec![]
+                }
+            }
+        }
+
+        PolyphonicOperation(channel) => {
+            vec![channel]
+        }
+
+        _ => {
+            vec![]
         }
     }
 }
-
-
-impl MIDIEvent for NonRegisteredParameterNumberEvent {
-
-    fn get_property(&self, argument: u8) -> Vec<u8> {
-        match argument {
-            0 => {
-                vec![self.channel]
-            }
-            _ => {
-                vec![
-                    (self.value >> 8) as u8,
-                    (self.value & 0xFF) as u8
-                ]
-            }
-        }
-    }
-    fn set_property(&mut self, argument: u8, bytes: Vec<u8>) {
-        match argument {
-            0 => {
-                self.channel = bytes[0];
-            }
-            _ => {
-                self.value = ((bytes[0] as u16) << 8) + (bytes[1] as u16);
-            }
-        }
-    }
-}
-
-impl MIDIEvent for AllControllersOffEvent {
-
-    fn get_property(&self, _: u8) -> Vec<u8> {
-        vec![self.channel]
-    }
-    fn set_property(&mut self, _: u8, bytes: Vec<u8>) {
-        self.channel = bytes[0];
-    }
-}
-
-impl MIDIEvent for LocalKeyboardEnableEvent {
-
-    fn get_property(&self, _: u8) -> Vec<u8> {
-        vec![self.channel]
-    }
-    fn set_property(&mut self, _: u8, bytes: Vec<u8>) {
-        self.channel = bytes[0];
-    }
-}
-
-impl MIDIEvent for LocalKeyboardDisableEvent {
-
-    fn get_property(&self, _: u8) -> Vec<u8> {
-        vec![self.channel]
-    }
-    fn set_property(&mut self, _: u8, bytes: Vec<u8>) {
-        self.channel = bytes[0];
-    }
-}
-
-
-impl MIDIEvent for AllNotesOffEvent {
-
-    fn get_property(&self, _: u8) -> Vec<u8> {
-        vec![self.channel]
-    }
-    fn set_property(&mut self, _: u8, bytes: Vec<u8>) {
-        self.channel = bytes[0];
-    }
-}
-
-impl MIDIEvent for AllSoundOffEvent {
-
-    fn get_property(&self, _: u8) -> Vec<u8> {
-        vec![self.channel]
-    }
-    fn set_property(&mut self, _: u8, bytes: Vec<u8>) {
-        self.channel = bytes[0];
-    }
-}
-
-
-impl MIDIEvent for OmniOffEvent {
-
-    fn get_property(&self, _: u8) -> Vec<u8> {
-        vec![self.channel]
-    }
-    fn set_property(&mut self, _: u8, bytes: Vec<u8>) {
-        self.channel = bytes[0];
-    }
-}
-
-
-impl MIDIEvent for OmniOnEvent {
-
-    fn get_property(&self, _: u8) -> Vec<u8> {
-        vec![self.channel]
-    }
-    fn set_property(&mut self, _: u8, bytes: Vec<u8>) {
-        self.channel = bytes[0];
-    }
-}
-
-
-impl MIDIEvent for MonophonicOperationEvent {
-
-
-    fn get_property(&self, argument: u8) -> Vec<u8> {
-        match argument {
-            0 => {
-                vec![self.channel]
-            }
-            _ => {
-                vec![self.value]
-            }
-        }
-    }
-    fn set_property(&mut self, argument: u8, bytes: Vec<u8>) {
-        match argument {
-            0 => {
-                self.channel = bytes[0];
-            }
-            _ => {
-                self.value = bytes[0];
-            }
-        }
-    }
-}
-
-
-impl PolyphonicOperationEvent {
-    pub fn new(channel: u8) -> PolyphonicOperationEvent {
-        PolyphonicOperationEvent {
-            channel
-        }
-    }
-}
-impl MIDIEvent for PolyphonicOperationEvent {
-
-    fn get_property(&self, _: u8) -> Vec<u8> {
-        vec![self.channel]
-    }
-    fn set_property(&mut self, _: u8, bytes: Vec<u8>) {
-        self.channel = bytes[0];
-    }
-}
-
-// End ControlChangeEvents
-
-impl MIDIEvent for ControlChangeEvent {
-    fn set_property(&mut self, argument: u8, bytes: Vec<u8>) {
-        match argument {
-            0 => {
-                self.channel = bytes[0] & 0x0F;
-            }
-            1 => {
-                self.controller = bytes[0] & 0x7F;
-            }
-            2 => {
-                self.value = bytes[0] & 0x7F;
-            }
-            _ => ()
-        };
-    }
-    fn get_property(&self, argument: u8) -> Vec<u8> {
-        let output = match argument {
-            0 => {
-                self.channel
-            }
-            1 => {
-                self.controller
-            }
-            2 => {
-                self.value
-            }
-            _ => {
-                0
-            }
-        };
-
-        vec![output]
-    }
-}
-
-impl MIDIEvent for ProgramChangeEvent {
-    fn set_property(&mut self, argument: u8, bytes: Vec<u8>) {
-        match argument {
-            0 => {
-                self.channel = bytes[0] & 0x0F;
-            }
-            1 => {
-                self.program = bytes[0] & 0x7F;
-            }
-            _ => ()
-        };
-    }
-    fn get_property(&self, argument: u8) -> Vec<u8> {
-        let output = match argument {
-            0 => {
-                self.channel
-            }
-            1 => {
-                self.program
-            }
-            _ => {
-                0
-            }
-        };
-
-        vec![output]
-    }
-}
-
-impl MIDIEvent for ChannelPressureEvent {
-    fn set_property(&mut self, argument: u8, bytes: Vec<u8>) {
-        match argument {
-            0 => {
-                self.channel = bytes[0] & 0x0F;
-            }
-            1 => {
-                self.pressure = bytes[0] & 0x7F;
-            }
-            _ => ()
-        };
-    }
-    fn get_property(&self, argument: u8) -> Vec<u8> {
-        let output = match argument {
-            0 => {
-                self.channel
-            }
-            1 => {
-                self.pressure
-            }
-            _ => {
-                0
-            }
-        };
-        vec![output]
-    }
-}
-
-
-impl PitchWheelChangeEvent {
-    pub fn new(channel: u8, value: f64) -> PitchWheelChangeEvent {
-        PitchWheelChangeEvent {
-            channel: channel & 0x0F,
-            value
-        }
-    }
-    pub fn new_from_lsb_msb(channel: u8, lsb: u8, msb: u8) -> PitchWheelChangeEvent {
-        let unsigned_value: f64 = (((msb as u16) << 7) + (lsb as u16)) as f64;
-        let new_value: f64 = ((unsigned_value * 2_f64) as f64 / 0x3FFF as f64) - 1_f64;
-        PitchWheelChangeEvent::new(channel, new_value)
-    }
-
-    fn get_unsigned_value(&self) -> u16 {
-        if self.value < 0_f64 {
-            ((1_f64 + self.value) * (0x2000 as f64)) as u16
-        } else if self.value > 0_f64 {
-            (self.value * (0x1FFF as f64)) as u16 + 0x2000
-        } else {
-            0x2000
-        }
-    }
-
-    pub fn set_value(&mut self, value: f64) {
-        self.value = value;
-    }
-}
-
-impl MIDIEvent for PitchWheelChangeEvent {
-
-    fn set_property(&mut self, argument: u8, bytes: Vec<u8>) {
-        match argument {
-            0 => {
-                self.channel = bytes[0] & 0x0F;
-            }
-            1 => {
-                let unsigned_value = (((bytes[0] as u16) * 256) + (bytes[1] as u16)) as f64;
-                let new_value: f64 = ((unsigned_value * 2_f64) / 0x3FFF as f64) - 1_f64;
-
-                self.value = new_value;
-            }
-            _ => ()
-        };
-    }
-
-    fn get_property(&self, argument: u8) -> Vec<u8> {
-        match argument {
-            0 => {
-                vec![
-                    self.channel
-                ]
-            }
-            1 => {
-                let unsigned_value = self.get_unsigned_value();
-                vec![
-                    (unsigned_value / 256) as u8,
-                    (unsigned_value % 256) as u8
-                ]
-            }
-            _ => {
-                vec![0]
-            }
-        }
-    }
-}
-
-
-impl MIDIEvent for SystemExclusiveEvent {
-    fn set_property(&mut self, _:u8, bytes: Vec<u8>) {
-        self.data = bytes.clone()
-    }
-
-    fn get_property(&self, _argument: u8) -> Vec<u8> {
-        self.data.clone()
-    }
-
-}
-
-
-impl MIDIEvent for MTCQuarterFrameEvent {
-    fn set_property(&mut self, argument: u8, bytes: Vec<u8>) {
-        match argument {
-            0 => {
-                self.message_type = bytes[0];
-            }
-            1 => {
-                self.value = bytes[0];
-            }
-            _ => ()
-        };
-    }
-
-    fn get_property(&self, argument: u8) -> Vec<u8> {
-        match argument {
-            0 => {
-               vec![ self.message_type ]
-            }
-            1 => {
-               vec![ self.value ]
-            }
-            _ => {
-                Vec::new()
-            }
-        }
-    }
-}
-
-impl MIDIEvent for SongPositionPointerEvent {
-    fn set_property(&mut self, _: u8, bytes: Vec<u8>) {
-        self.beat = ((bytes[0] as u16) * 256) + (bytes[1] as u16);
-    }
-
-    fn get_property(&self, _: u8) -> Vec<u8> {
-        vec![
-            (self.beat / 256) as u8,
-            (self.beat % 256) as u8
-        ]
-    }
-}
-
-impl MIDIEvent for SongSelectEvent {
-    fn set_property(&mut self, _: u8, bytes: Vec<u8>) {
-        self.song = bytes[0] & 0x7F;
-    }
-    fn get_property(&self, _: u8) -> Vec<u8> {
-        vec![
-            self.song & 0x7F
-        ]
-    }
-}
-
-impl MIDIEvent for TuneRequestEvent {
-    fn set_property(&mut self, _: u8, _bytes: Vec<u8>) { }
-    fn get_property(&self, _: u8) -> Vec<u8> {
-        Vec::new()
-    }
-}
-
-impl MIDIEvent for MIDIClockEvent {
-    fn set_property(&mut self, _: u8, _bytes: Vec<u8>) { }
-    fn get_property(&self, _: u8) -> Vec<u8> {
-        Vec::new()
-    }
-}
-
-impl MIDIEvent for MIDIStartEvent {
-    fn set_property(&mut self, _: u8, _bytes: Vec<u8>) { }
-    fn get_property(&self, _: u8) -> Vec<u8> {
-        Vec::new()
-    }
-}
-
-impl MIDIEvent for MIDIContinueEvent {
-    fn set_property(&mut self, _: u8, _bytes: Vec<u8>) { }
-    fn get_property(&self, _: u8) -> Vec<u8> {
-        Vec::new()
-    }
-}
-
-impl MIDIEvent for MIDIStopEvent {
-    fn set_property(&mut self, _: u8, _bytes: Vec<u8>) { }
-    fn get_property(&self, _: u8) -> Vec<u8> {
-        Vec::new()
-    }
-}
-
-impl MIDIEvent for ActiveSenseEvent {
-    fn set_property(&mut self, _: u8, _bytes: Vec<u8>) { }
-    fn get_property(&self, _: u8) -> Vec<u8> {
-        Vec::new()
-    }
-}
-
-impl MIDIEvent for ResetEvent {
-    fn set_property(&mut self, _: u8, _bytes: Vec<u8>) { }
-    fn get_property(&self, _: u8) -> Vec<u8> {
-        Vec::new()
-    }
-}
-

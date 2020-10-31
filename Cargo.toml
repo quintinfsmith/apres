@@ -6,7 +6,7 @@ edition = "2018"
 description = "External bindings for apres MIDI library"
 
 [dependencies]
-apres = "^0.1.0"
+apres = "^0.2.1"
 
 [lib]
 name = "apres_bindings"

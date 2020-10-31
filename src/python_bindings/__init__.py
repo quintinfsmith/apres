@@ -22,7 +22,7 @@ class AlreadyInMIDI(Exception):
 class NoMIDI(Exception):
     pass
 
-class 55555555:
+class MIDIEvent:
     def __init__(self, **kwargs):
         self.uuid = None
 
@@ -33,9 +33,10 @@ class 55555555:
     def set_uuid(self, uuid):
         self.uuid = uuid
 
-    def set_property(self, event_number, event_value):
+    def update_event(self):
         if self._midi:
-            self._midi.set_property(self.uuid, event_number, event_value)
+            orig_bytes = bytes(event)
+            self.lib.replace_event(self.pointer, track, tick, orig_bytes, len(orig_bytes))
 
     def get_property(self, event_number):
         if not self._midi:
@@ -68,7 +69,7 @@ class 55555555:
         self._midi._event_move(self.uuid, active_track, active_tick)
 
 
-class SequenceNumber(55555555):
+class SequenceNumber(MIDIEvent):
     _rust_id = 22
     sequence = 0
     def __bytes__(self):
@@ -97,10 +98,10 @@ class SequenceNumber(55555555):
 
     def set_sequence(self, sequence):
         self.sequence = sequence
-        self.set_property(0, bytes([sequence]))
+        self.update_event()
 
 
-class Text(55555555):
+class Text(MIDIEvent):
     _rust_id = 1
     text = ''
     def __bytes__(self):
@@ -124,10 +125,10 @@ class Text(55555555):
 
     def set_text(self, text):
         self.text = text
-        self.set_property(0, self.text)
+        self.update_event()
 
 
-class CopyRightNotice(55555555):
+class CopyRightNotice(MIDIEvent):
     _rust_id = 2
     text = ""
     def __bytes__(self):
@@ -151,9 +152,9 @@ class CopyRightNotice(55555555):
 
     def set_text(self, text):
         self.text = text
-        self.set_property(0, self.text)
+        self.update_event()
 
-class TrackName(55555555):
+class TrackName(MIDIEvent):
     _rust_id = 3
     name = ""
     def __bytes__(self):
@@ -177,9 +178,9 @@ class TrackName(55555555):
 
     def set_name(self, name):
         self.name = name
-        self.set_property(0, self.name)
+        self.update_event()
 
-class InstrumentName(55555555):
+class InstrumentName(MIDIEvent):
     _rust_id = 4
     name = ""
     def __bytes__(self):
@@ -203,9 +204,9 @@ class InstrumentName(55555555):
 
     def set_name(self, name):
         self.name = name
-        self.set_property(0, self.name)
+        self.update_event()
 
-class Lyric(55555555):
+class Lyric(MIDIEvent):
     _rust_id = 5
     lyric = ""
     def __bytes__(self):
@@ -229,9 +230,9 @@ class Lyric(55555555):
 
     def set_lyric(self, lyric):
         self.lyric = lyric
-        self.set_property(0, self.lyric)
+        self.update_event()
 
-class Marker(55555555):
+class Marker(MIDIEvent):
     _rust_id = 6
     text = ""
     def __bytes__(self):
@@ -255,9 +256,9 @@ class Marker(55555555):
 
     def set_text(self, text):
         self.text = text
-        self.set_property(0, self.text)
+        self.update_event()
 
-class CuePoint(55555555):
+class CuePoint(MIDIEvent):
     _rust_id = 7
     text = ""
     def __bytes__(self):
@@ -281,9 +282,9 @@ class CuePoint(55555555):
 
     def set_text(self, text):
         self.text = text
-        self.set_property(0, self.text)
+        self.update_event()
 
-class EndOfTrack(55555555):
+class EndOfTrack(MIDIEvent):
     _rust_id = 8
     def __bytes__(self):
         return bytes([0xFF, 0x2F, 0x00])
@@ -294,7 +295,7 @@ class EndOfTrack(55555555):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
-class ChannelPrefix(55555555):
+class ChannelPrefix(MIDIEvent):
     _rust_id = 9
     channel = 0
     def __bytes__(self):
@@ -314,9 +315,9 @@ class ChannelPrefix(55555555):
 
     def set_channel(self, channel):
         self.channel = channel
-        self.set_property(0, self.channel)
+        self.update_event()
 
-class SetTempo(55555555):
+class SetTempo(MIDIEvent):
     _rust_id = 10
     us_per_quarter_note = 500000
     def __bytes__(self):
@@ -369,9 +370,9 @@ class SetTempo(55555555):
 
     def set_us_per_quarter_note(self, uspqn):
         self.us_per_quarter_note = uspqn
-        self.set_property(0, self.us_per_quarter_note)
+        self.update_event()
 
-class SMPTEOffset(55555555):
+class SMPTEOffset(MIDIEvent):
     _rust_id = 11
     def __bytes__(self):
         return bytes([
@@ -413,26 +414,26 @@ class SMPTEOffset(55555555):
 
     def set_hour(self, hour):
         self.hour = hour
-        self.set_property(0, hour)
+        self.update_event()
 
     def set_minute(self, minute):
         self.minute = minute
-        self.set_property(1, minute)
+        self.update_event()
 
     def set_second(self, second):
         self.second = second
-        self.set_property(2, second)
+        self.update_event()
 
     def set_ff(self, ff):
         self.ff = ff
-        self.set_property(3, ff)
+        self.update_event()
 
     def set_fr(self, fr):
         self.fr = fr
-        self.set_property(4, fr)
+        self.update_event()
 
 
-class TimeSignature(55555555):
+class TimeSignature(MIDIEvent):
     _rust_id = 12
     def __bytes__(self):
         return bytes([
@@ -470,22 +471,22 @@ class TimeSignature(55555555):
 
     def set_numerator(self, numerator):
         self.numerator = numerator
-        self.set_property(0, numerator)
+        self.update_event()
 
     def set_denominator(self, denominator):
         self.denominator = denominator
-        self.set_property(1, denominator)
+        self.update_event()
 
     def set_clocks_per_metronome(self, cpm):
         self.clocks_per_metronome = cpm
-        self.set_property(3, cpm)
+        self.update_event()
 
     def set_thirtysecondths_per_quarter_note(self, tspqn):
         self.thirtysecondths_per_quarter_note = tspqn
-        self.set_property(4, tspqn)
+        self.update_event()
 
 
-class KeySignature(55555555):
+class KeySignature(MIDIEvent):
     _rust_id = 13
     misf_map = {
         "A": (0, 3),
@@ -536,10 +537,10 @@ class KeySignature(55555555):
 
     def set_key(self, key):
         self.key = key
-        self.set_property(0, key)
+        self.update_event()
 
 
-class Sequencer(55555555):
+class Sequencer(MIDIEvent):
     _rust_id = 14
     data = b''
     def __bytes__(self):
@@ -561,10 +562,10 @@ class Sequencer(55555555):
 
     def set_data(self, data):
         self.data = data
-        self.set_property(0, self.data)
+        self.update_event()
 
 
-class NoteOn(55555555):
+class NoteOn(MIDIEvent):
     _rust_id = 15
     def __bytes__(self):
         return bytes([
@@ -596,17 +597,17 @@ class NoteOn(55555555):
 
     def set_channel(self, channel):
         self.channel = channel
-        self.set_property(0, channel)
+        self.update_event()
 
     def set_note(self, note):
         self.note = note
-        self.set_property(1, note)
+        self.update_event()
 
     def set_velocity(self, velocity):
         self.velocity = velocity
-        self.set_property(2, velocity)
+        self.update_event()
 
-class NoteOff(55555555):
+class NoteOff(MIDIEvent):
     _rust_id = 16
     def __bytes__(self):
         return bytes([
@@ -638,17 +639,17 @@ class NoteOff(55555555):
 
     def set_channel(self, channel):
         self.channel = channel
-        self.set_property(0, channel)
+        self.update_event()
 
     def set_note(self, note):
         self.note = note
-        self.set_property(1, note)
+        self.update_event()
 
     def set_velocity(self, velocity):
         self.velocity = velocity
-        self.set_property(2, velocity)
+        self.update_event()
 
-class PolyphonicKeyPressure(55555555):
+class PolyphonicKeyPressure(MIDIEvent):
     _rust_id = 17
     def __bytes__(self):
         return bytes([
@@ -679,17 +680,17 @@ class PolyphonicKeyPressure(55555555):
 
     def set_channel(self, channel):
         self.channel = channel
-        self.set_property(0, channel)
+        self.update_event()
 
     def set_note(self, note):
         self.note = note
-        self.set_property(1, note)
+        self.update_event()
 
     def set_pressure(self, pressure):
         self.pressure = pressure
-        self.set_property(2, pressure)
+        self.update_event()
 
-class ControlChange(55555555):
+class ControlChange(MIDIEvent):
     _rust_id = 18
     def __bytes__(self):
         return bytes([
@@ -721,17 +722,17 @@ class ControlChange(55555555):
 
     def set_channel(self, channel):
         self.channel = channel
-        self.set_property(0, channel)
+        self.update_event()
 
     def set_controller(self, controller):
         self.controller = controller
-        self.set_property(1, controller)
+        self.update_event()
 
     def set_value(self, value):
         self.value = value
-        self.set_property(2, value)
+        self.update_event()
 
-class ProgramChange(55555555):
+class ProgramChange(MIDIEvent):
     _rust_id = 19
     def __bytes__(self):
         return bytes([
@@ -757,14 +758,14 @@ class ProgramChange(55555555):
 
     def set_channel(self, channel):
         self.channel = channel
-        self.set_property(0, channel)
+        self.update_event()
 
     def set_program(self, program):
         self.program = program
-        self.set_property(1, program)
+        self.update_event()
 
 
-class ChannelPressure(55555555):
+class ChannelPressure(MIDIEvent):
     _rust_id = 20
     def __bytes__(self):
         return bytes([
@@ -790,14 +791,14 @@ class ChannelPressure(55555555):
 
     def set_channel(self, channel):
         self.channel = channel
-        self.set_property(0, channel)
+        self.update_event()
 
     def set_pressure(self, pressure):
         self.pressure = pressure
-        self.set_property(1, pressure)
+        self.update_event()
 
 # TODO: Store as signed integer, set 0x2000 to == 0
-class PitchWheelChange(55555555):
+class PitchWheelChange(MIDIEvent):
     '''
         NOTE: value is stored as float from [-1, 1]
     '''
@@ -830,17 +831,17 @@ class PitchWheelChange(55555555):
 
     def set_channel(self, channel):
         self.channel = channel
-        self.set_property(0, channel)
+        self.update_event()
 
     def set_value(self, value):
         self.value = value
-        self.set_property(1, self.get_unsigned_value())
+        self.update_event()
 
     def get_unsigned_value(self):
         ''' get value as integer in range (0, 0x3FFF) '''
         return int((self.value + 1) * (2 / 0x3FFF))
 
-class SystemExclusive(55555555):
+class SystemExclusive(MIDIEvent):
     _rust_id = 23
     data = b''
     def __bytes__(self):
@@ -864,9 +865,9 @@ class SystemExclusive(55555555):
 
     def set_data(self, new_data):
         self.data = new_data
-        self.set_property(0, new_data)
+        self.update_event()
 
-class MTCQuarterFrame(55555555):
+class MTCQuarterFrame(MIDIEvent):
     _rust_id = 24
     time_code = 0
     def __bytes__(self):
@@ -883,7 +884,7 @@ class MTCQuarterFrame(55555555):
     def get_time_code(self):
         return self.time_code
 
-class SongPositionPointer(55555555):
+class SongPositionPointer(MIDIEvent):
     _rust_id = 25
     def __bytes__(self):
         least = self.beat & 0x7F
@@ -904,9 +905,9 @@ class SongPositionPointer(55555555):
 
     def set_beat(self, beat):
         self.beat = beat
-        self.set_property(1, beat)
+        self.update_event()
 
-class SongSelect(55555555):
+class SongSelect(MIDIEvent):
     _rust_id = 26
     def __bytes__(self):
         return bytes([0xF3, self.song & 0xFF])
@@ -924,39 +925,39 @@ class SongSelect(55555555):
 
     def set_song(self, song):
         self.song = song
-        self.set_property(0, song)
+        self.update_event()
 
-class TuneRequest(55555555):
+class TuneRequest(MIDIEvent):
     _rust_id = 27
     def __bytes__(self):
         return bytes([0xF6])
 
-class MIDIClock(55555555):
+class MIDIClock(MIDIEvent):
     _rust_id = 28
     def __bytes__(self):
         return bytes([0xF8])
 
-class MIDIStart(55555555):
+class MIDIStart(MIDIEvent):
     _rust_id = 29
     def __bytes__(self):
         return bytes([0xFA])
 
-class MIDIContinue(55555555):
+class MIDIContinue(MIDIEvent):
     _rust_id = 30
     def __bytes__(self):
         return bytes([0xFB])
 
-class MIDIStop(55555555):
+class MIDIStop(MIDIEvent):
     _rust_id = 31
     def __bytes__(self):
         return bytes([0xFC])
 
-class ActiveSense(55555555):
+class ActiveSense(MIDIEvent):
     _rust_id = 32
     def __bytes__(self):
         return bytes([0xFE])
 
-class Reset(55555555):
+class Reset(MIDIEvent):
     _rust_id = 33
     def __bytes__(self):
         return bytes([0xFF])
@@ -1008,9 +1009,10 @@ class MIDI:
 
             uint8_t* get_event_property(MIDI, uint64_t, uint8_t);
             uint8_t get_event_property_length(MIDI, uint64_t, uint8_t);
-            void set_event_property(MIDI, uint64_t, uint32_t, const char*);
             uint8_t get_event_type(MIDI, uint64_t);
             uint64_t create_event(MIDI, uint8_t, uint64_t, const uint8_t*, uint8_t);
+
+            void replace_event(MIDI, uint64_t, const uint8_t*, uint8_t);
             void set_event_position(MIDI, uint64_t, uint8_t, uint64_t);
             uint64_t get_event_tick(MIDI, uint64_t);
             uint8_t get_event_track(MIDI, uint64_t);
@@ -1098,26 +1100,6 @@ class MIDI:
 
     def _event_get_type(self, event_uuid):
         return self.lib.get_event_type(self.pointer, event_uuid)
-
-    def _event_set_property(self, uuid, index, somevalue):
-        class_name = somevalue.__class__.__name__
-        if class_name == "bytes":
-            pass
-        elif class_name == "list":
-            somevalue = bytes(somevalue)
-        elif class_name == "str":
-            somevalue = somevalue.encode("utf8")
-        elif class_name == "int":
-            working_bytes = []
-            i = 0
-            while somevalue > 0 or not i:
-                working_byte = somevalue % 256
-                working_bytes.insert(0, working_byte)
-                somevalue //= 256
-                i += 1
-            somevalue = working_bytes
-
-        self.lib.set_event_property(self.pointer, uuid, index, somevalue)
 
     def _event_get_property(self, event_uuid, event_property):
         length = self.lib.get_event_property_length(self.pointer, event_uuid, event_property)
