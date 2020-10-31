@@ -96,7 +96,6 @@ fn test_variable_length_conversion() {
         );
 
 
-        expected_vector.reverse();
         output_n = get_variable_length_number(expected_vector);
         assert_eq!(
             *input_number,

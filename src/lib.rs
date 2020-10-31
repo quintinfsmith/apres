@@ -5,6 +5,11 @@ use std::collections::{HashMap, HashSet};
 
 pub mod tests;
 
+pub enum ApresError {
+    InvalidBytes(Vec<u8>)
+}
+
+
 #[derive(Clone)]
 pub enum MIDIEvent {
 	SequenceNumber(u16),
@@ -90,6 +95,7 @@ pub enum MIDIEvent {
 
 pub trait MIDIBytes {
     fn as_bytes(&self) -> Vec<u8>;
+    fn from_bytes(bytes: &mut Vec<u8>) -> Result<Self, ApresError> where Self: std::marker::Sized;
 }
 
 impl MIDIBytes for MIDIEvent {
@@ -656,6 +662,237 @@ impl MIDIBytes for MIDIEvent {
             }
         }
     }
+
+    fn from_bytes(bytes: &mut Vec<u8>) -> Result<MIDIEvent, ApresError> {
+        let mut output = Err(ApresError::InvalidBytes(bytes.clone()));
+
+        let n: u32;
+        let varlength: u64;
+        let leadbyte = bytes.remove(0);
+        match leadbyte {
+            0..=0x7F => {
+                output = MIDIEvent::from_bytes(bytes);
+            }
+
+            0x80..=0xEF => {
+                let channel: u8;
+                let leadnibble: u8 = leadbyte >> 4;
+                match leadnibble {
+                    0x8 => {
+                        channel = leadbyte & 0x0F;
+                        let note = bytes.remove(0);
+                        let velocity = bytes.remove(0);
+                        let event = MIDIEvent::NoteOff(channel, note, velocity);
+                        output = Ok(event);
+                    }
+                    0x9 => {
+                        channel = leadbyte & 0x0F;
+                        let note = bytes.remove(0);
+                        let velocity = bytes.remove(0);
+                        // Convert fake NoteOff (NoteOn where velocity is 0) to real NoteOff
+                        if velocity == 0 {
+                            let event = MIDIEvent::NoteOff(channel, note, velocity);
+                            output = Ok(event);
+                        } else {
+                            let event = MIDIEvent::NoteOn(channel, note, velocity);
+                            output = Ok(event);
+                        }
+                    }
+                    0xA => {
+                        channel = leadbyte & 0x0F;
+                        let note = bytes.remove(0);
+                        let velocity = bytes.remove(0);
+                        let event = MIDIEvent::AfterTouch(channel, note, velocity);
+                        output = Ok(event);
+                    }
+                    0xB => {
+                        channel = leadbyte & 0x0F;
+                        let controller = bytes.remove(0);
+                        let value = bytes.remove(0);
+                        let event = MIDIEvent::ControlChange(channel, controller, value);
+                        output = Ok(event);
+                    }
+                    0xC => {
+                        channel = leadbyte & 0x0F;
+                        let new_program = bytes.remove(0);
+                        let event = MIDIEvent::ProgramChange(channel, new_program);
+                        output = Ok(event);
+                    }
+                    0xD => {
+                        channel = leadbyte & 0x0F;
+                        let pressure = bytes.remove(0);
+                        let event = MIDIEvent::ChannelPressure(channel, pressure);
+                        output = Ok(event);
+                    }
+                    0xE => {
+                        channel = leadbyte & 0x0F;
+                        let least_significant_byte = bytes.remove(0);
+                        let most_significant_byte = bytes.remove(0);
+                        let event = build_pitch_wheel_change(channel, least_significant_byte, most_significant_byte);
+                        output = Ok(event);
+                    }
+                    _ => {
+                    }
+                }
+            }
+
+            0xF0 => {
+                // System Exclusive
+                let mut bytedump = Vec::new();
+                loop {
+                    let byte = bytes.remove(0);
+                    if byte == 0xF7 {
+                        break;
+                    } else {
+                        bytedump.push(byte);
+                    }
+                }
+
+                let event = MIDIEvent::SystemExclusive(bytedump);
+                output = Ok(event);
+            }
+
+            0xF2 => {
+                // Song Position Pointer
+                let least_significant_byte = bytes.remove(0);
+                let most_significant_byte = bytes.remove(0);
+
+                let beat = ((most_significant_byte as u16) << 7) + (least_significant_byte as u16);
+                let event = MIDIEvent::SongPositionPointer(beat);
+                output = Ok(event);
+            }
+
+            0xF3 => {
+                let song = bytes.remove(0);
+                let event = MIDIEvent::SongSelect(song & 0x7F);
+                output = Ok(event);
+            }
+
+            0xF1 | 0xF6 | 0xF8 | 0xFA | 0xFB | 0xFC | 0xFE => {
+                // Do Nothing. These are system-realtime and shouldn't be in a file.
+            }
+
+            0xF7 => {
+                varlength = get_variable_length_number(bytes);
+                n = dequeue_n(bytes, varlength as usize);
+                // TODO ADD EVENT
+            }
+
+            0xFF => {
+                let meta_byte = bytes.remove(0); // Meta Type
+                varlength = get_variable_length_number(bytes);
+                if meta_byte == 0x51 {
+                    let event = MIDIEvent::SetTempo(dequeue_n(bytes, varlength as usize));
+                    output = Ok(event);
+                } else {
+                    let mut bytedump = Vec::new();
+                    for _ in 0..varlength {
+                        bytedump.push(bytes.remove(0));
+                    }
+                    match meta_byte {
+                        0x01 => {
+                            match std::str::from_utf8(bytedump.as_slice()) {
+                                Ok(textdump) => {
+                                    let event = MIDIEvent::Text(textdump.to_string());
+                                    output = Ok(event);
+                                }
+                                Err(_e) => { }
+                            }
+                        }
+                        0x02 => {
+                            match std::str::from_utf8(bytedump.as_slice()) {
+                                Ok(textdump) => {
+                                    let event = MIDIEvent::CopyRightNotice(textdump.to_string());
+                                    output = Ok(event);
+                                }
+                                Err(_e) => { }
+                            }
+                        }
+                        0x03 => {
+                            match std::str::from_utf8(bytedump.as_slice()) {
+                                Ok(textdump) => {
+                                    let event = MIDIEvent::TrackName(textdump.to_string());
+                                    output = Ok(event);
+                                }
+                                Err(_e) => { }
+                            }
+                        }
+                        0x04 => {
+                            match std::str::from_utf8(bytedump.as_slice()) {
+                                Ok(textdump) => {
+                                    let event = MIDIEvent::InstrumentName(textdump.to_string());
+                                    output = Ok(event);
+                                }
+                                Err(_e) => { }
+                            }
+                        }
+                        0x05 => {
+                            match std::str::from_utf8(bytedump.as_slice()) {
+                                Ok(textdump) => {
+                                    let event = MIDIEvent::Lyric(textdump.to_string());
+                                    output = Ok(event);
+                                }
+                                Err(_e) => { }
+                            }
+                        }
+                        0x06 => {
+                            match std::str::from_utf8(bytedump.as_slice()) {
+                                Ok(textdump) => {
+                                    let event = MIDIEvent::Marker(textdump.to_string());
+                                    output = Ok(event);
+                                }
+                                Err(_e) => { }
+                            }
+                        }
+                        0x07 => {
+                            match std::str::from_utf8(bytedump.as_slice()) {
+                                Ok(textdump) => {
+                                    let event = MIDIEvent::CuePoint(textdump.to_string());
+                                    output = Ok(event);
+                                }
+                                Err(_e) => { }
+                            }
+                        }
+                        0x20 => {
+                            let event = MIDIEvent::ChannelPrefix(bytedump[0]);
+                            output = Ok(event);
+                        }
+                        0x2F => {
+                            // I *think* EndOfTrack events can be safely ignored, since it has to be the last event in a track and the track knows how long it is.
+                            //let event = MIDIEvent::EndOfTrack() );
+                        }
+                        0x51 => {
+                        }
+                        0x54 => {
+                            let event = MIDIEvent::SMPTEOffset(bytedump[0], bytedump[1], bytedump[2], bytedump[3], bytedump[4]);
+                            output = Ok(event);
+                        }
+                        0x58 => {
+                            let event = MIDIEvent::TimeSignature(bytedump[0], bytedump[1], bytedump[2], bytedump[3]);
+                            output = Ok(event);
+                        }
+                        0x59 => {
+                            let event = build_key_signature(bytedump[1], bytedump[0]);
+                            output = Ok(event);
+                        }
+                        0x7F => {
+                            // TODO: I tihnk this is supposed to be SequencerSpecific, and i got the 2 conflated. Commenting out for now.
+                            //let event = MIDIEvent::SystemExclusive(bytedump);
+                            //output = output = Ok(event);
+                        }
+                        _ => {
+                        }
+                    }
+                }
+            }
+
+            0xF4 | 0xF5 | 0xF9 | 0xFD => {
+                // Undefined Behaviour
+            }
+
+        }
+        output
+    }
 }
 
 /// Structural representation of MIDI.
@@ -740,7 +977,6 @@ impl MIDI {
 
     fn from_bytes(file_bytes: Vec<u8>) -> MIDI {
         let bytes = &mut file_bytes.clone();
-        bytes.reverse();
         let mut mlo: MIDI = MIDI::new();
         let mut sub_bytes: Vec<u8>;
         let mut chunkcount: HashMap<(u8, u8,u8, u8), u16> = HashMap::new();
@@ -762,20 +998,20 @@ impl MIDI {
         let mut fallback_byte = 0x90u8;
         while bytes.len() > 0 {
             chunk_type = (
-                bytes.pop().unwrap(),
-                bytes.pop().unwrap(),
-                bytes.pop().unwrap(),
-                bytes.pop().unwrap()
+                bytes.remove(0),
+                bytes.remove(0),
+                bytes.remove(0),
+                bytes.remove(0)
             );
 
             let val = chunkcount.entry(chunk_type).or_insert(0);
             *val += 1;
 
             if chunk_type == ('M' as u8, 'T' as u8, 'h' as u8, 'd' as u8) {
-                pop_n(bytes, 4); // Get Size
-                midi_format = pop_n(bytes, 2) as u16; // Midi Format
-                pop_n(bytes, 2); // Get Number of tracks
-                divword = pop_n(bytes, 2);
+                dequeue_n(bytes, 4); // Get Size
+                midi_format = dequeue_n(bytes, 2) as u16; // Midi Format
+                dequeue_n(bytes, 2); // Get Number of tracks
+                divword = dequeue_n(bytes, 2);
                 if divword & 0x8000 > 0 {
                     smpte = from_twos_complement(((divword & 0x7F00) >> 8) as u32, 7);
                     tpf = divword & 0x00FF;
@@ -787,22 +1023,15 @@ impl MIDI {
                 mlo.set_format(midi_format);
             } else if chunk_type == ('M' as u8, 'T' as u8, 'r' as u8, 'k' as u8) {
                 current_deltatime = 0;
-                track_length = pop_n(bytes, 4);
+                track_length = dequeue_n(bytes, 4);
                 sub_bytes = Vec::new();
                 for _ in 0..track_length {
-                    sub_bytes.push(bytes.pop().unwrap())
+                    sub_bytes.push(bytes.remove(0))
                 }
-                sub_bytes.reverse();
+
                 while sub_bytes.len() > 0 {
                     current_deltatime += get_variable_length_number(&mut sub_bytes) as usize;
-
-                    match sub_bytes.pop() {
-                        Some(byte) => {
-                            mlo.process_mtrk_event(byte, &mut sub_bytes, &mut current_deltatime, current_track, &mut fallback_byte);
-                        },
-                        None => {}
-                    }
-
+                    mlo.process_mtrk_event(&mut sub_bytes, &mut current_deltatime, current_track);
                 }
                 current_track += 1;
             } else {
@@ -812,242 +1041,24 @@ impl MIDI {
         mlo
     }
 
-    fn process_mtrk_event(&mut self, leadbyte: u8, bytes: &mut Vec<u8>, current_deltatime: &mut usize, track: usize, fallback_cmd: &mut u8) -> Option<u64> {
+    fn process_mtrk_event(&mut self, bytes: &mut Vec<u8>, current_deltatime: &mut usize, track: usize) -> Option<u64> {
         let mut output = None;
 
         let n: u32;
         let varlength: u64;
-        match leadbyte {
-            0..=0x7F => {
-                 // Implicitly a Channel Event
-                bytes.push(leadbyte);
-                output = self.process_mtrk_event(*fallback_cmd, bytes, current_deltatime, track, fallback_cmd);
-            }
-            0x80..=0xEF => {
-                let channel: u8;
-                let leadnibble: u8 = leadbyte >> 4;
-                match leadnibble {
-                    0x8 => {
-                        channel = leadbyte & 0x0F;
-                        let note = bytes.pop().unwrap();
-                        let velocity = bytes.pop().unwrap();
-                        let event = MIDIEvent::NoteOff(channel, note, velocity);
+        let first = bytes.first();
+        match first {
+            Some(leadbyte) => {
+                match MIDIEvent::from_bytes(bytes) {
+                    Ok(event) => {
                         output = Some(self.insert_event(track, *current_deltatime, event));
                     }
-                    0x9 => {
-                        channel = leadbyte & 0x0F;
-                        let note = bytes.pop().unwrap();
-                        let velocity = bytes.pop().unwrap();
-                        // Convert fake NoteOff (NoteOn where velocity is 0) to real NoteOff
-                        if velocity == 0 {
-                            let event = MIDIEvent::NoteOff(channel, note, velocity);
-                            output = Some(self.insert_event(track, *current_deltatime, event));
-                        } else {
-                            let event = MIDIEvent::NoteOn(channel, note, velocity);
-                            output = Some(self.insert_event(track, *current_deltatime, event));
-                        }
-                    }
-                    0xA => {
-                        channel = leadbyte & 0x0F;
-                        let note = bytes.pop().unwrap();
-                        let velocity = bytes.pop().unwrap();
-                        let event = MIDIEvent::AfterTouch(channel, note, velocity);
-                        output = Some(self.insert_event(track, *current_deltatime, event));
-                    }
-                    0xB => {
-                        channel = leadbyte & 0x0F;
-                        let controller = bytes.pop().unwrap();
-                        let value = bytes.pop().unwrap();
-                        let event = MIDIEvent::ControlChange(channel, controller, value);
-                        output = Some(self.insert_event(track, *current_deltatime, event));
-                    }
-                    0xC => {
-                        channel = leadbyte & 0x0F;
-                        let new_program = bytes.pop().unwrap();
-                        let event = MIDIEvent::ProgramChange(channel, new_program);
-                        output = Some(self.insert_event(track, *current_deltatime, event));
-                    }
-                    0xD => {
-                        channel = leadbyte & 0x0F;
-                        let pressure = bytes.pop().unwrap();
-                        let event = MIDIEvent::ChannelPressure(channel, pressure);
-                        output = Some(self.insert_event(track, *current_deltatime, event));
-                    }
-                    0xE => {
-                        channel = leadbyte & 0x0F;
-                        let least_significant_byte = bytes.pop().unwrap();
-                        let most_significant_byte = bytes.pop().unwrap();
-                        let event = build_pitch_wheel_change(channel, least_significant_byte, most_significant_byte);
-                        output = Some(self.insert_event(track, *current_deltatime, event));
-                    }
-                    _ => {
-                        //undefined behavior
-                    }
-                }
-                if leadnibble >= 8 && leadnibble < 15 {
-                    *fallback_cmd = leadbyte.clone();
-                }
-            }
-            0xF0 => {
-                // System Exclusive
-                let mut bytedump = Vec::new();
-                loop {
-                    match bytes.pop() {
-                        Some(byte) => {
-                            if byte == 0xF7 {
-                                break;
-                            } else {
-                                bytedump.push(byte);
-                            }
-                        },
-                        None => {
-                            break;
-                        }
-                    }
-                }
-
-                let event = MIDIEvent::SystemExclusive(bytedump);
-                output = Some(self.insert_event(track, *current_deltatime, event));
-            }
-            0xF2 => {
-                // Song Position Pointer
-                let least_significant_byte = bytes.pop().unwrap();
-                let most_significant_byte = bytes.pop().unwrap();
-
-                let beat = ((most_significant_byte as u16) << 7) + (least_significant_byte as u16);
-                let event = MIDIEvent::SongPositionPointer(beat);
-                output = Some(self.insert_event(track, *current_deltatime, event));
-            }
-            0xF3 => {
-                let song = bytes.pop().unwrap();
-                let event = MIDIEvent::SongSelect(song & 0x7F);
-                output = Some(self.insert_event(track, *current_deltatime, event));
-            }
-            0xF1 | 0xF6 | 0xF8 | 0xFA | 0xFB | 0xFC | 0xFE => {
-                // Do Nothing. These are system-realtime and shouldn't be in a file.
-            }
-            0xF7 => {
-                varlength = get_variable_length_number(bytes);
-                n = pop_n(bytes, varlength as usize);
-                // TODO ADD EVENT
-            }
-            0xF4 | 0xF5 | 0xF9 | 0xFD => {
-                // Undefined Behaviour
-            }
-            0xFF => {
-                let meta_byte = bytes.pop().unwrap(); // Meta Type
-                varlength = get_variable_length_number(bytes);
-                if meta_byte == 0x51 {
-                    let event = MIDIEvent::SetTempo(pop_n(bytes, varlength as usize));
-                    output = Some(self.insert_event(track, *current_deltatime, event));
-                } else {
-                    let mut bytedump = Vec::new();
-                    for _ in 0..varlength {
-                        match bytes.pop() {
-                            Some(byte) => {
-                                bytedump.push(byte);
-                            },
-                            None => {
-                                break; // TODO: Should throw error
-                            }
-                        }
-                    }
-                    match meta_byte {
-                        0x01 => {
-                            match std::str::from_utf8(bytedump.as_slice()) {
-                                Ok(textdump) => {
-                                    let event = MIDIEvent::Text(textdump.to_string());
-                                    output = Some(self.insert_event(track, *current_deltatime, event));
-                                }
-                                Err(_e) => {}
-                            };
-                        }
-                        0x02 => {
-                            match std::str::from_utf8(bytedump.as_slice()) {
-                                Ok(textdump) => {
-                                    let event = MIDIEvent::CopyRightNotice(textdump.to_string());
-                                    output = Some(self.insert_event(track, *current_deltatime, event));
-                                }
-                                Err(_e) => {}
-                            };
-                        }
-                        0x03 => {
-                            match std::str::from_utf8(bytedump.as_slice()) {
-                                Ok(textdump) => {
-                                    let event = MIDIEvent::TrackName(textdump.to_string());
-                                    output = Some(self.insert_event(track, *current_deltatime, event));
-                                }
-                                Err(_e) => {}
-                            };
-                        }
-                        0x04 => {
-                            match std::str::from_utf8(bytedump.as_slice()) {
-                                Ok(textdump) => {
-                                    let event = MIDIEvent::InstrumentName(textdump.to_string());
-                                    output = Some(self.insert_event(track, *current_deltatime, event));
-                                }
-                                Err(_e) => {}
-                            };
-                        }
-                        0x05 => {
-                            match std::str::from_utf8(bytedump.as_slice()) {
-                                Ok(textdump) => {
-                                    let event = MIDIEvent::Lyric(textdump.to_string());
-                                    output = Some(self.insert_event(track, *current_deltatime, event));
-                                }
-                                Err(_e) => {}
-                            };
-                        }
-                        0x06 => {
-                            match std::str::from_utf8(bytedump.as_slice()) {
-                                Ok(textdump) => {
-                                    let event = MIDIEvent::Marker(textdump.to_string());
-                                    output = Some(self.insert_event(track, *current_deltatime, event));
-                                }
-                                Err(_e) => {}
-                            };
-                        }
-                        0x07 => {
-                            match std::str::from_utf8(bytedump.as_slice()) {
-                                Ok(textdump) => {
-                                    let event = MIDIEvent::CuePoint(textdump.to_string());
-                                    output = Some(self.insert_event(track, *current_deltatime, event));
-                                }
-                                Err(_e) => {}
-                            };
-                        }
-                        0x20 => {
-                            let event = MIDIEvent::ChannelPrefix(bytedump[0]);
-                            output = Some(self.insert_event(track, *current_deltatime, event));
-                        }
-                        0x2F => {
-                            // I *think* EndOfTrack events can be safely ignored, since it has to be the last event in a track and the track knows how long it is.
-                            //let event = MIDIEvent::EndOfTrack() );
-                        }
-                        0x51 => {
-                        }
-                        0x54 => {
-                            let event = MIDIEvent::SMPTEOffset(bytedump[0], bytedump[1], bytedump[2], bytedump[3], bytedump[4]);
-                            output = Some(self.insert_event(track, *current_deltatime, event));
-                        }
-                        0x58 => {
-                            let event = MIDIEvent::TimeSignature(bytedump[0], bytedump[1], bytedump[2], bytedump[3]);
-                            output = Some(self.insert_event(track, *current_deltatime, event));
-                        }
-                        0x59 => {
-                            let event = build_key_signature(bytedump[1], bytedump[0]);
-                            output = Some(self.insert_event(track, *current_deltatime, event));
-                        }
-                        0x7F => {
-                            // TODO: I tihnk this is supposed to be SequencerSpecific, and i got the 2 conflated. Commenting out for now.
-                            //let event = MIDIEvent::SystemExclusive(bytedump);
-                            //output = Some(self.insert_event(track, *current_deltatime, event));
-                        }
-                        _ => {
-                        }
+                    Err(e) => {
+                        //TODO: Don't surpress the error
                     }
                 }
             }
+            None => {}
         }
 
         output
@@ -1241,16 +1252,12 @@ impl MIDI {
     }
 }
 
-fn pop_n(bytes: &mut Vec<u8>, n: usize) -> u32 {
+fn dequeue_n(bytes: &mut Vec<u8>, n: usize) -> u32 {
     let mut tn: u32 = 0;
     for _ in 0..n {
         tn *= 256;
-        match bytes.pop() {
-            Some(x) => {
-                tn += x as u32;
-            },
-            None => { }
-        }
+        let x = bytes.remove(0);
+        tn += x as u32;
     }
     tn
 }
@@ -1271,16 +1278,10 @@ fn get_variable_length_number(bytes: &mut Vec<u8>) -> u64 {
 
     loop {
         n <<= 7;
-        match bytes.pop() {
-            Some(x) => {
-                n |= (x & 0x7F) as u64;
-                if x & 0x80 == 0 {
-                    break;
-                }
-            }
-            None => {
-                break;
-            }
+        let x = bytes.remove(0);
+        n |= (x & 0x7F) as u64;
+        if x & 0x80 == 0 {
+            break;
         }
     }
     n
