@@ -6,7 +6,8 @@ use std::collections::{HashMap, HashSet};
 pub mod tests;
 
 pub enum ApresError {
-    InvalidBytes(Vec<u8>)
+    InvalidBytes(Vec<u8>),
+    EventNotFound(u64)
 }
 
 
@@ -1250,6 +1251,16 @@ impl MIDI {
             }
         }
     }
+
+    pub fn replace_event(&mut self, event_id: u64, new_midi_event: MIDIEvent) -> Result<(), ApresError> {
+        if self.events.contains_key(&event_id) {
+            self.events.entry(event_id)
+                .and_modify(|e| *e = new_midi_event);
+            Ok(())
+        } else {
+            Err(ApresError::EventNotFound(event_id))
+        }
+    }
 }
 
 fn dequeue_n(bytes: &mut Vec<u8>, n: usize) -> u32 {
@@ -1309,7 +1320,7 @@ fn to_variable_length_bytes(number: usize) -> Vec<u8> {
 }
 
 // input a number between (-1, 1), get an unsigned value with 0x2000 as midpoint
-fn get_pitchwheel_value(n: f64) -> u16 {
+pub fn get_pitchwheel_value(n: f64) -> u16 {
     if n < 0_f64 {
         ((1_f64 + n) * (0x2000 as f64)) as u16
     } else if n > 0_f64 {
