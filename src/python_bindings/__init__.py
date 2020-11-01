@@ -1021,13 +1021,8 @@ class MIDI:
             uint16_t get_ppqn(MIDI);
         """)
 
-        lib_path = None
-        for prefix in [site.USER_BASE, sys.prefix]:
-            if os.path.isfile("%s/apres/libapres_bindings.so" % prefix):
-                lib_path = "%s/apres/libapres_bindings.so" % prefix
-                break
 
-        self.lib = ffi.dlopen(lib_path)
+        self.lib = ffi.dlopen("libapres.so")
         self.events = {}
         self.event_positions = {}
         self.ppqn = 120
