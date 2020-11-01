@@ -6,6 +6,8 @@ edition = "2018"
 description = "MIDI Library"
 repository = "https://github.com/quintinfsmith/apres"
 license = "GPL-2.0-or-later"
+categories = ["MIDI"]
+keywords = ["midi", "audio", "music"]
 
 [lib]
 name = "apres"
