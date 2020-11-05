@@ -131,7 +131,7 @@ pub extern fn replace_event(midi_ptr: *mut MIDI, event_id: u64, bytes_ptr: *mut 
 
     let mut sub_bytes: Vec<u8> = unsafe { Vec::from_raw_parts(bytes_ptr, byte_length as usize, byte_length as usize) };
 
-    match MIDIEvent::from_bytes(&mut sub_bytes) {
+    match MIDIEvent::from_bytes(&mut sub_bytes, 0) {
         Ok(new_midi_event) => {
             midi.replace_event(event_id, new_midi_event);
         }
@@ -205,7 +205,7 @@ pub extern fn create_event(midi_ptr: *mut MIDI, track: u8, tick: u64, bytes_ptr:
     let mut sub_bytes: Vec<u8> = unsafe { Vec::from_raw_parts(bytes_ptr, byte_length as usize, byte_length as usize) };
 
 
-    let new_event_id = match MIDIEvent::from_bytes(&mut sub_bytes) {
+    let new_event_id = match MIDIEvent::from_bytes(&mut sub_bytes, 0) {
         Ok(new_event) => {
             midi.insert_event(track as usize, tick as usize, new_event)
         }
