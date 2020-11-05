@@ -1344,7 +1344,13 @@ pub fn get_pitchwheel_value(n: f64) -> u16 {
     }
 }
 
-fn build_key_signature(mi: u8, sf: u8) -> MIDIEvent {
+fn build_key_signature(mut mi: u8, mut sf: u8) -> MIDIEvent {
+    if mi & 0x80 != 0 {
+        mi = from_twos_complement(mi as u32, 8) as u8;
+    }
+    if sf & 0x80 != 0 {
+        sf = from_twos_complement(sf as u32, 8) as u8;
+    }
     let chord_name = get_chord_name_from_mi_sf(mi, sf);
 
     MIDIEvent::KeySignature(chord_name.to_string())
