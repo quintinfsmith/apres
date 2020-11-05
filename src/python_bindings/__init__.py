@@ -1022,7 +1022,12 @@ class MIDI:
         """)
 
 
-        self.lib = self.ffi.dlopen("libapres.so")
+        lib_path = "libapres.so"
+        try:
+            self.lib = self.ffi.dlopen(sys.prefix + '/lib/' + lib_path)
+        except:
+            self.lib = self.ffi.dlopen(site.USER_BASE + '/lib/' + lib_path)
+
         self.events = {}
         self.event_positions = {}
         self.ppqn = 120
