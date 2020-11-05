@@ -390,3 +390,15 @@ fn test_system_exclusive_event() {
         [0xF0, 0x00, 0x00, 0x01, 0x00, 0xF7]
     );
 }
+
+#[test]
+fn test_chords() {
+    assert_eq!(
+        get_chord_name_from_mi_sf(0, 253),
+        "Eb"
+    );
+    assert_eq!(
+        get_chord_name_from_mi_sf(1, 7),
+        "A#m"
+    );
+}

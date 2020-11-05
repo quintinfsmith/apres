@@ -215,7 +215,7 @@ impl MIDIBytes for MIDIEvent {
 
             MIDIEvent::KeySignature(string) => {
                 let (mi, sf) = get_mi_sf(string);
-                vec![0xFF, 0x59, 0x02, sf, mi]
+                vec![0xFF, 0x59, 0x02, sf as u8, mi]
             }
 
             MIDIEvent::NoteOn(channel, note, velocity) => {
@@ -1019,7 +1019,7 @@ impl MIDI {
                 dequeue_n(bytes, 2); // Get Number of tracks
                 divword = dequeue_n(bytes, 2);
                 if divword & 0x8000 > 0 {
-                    smpte = from_twos_complement(((divword & 0x7F00) >> 8) as u32, 7);
+                    smpte = ((((divword & 0x7F00) >> 8) as i8) as u32);
                     tpf = divword & 0x00FF;
 
                 } else {
@@ -1287,17 +1287,6 @@ fn dequeue_n(bytes: &mut Vec<u8>, n: usize) -> u32 {
     tn
 }
 
-// TODO: May only ever have to be u8
-fn from_twos_complement(value: u32, bits: u8) -> u32 {
-    let mut complement = 0u32;
-
-    for _ in 0..bits {
-        complement <<= 2;
-        complement += 1;
-    }
-    (value - 1) ^ complement
-}
-
 fn get_variable_length_number(bytes: &mut Vec<u8>) -> u64 {
     let mut n = 0u64;
 
@@ -1345,12 +1334,6 @@ pub fn get_pitchwheel_value(n: f64) -> u16 {
 }
 
 fn build_key_signature(mut mi: u8, mut sf: u8) -> MIDIEvent {
-    if mi & 0x80 != 0 {
-        mi = from_twos_complement(mi as u32, 8) as u8;
-    }
-    if sf & 0x80 != 0 {
-        sf = from_twos_complement(sf as u32, 8) as u8;
-    }
     let chord_name = get_chord_name_from_mi_sf(mi, sf);
 
     MIDIEvent::KeySignature(chord_name.to_string())
@@ -1383,7 +1366,7 @@ fn gen_coarse_fine_bytes(channel: u8, value: u16, coarse_offset: u8, fine_offset
 }
 
 
-fn get_mi_sf(chord_name: &str) -> (u8, u8) {
+fn get_mi_sf(chord_name: &str) -> (u8, i8) {
     match chord_name {
         "A" => (0, 3),
         "A#" | "Bb" => (0, 8 | 2),
@@ -1416,18 +1399,18 @@ fn get_mi_sf(chord_name: &str) -> (u8, u8) {
 fn get_chord_name_from_mi_sf(mi: u8, sf: u8) -> String {
     let map = vec![
         vec![
+            "Cb", "Gb", "Db", "Ab",
+            "Eb", "Bb", "F",
             "C", "G", "D", "A",
             "E", "B", "F#", "C#",
-            "C", "F", "Bb", "Eb",
-            "Ab", "Db", "Gb", "Cb"
         ],
         vec![
+            "Abm", "Ebm", "Bbm", "Fm",
+            "Cm", "Gm", "Dm",
             "Am", "Em", "Bm", "F#m",
             "C#m", "G#m", "D#m", "A#m",
-            "Am", "Dm", "Gm", "Cm",
-            "Fm", "Bbm", "Ebm", "Abm"
         ]
     ];
 
-    map[mi as usize][sf as usize].to_string()
+    map[mi as usize][((sf as i8) + 7) as usize].to_string()
 }
