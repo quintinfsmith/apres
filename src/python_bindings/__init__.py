@@ -1027,7 +1027,7 @@ class MIDI:
                 lib_path = "%s/apres/libapres_bindings.so" % prefix
                 break
 
-        self.lib = ffi.dlopen(lib_path)
+        self.lib = self.ffi.dlopen(lib_path)
         self.events = {}
         self.event_positions = {}
         self.ppqn = 120
