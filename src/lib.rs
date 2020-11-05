@@ -671,7 +671,9 @@ impl MIDIBytes for MIDIEvent {
         let varlength: u64;
         let leadbyte = bytes.remove(0);
         match leadbyte {
+
             0..=0x7F => {
+                bytes.insert(0, (leadbyte & 0x0F) | 0x90);
                 output = MIDIEvent::from_bytes(bytes);
             }
 
@@ -691,13 +693,13 @@ impl MIDIBytes for MIDIEvent {
                         let note = bytes.remove(0);
                         let velocity = bytes.remove(0);
                         // Convert fake NoteOff (NoteOn where velocity is 0) to real NoteOff
-                        if velocity == 0 {
-                            let event = MIDIEvent::NoteOff(channel, note, velocity);
-                            output = Ok(event);
+                        let event = if velocity == 0 {
+                            MIDIEvent::NoteOff(channel, note, velocity)
                         } else {
-                            let event = MIDIEvent::NoteOn(channel, note, velocity);
-                            output = Ok(event);
-                        }
+                            MIDIEvent::NoteOn(channel, note, velocity)
+                        };
+
+                        output = Ok(event);
                     }
                     0xA => {
                         channel = leadbyte & 0x0F;
@@ -996,7 +998,6 @@ impl MIDI {
         let mut track_length: u32;
 
         let mut ppqn: u16 = 120;
-        let mut fallback_byte = 0x90u8;
         while bytes.len() > 0 {
             chunk_type = (
                 bytes.remove(0),
