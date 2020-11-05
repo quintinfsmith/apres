@@ -96,7 +96,7 @@ pub enum MIDIEvent {
 
 pub trait MIDIBytes {
     fn as_bytes(&self) -> Vec<u8>;
-    fn from_bytes(bytes: &mut Vec<u8>) -> Result<Self, ApresError> where Self: std::marker::Sized;
+    fn from_bytes(bytes: &mut Vec<u8>, active_channel: u8) -> Result<Self, ApresError> where Self: std::marker::Sized;
 }
 
 impl MIDIBytes for MIDIEvent {
@@ -664,17 +664,18 @@ impl MIDIBytes for MIDIEvent {
         }
     }
 
-    fn from_bytes(bytes: &mut Vec<u8>) -> Result<MIDIEvent, ApresError> {
+    fn from_bytes(bytes: &mut Vec<u8>, active_channel: u8) -> Result<MIDIEvent, ApresError> {
         let mut output = Err(ApresError::InvalidBytes(bytes.clone()));
 
         let n: u32;
         let varlength: u64;
         let leadbyte = bytes.remove(0);
-        match leadbyte {
 
+        match leadbyte {
             0..=0x7F => {
-                bytes.insert(0, (leadbyte & 0x0F) | 0x90);
-                output = MIDIEvent::from_bytes(bytes);
+                bytes.insert(0, leadbyte);
+                bytes.insert(0, 0x90 | active_channel);
+                output = MIDIEvent::from_bytes(bytes, active_channel);
             }
 
             0x80..=0xEF => {
@@ -892,8 +893,8 @@ impl MIDIBytes for MIDIEvent {
             0xF4 | 0xF5 | 0xF9 | 0xFD => {
                 // Undefined Behaviour
             }
-
         }
+
         output
     }
 }
@@ -936,7 +937,9 @@ pub struct MIDI {
     midi_format: u16, // 16 because the format stores in 2 bytes, even though it only requires 2 bits (0,1,2)
     events: HashMap<u64, MIDIEvent>,
     event_id_gen: u64,
-    event_positions: HashMap<u64, (usize, usize)>
+    event_positions: HashMap<u64, (usize, usize)>,
+
+    _active_channel: u8 // Only used when reading in a .mid
 }
 
 
@@ -949,6 +952,7 @@ impl MIDI {
             midi_format: 1,
             events: HashMap::new(),
             event_positions: HashMap::new(),
+            _active_channel: 0
         }
     }
 
@@ -1049,10 +1053,19 @@ impl MIDI {
         let n: u32;
         let varlength: u64;
         let first = bytes.first();
+
+        let active_channel = self._active_channel;
         match first {
             Some(leadbyte) => {
-                match MIDIEvent::from_bytes(bytes) {
+                match MIDIEvent::from_bytes(bytes, active_channel) {
                     Ok(event) => {
+                        match event {
+                            MIDIEvent::NoteOn(channel, _, _) | MIDIEvent::NoteOff(channel, _, _) => {
+                                self._active_channel = channel;
+                            }
+                            _ => ()
+                        }
+
                         output = Some(self.insert_event(track, *current_deltatime, event));
                     }
                     Err(e) => {
