@@ -1,5 +1,5 @@
 '''Mutable Midi Library'''
-import sys
+import sys, site
 from cffi import FFI
 from ctypes.util import find_library
 import os
