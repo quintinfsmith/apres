@@ -1,5 +1,10 @@
 # Apres
-A MIDI library
+A MIDI library<br/>
+![Travis (.com)](https://img.shields.io/travis/com/quintinfsmith/apres?style=flat-square)
+![Crates.io](https://img.shields.io/crates/d/apres?style=flat-square)
+![Crates.io](https://img.shields.io/crates/l/apres?style=flat-square)
+![Crates.io](https://img.shields.io/crates/v/apres?style=flat-square)
+
 ## Installation
 In Cargo.toml
 ```toml
