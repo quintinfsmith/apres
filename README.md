@@ -1,5 +1,8 @@
 # Apres bindings
-Python bindings for the Apres MIDI library
+Python bindings for the Apres MIDI library<br/>
+![PyPI - Downloads](https://img.shields.io/pypi/dw/apres?style=flat-square)
+![PyPI - License](https://img.shields.io/pypi/l/apres?style=flat-square)
+![PyPI](https://img.shields.io/pypi/v/apres?style=flat-square)
 
 ## Installation
 Can be installed through pip
