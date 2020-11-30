@@ -981,6 +981,7 @@ class MIDI:
         TimeSignature._rust_id: TimeSignature,
         KeySignature._rust_id: KeySignature,
         Sequencer._rust_id: Sequencer,
+        SystemExclusive._rust_id: SystemExclusive,
 
         NoteOn._rust_id: NoteOn,
         NoteOff._rust_id: NoteOff,
