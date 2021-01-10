@@ -9,7 +9,7 @@ A MIDI library<br/>
 In Cargo.toml
 ```toml
 [dependencies]
-apres = { git = "https://github.com/quintinfsmith/apres" }
+apres = "0.2.5"
 ```
 ## Usage Examples
 Load a Song
