@@ -983,7 +983,9 @@ impl MIDI {
                     midibytes.push(*byte);
                 }
             }
-            Err(e) => {}
+            Err(e) => {
+                Err(ApresError::InvalidMIDIFile(file_path.to_string()))?;
+            }
         }
 
         match MIDI::from_bytes(midibytes) {
@@ -1015,6 +1017,8 @@ impl MIDI {
 
         let mut track_length: u32;
 
+        let mut found_header = false;
+
         let mut ppqn: u16 = 120;
         while bytes.len() > 0 {
             chunk_type = (
@@ -1041,6 +1045,7 @@ impl MIDI {
                 }
                 mlo.set_ppqn(ppqn);
                 mlo.set_format(midi_format);
+                found_header = true;
             } else if chunk_type == ('M' as u8, 'T' as u8, 'r' as u8, 'k' as u8) {
                 current_deltatime = 0;
                 track_length = dequeue_n(bytes, 4);
@@ -1065,7 +1070,7 @@ impl MIDI {
                 }
                 current_track += 1;
             } else {
-                break;
+                Err(ApresError::InvalidBytes(bytes.clone()))?;
             }
         }
 
