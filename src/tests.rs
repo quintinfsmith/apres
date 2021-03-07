@@ -52,15 +52,21 @@ fn test_initialize_load() {
         0x38, 0x80, 0x00, 0x40,
 
 
-        // EOTs are ignored
         0x00, 0xFF, 0x2F, 0x00 // EOT
     ];
-    let midi = MIDI::from_bytes(midi_bytes);
-
-    assert_eq!(midi.count_tracks(), 1);
-    assert_eq!(midi.get_track_length(0), 121);
-    assert_eq!(midi.events.len(), 15);
-    assert_eq!(midi.event_positions.len(), 15);
+    match MIDI::from_bytes(midi_bytes) {
+        Ok(midi) => {
+            assert_eq!(midi.count_tracks(), 1);
+            assert_eq!(midi.get_track_length(0), 121);
+            assert_eq!(midi.events.len(), 16);
+            assert_eq!(midi.event_positions.len(), 16);
+        }
+        Err(ApresError::InvalidBytes(bytes)) => {
+            print!("{:?}", bytes);
+            assert!(false);
+        }
+        Err(_) => ()
+    }
 
 }
 

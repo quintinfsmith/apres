@@ -6,6 +6,7 @@ use std::collections::{HashMap, HashSet};
 pub mod tests;
 
 pub enum ApresError {
+    InvalidMIDIFile(String),
     InvalidBytes(Vec<u8>),
     EventNotFound(u64)
 }
@@ -862,8 +863,7 @@ impl MIDIBytes for MIDIEvent {
                             output = Ok(event);
                         }
                         0x2F => {
-                            // I *think* EndOfTrack events can be safely ignored, since it has to be the last event in a track and the track knows how long it is.
-                            //let event = MIDIEvent::EndOfTrack() );
+                            output = Ok(MIDIEvent::EndOfTrack);
                         }
                         0x51 => {
                         }
@@ -908,7 +908,7 @@ impl MIDIBytes for MIDIEvent {
 /// ```
 /// use apres::MIDI;
 /// // Create a MIDI from a file
-/// let midi = MIDI::from_path("/path/to/file.mid");
+/// let midi = MIDI::from_path("/path/to/file.mid").ok().unwrap();
 /// ```
 /// Create a new MIDI
 /// ```
@@ -957,7 +957,7 @@ impl MIDI {
     }
 
     /// Construct a new MIDI from a .mid file
-    pub fn from_path(file_path: &str) -> MIDI {
+    pub fn from_path(file_path: &str) -> Result<MIDI, ApresError> {
         let mut midibytes = Vec::new();
         match File::open(file_path) {
             Ok(mut file) => {
@@ -979,10 +979,17 @@ impl MIDI {
             Err(e) => {}
         }
 
-        MIDI::from_bytes(midibytes)
+        match MIDI::from_bytes(midibytes) {
+            Ok(midi_ob) => {
+                Ok(midi_ob)
+            }
+            Err(_) => {
+                Err(ApresError::InvalidMIDIFile(file_path.to_string()))
+            }
+        }
     }
 
-    fn from_bytes(file_bytes: Vec<u8>) -> MIDI {
+    fn from_bytes(file_bytes: Vec<u8>) -> Result<MIDI, ApresError> {
         let bytes = &mut file_bytes.clone();
         let mut mlo: MIDI = MIDI::new();
         let mut sub_bytes: Vec<u8>;
@@ -1037,22 +1044,20 @@ impl MIDI {
 
                 while sub_bytes.len() > 0 {
                     current_deltatime += get_variable_length_number(&mut sub_bytes) as usize;
-                    mlo.process_mtrk_event(&mut sub_bytes, &mut current_deltatime, current_track);
+                    mlo.process_mtrk_event(&mut sub_bytes, &mut current_deltatime, current_track)?;
                 }
                 current_track += 1;
             } else {
                 break;
             }
         }
-        mlo
+
+        Ok(mlo)
     }
 
-    fn process_mtrk_event(&mut self, bytes: &mut Vec<u8>, current_deltatime: &mut usize, track: usize) -> Option<u64> {
-        let mut output = None;
-
+    fn process_mtrk_event(&mut self, bytes: &mut Vec<u8>, current_deltatime: &mut usize, track: usize) -> Result<u64, ApresError> {
         let n: u32;
         let varlength: u64;
-
 
         match bytes.first() {
             Some(status_byte) => {
@@ -1066,17 +1071,9 @@ impl MIDI {
             None => ()
         }
 
-        let active_byte = self._active_byte;
-        match MIDIEvent::from_bytes(bytes, active_byte) {
-            Ok(event) => {
-                output = Some(self.insert_event(track, *current_deltatime, event));
-            }
-            Err(e) => {
-                //TODO: Don't surpress the error
-            }
-        }
+        let event = MIDIEvent::from_bytes(bytes, self._active_byte)?;
 
-        output
+        Ok(self.insert_event(track, *current_deltatime, event))
     }
 
 

@@ -9,14 +9,14 @@ A MIDI library<br/>
 In Cargo.toml
 ```toml
 [dependencies]
-apres = "0.2.5"
+apres = "^0.2.6"
 ```
 ## Usage Examples
 Load a Song
 ```rust
 use apres::MIDI;
 Create a MIDI from a file
-let midi = MIDI::from_path("/path/to/file.mid");
+let midi = MIDI::from_path("/path/to/file.mid").ok().unwrap();
 ```
 Create a new MIDI
 ```rust
