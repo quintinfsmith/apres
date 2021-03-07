@@ -915,7 +915,12 @@ impl MIDIBytes for MIDIEvent {
 /// ```
 /// use apres::MIDI;
 /// // Create a MIDI from a file
-/// let midi = MIDI::from_path("/path/to/file.mid").ok().unwrap();
+/// match MIDI::from_path("/path/to/file.mid") {
+///     Ok(midi) => {
+///     }
+///     Err(_) => {
+///     }
+///}
 /// ```
 /// Create a new MIDI
 /// ```
