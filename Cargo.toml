@@ -1,12 +1,12 @@
 [package]
 name = "apres_bindings"
-version = "0.2.12"
+version = "0.2.13"
 authors = ["Quintin Smith <smith.quintin@protonmail.com>"]
 edition = "2018"
 description = "External bindings for apres MIDI library"
 
 [dependencies]
-apres = "^0.2.5"
+apres = "^0.2.8"
 
 [lib]
 name = "apres_bindings"

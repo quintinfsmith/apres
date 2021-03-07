@@ -32,7 +32,18 @@ pub extern fn interpret(path: *const c_char) -> *mut MIDI {
     };
 
     let clean_path = cstr_path.to_str().expect("Not a valid UTF-8 string");
-    let midi = MIDI::from_path(clean_path);
+    let midi = match MIDI::from_path(clean_path) {
+        Ok(_midi) => {
+            _midi
+        }
+        Err(_) => {
+            // This is a bit of a work around. setting the ppqn will be interpreted as a bad midi.
+            // It's kinda shit, I know.
+            let mut _midi = MIDI::new();
+            _midi.set_ppqn(0);
+            _midi
+        }
+    };
     Box::into_raw(Box::new( midi ))
 }
 

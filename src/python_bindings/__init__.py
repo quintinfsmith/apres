@@ -22,6 +22,9 @@ class AlreadyInMIDI(Exception):
 class NoMIDI(Exception):
     pass
 
+class InvalidMIDIFile(Exception):
+    pass
+
 class MIDIEvent:
     def __init__(self, **kwargs):
         self.uuid = None
@@ -1039,6 +1042,10 @@ class MIDI:
             self.pointer = self.lib.interpret(fmt_path)
             self.ppqn = self.lib.get_ppqn(self.pointer)
 
+            #Kludge: using ppqn == 0  to indicate a bad Midi
+            if self.ppqn == 0:
+                raise InvalidMIDIFile()
+
             # 0 is reserved, but eids are generated in order.
             # So we don't need to query every individual active id at this point
             for eid in range(1, self.lib.count_events(self.pointer)):
@@ -1067,7 +1074,6 @@ class MIDI:
         active_track = 0
         if 'track' in kwargs.keys():
             active_track = kwargs['track']
-
         if "tick" in kwargs.keys():
             active_tick = kwargs["tick"]
         elif "wait" in kwargs.keys():
