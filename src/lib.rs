@@ -8,6 +8,7 @@ pub mod tests;
 pub enum ApresError {
     InvalidMIDIFile(String),
     InvalidBytes(Vec<u8>),
+    UnknownMetaEvent(Vec<u8>),
     EventNotFound(u64)
 }
 
@@ -795,6 +796,11 @@ impl MIDIBytes for MIDIEvent {
                         bytedump.push(bytes.remove(0));
                     }
                     match meta_byte {
+                        0x00 => {
+                            let event = MIDIEvent::SequenceNumber((bytedump[0] as u16 * 256) + bytedump[1] as u16);
+                            output = Ok(event);
+                        }
+
                         0x01 => {
                             match std::str::from_utf8(bytedump.as_slice()) {
                                 Ok(textdump) => {
@@ -885,6 +891,7 @@ impl MIDIBytes for MIDIEvent {
                             //output = output = Ok(event);
                         }
                         _ => {
+                            output = Err(ApresError::UnknownMetaEvent(bytes.to_vec()));
                         }
                     }
                 }
@@ -1044,7 +1051,17 @@ impl MIDI {
 
                 while sub_bytes.len() > 0 {
                     current_deltatime += get_variable_length_number(&mut sub_bytes) as usize;
-                    mlo.process_mtrk_event(&mut sub_bytes, &mut current_deltatime, current_track)?;
+                    match mlo.process_mtrk_event(&mut sub_bytes, &mut current_deltatime, current_track) {
+                        Ok(_) => {
+                            Ok(())
+                        }
+                        Err(ApresError::UnknownMetaEvent(bytes)) => {
+                            Ok(())
+                        }
+                        Err(e) => {
+                            Err(e)
+                        }
+                    }?;
                 }
                 current_track += 1;
             } else {

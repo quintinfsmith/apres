@@ -1,6 +1,6 @@
 [package]
 name = "apres"
-version = "0.2.6"
+version = "0.2.7"
 authors = ["Quintin Smith <smith.quintin@protonmail.com>"]
 edition = "2018"
 description = "MIDI Library"
