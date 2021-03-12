@@ -1009,7 +1009,7 @@ class MIDI:
             void save(MIDI, const char*);
             uint32_t get_track_length(MIDI, uint8_t);
             uint32_t count_tracks(MIDI);
-            uint64_t count_events(MIDI);
+            uint32_t count_events(MIDI);
 
             uint8_t* get_event_property(MIDI, uint64_t, uint8_t);
             uint8_t get_event_property_length(MIDI, uint64_t, uint8_t);

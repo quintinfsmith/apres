@@ -109,9 +109,9 @@ pub extern fn get_event_tick(midi_ptr: *mut MIDI, event_id: u64) -> u64 {
 }
 
 #[no_mangle]
-pub extern fn get_track_length(midi_ptr: *mut MIDI, track: u8) -> usize {
+pub extern fn get_track_length(midi_ptr: *mut MIDI, track: u8) -> u32 {
     let mut midi = unsafe { Box::from_raw(midi_ptr) };
-    let length = midi.get_track_length(track as usize);
+    let length = midi.get_track_length(track as usize) as u32;
 
     Box::into_raw(midi);
 
@@ -119,17 +119,17 @@ pub extern fn get_track_length(midi_ptr: *mut MIDI, track: u8) -> usize {
 }
 
 #[no_mangle]
-pub extern fn count_tracks(midi_ptr: *mut MIDI) -> usize {
+pub extern fn count_tracks(midi_ptr: *mut MIDI) -> u32 {
     let mut midi = unsafe { Box::from_raw(midi_ptr) };
-    let count = midi.count_tracks();
+    let count = midi.count_tracks() as u32;
     Box::into_raw(midi);
     count
 }
 
 #[no_mangle]
-pub extern fn count_events(midi_ptr: *mut MIDI) -> usize {
+pub extern fn count_events(midi_ptr: *mut MIDI) -> u32 {
     let mut midi = unsafe { Box::from_raw(midi_ptr) };
-    let count = midi.count_events();
+    let count = midi.count_events() as u32;
     Box::into_raw(midi);
     count
 }
