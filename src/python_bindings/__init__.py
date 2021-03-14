@@ -1026,7 +1026,7 @@ class MIDI:
             uint16_t get_ppqn(MIDI);
         """)
 
-        lib_path = __file__[0:__file__.rfind("/") + 1] + "libapres_" + platform.machine() + ".so"
+        lib_path = __file__[0:__file__.rfind("/") + 1] + "libapres_manylinux2014_" + platform.machine() + ".so"
         self.lib = self.ffi.dlopen(lib_path)
 
         self.events = {}
