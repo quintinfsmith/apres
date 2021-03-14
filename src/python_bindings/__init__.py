@@ -3,6 +3,7 @@ import sys, site
 from cffi import FFI
 from ctypes.util import find_library
 import os
+import platform
 
 
 def logg(*msg):
@@ -1025,12 +1026,8 @@ class MIDI:
             uint16_t get_ppqn(MIDI);
         """)
 
-
-        lib_path = "libapres.so"
-        try:
-            self.lib = self.ffi.dlopen(sys.prefix + '/lib/' + lib_path)
-        except:
-            self.lib = self.ffi.dlopen(site.USER_BASE + '/lib/' + lib_path)
+        lib_path = __file__[0:__file__.rfind("/") + 1] + "libapres_" + platform.machine() + ".so"
+        self.lib = self.ffi.dlopen(lib_path)
 
         self.events = {}
         self.event_positions = {}
