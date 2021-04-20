@@ -39,8 +39,7 @@ class MIDIEvent:
 
     def update_event(self):
         if self._midi:
-            orig_bytes = bytes(event)
-            self.lib.replace_event(self.pointer, track, tick, orig_bytes, len(orig_bytes))
+            self._midi._replace_event(self)
 
     def get_property(self, event_number):
         if not self._midi:
@@ -1085,6 +1084,10 @@ class MIDI:
 
         self.events[event_uuid] = event
         self.event_positions[event_uuid] = (active_track, active_tick)
+
+    def _replace_event(self, event):
+        new_bytes = bytes(event)
+        self.lib.replace_event(self.pointer, event.uuid, new_bytes, len(new_bytes))
 
     def _pushsync_event(self, event, track, tick):
         orig_bytes = bytes(event)

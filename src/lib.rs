@@ -140,9 +140,12 @@ pub extern fn replace_event(midi_ptr: *mut MIDI, event_id: u64, bytes_ptr: *mut 
 
     let mut midi = unsafe { Box::from_raw(midi_ptr) };
 
-    let mut sub_bytes: Vec<u8> = unsafe { Vec::from_raw_parts(bytes_ptr, byte_length as usize, byte_length as usize) };
+    let mut sub_bytes: Vec<u8> = unsafe {
+        Vec::from_raw_parts(bytes_ptr, byte_length as usize, byte_length as usize)
+    };
 
     match MIDIEvent::from_bytes(&mut sub_bytes, 0) {
+
         Ok(new_midi_event) => {
             midi.replace_event(event_id, new_midi_event);
         }
@@ -150,6 +153,7 @@ pub extern fn replace_event(midi_ptr: *mut MIDI, event_id: u64, bytes_ptr: *mut 
     }
 
     Box::into_raw(midi);
+    mem::forget(sub_bytes);
 }
 
 
