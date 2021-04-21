@@ -1,19 +1,13 @@
 use std::ffi::CStr;
 use std::os::raw::c_char;
-use std::fs::File;
-use std::io::prelude::*;
-use std::cmp::{max, min};
-use std::fmt;
-
 use std::mem;
-use std::collections::{HashMap, HashSet};
 
 use apres::*;
 use apres::MIDIEvent::*;
 
 #[no_mangle]
 pub extern fn save(midi_ptr: *mut MIDI, path: *const c_char) {
-    let mut midi = unsafe { Box::from_raw(midi_ptr) };
+    let midi = unsafe { mem::ManuallyDrop::new(Box::from_raw(midi_ptr)) };
 
     let cstr_path = unsafe {
         CStr::from_ptr(path)
@@ -21,8 +15,6 @@ pub extern fn save(midi_ptr: *mut MIDI, path: *const c_char) {
 
     let clean_path = cstr_path.to_str().expect("Not a valid UTF-8 string");
     midi.save(clean_path);
-
-    Box::into_raw(midi);
 }
 
 #[no_mangle]
@@ -55,28 +47,26 @@ pub extern fn new() -> *mut MIDI {
 
 #[no_mangle]
 pub extern fn get_ppqn(midi_ptr: *mut MIDI) -> u16 {
-    let mut midi = unsafe { Box::from_raw(midi_ptr) };
+    let midi = unsafe { mem::ManuallyDrop::new(Box::from_raw(midi_ptr)) };
 
     let output = midi.get_ppqn();
 
-    Box::into_raw(midi);
 
     output
 }
 
 #[no_mangle]
 pub extern fn set_ppqn(midi_ptr: *mut MIDI, ppqn: u16) {
-    let mut midi = unsafe { Box::from_raw(midi_ptr) };
+    let mut midi = unsafe { mem::ManuallyDrop::new(Box::from_raw(midi_ptr)) };
 
     midi.set_ppqn(ppqn);
 
-    Box::into_raw(midi);
 }
 
 // NOTE: all tracks & ticks (not event ids) passed FROM here are + 1, 0 is used to indicate a failure
 #[no_mangle]
 pub extern fn get_event_track(midi_ptr: *mut MIDI, event_id: u64) -> u8 {
-    let mut midi = unsafe { Box::from_raw(midi_ptr) };
+    let midi = unsafe { mem::ManuallyDrop::new(Box::from_raw(midi_ptr)) };
     let output = match midi.get_event_position(event_id) {
         Some((track, _tick)) => {
             *track + 1
@@ -86,14 +76,12 @@ pub extern fn get_event_track(midi_ptr: *mut MIDI, event_id: u64) -> u8 {
         }
     };
 
-    Box::into_raw(midi);
-
     output as u8
 }
 
 #[no_mangle]
 pub extern fn get_event_tick(midi_ptr: *mut MIDI, event_id: u64) -> u64 {
-    let mut midi = unsafe { Box::from_raw(midi_ptr) };
+    let midi = unsafe { mem::ManuallyDrop::new(Box::from_raw(midi_ptr)) };
     let output = match midi.get_event_position(event_id) {
         Some((_track, tick)) => {
             *tick + 1
@@ -103,34 +91,30 @@ pub extern fn get_event_tick(midi_ptr: *mut MIDI, event_id: u64) -> u64 {
         }
     };
 
-    Box::into_raw(midi);
-
     output as u64
 }
 
 #[no_mangle]
 pub extern fn get_track_length(midi_ptr: *mut MIDI, track: u8) -> u32 {
-    let mut midi = unsafe { Box::from_raw(midi_ptr) };
+    let midi = unsafe { mem::ManuallyDrop::new(Box::from_raw(midi_ptr)) };
     let length = midi.get_track_length(track as usize) as u32;
-
-    Box::into_raw(midi);
 
     length
 }
 
 #[no_mangle]
 pub extern fn count_tracks(midi_ptr: *mut MIDI) -> u32 {
-    let mut midi = unsafe { Box::from_raw(midi_ptr) };
+    let midi = unsafe { mem::ManuallyDrop::new(Box::from_raw(midi_ptr)) };
     let count = midi.count_tracks() as u32;
-    Box::into_raw(midi);
+
     count
 }
 
 #[no_mangle]
 pub extern fn count_events(midi_ptr: *mut MIDI) -> u32 {
-    let mut midi = unsafe { Box::from_raw(midi_ptr) };
+    let midi = unsafe { mem::ManuallyDrop::new(Box::from_raw(midi_ptr)) };
     let count = midi.count_events() as u32;
-    Box::into_raw(midi);
+
     count
 }
 
@@ -138,28 +122,26 @@ pub extern fn count_events(midi_ptr: *mut MIDI) -> u32 {
 #[no_mangle]
 pub extern fn replace_event(midi_ptr: *mut MIDI, event_id: u64, bytes_ptr: *mut u8, byte_length: u8) {
 
-    let mut midi = unsafe { Box::from_raw(midi_ptr) };
+    let mut midi = unsafe { mem::ManuallyDrop::new(Box::from_raw(midi_ptr)) };
 
     let mut sub_bytes: Vec<u8> = unsafe {
         Vec::from_raw_parts(bytes_ptr, byte_length as usize, byte_length as usize)
     };
 
     match MIDIEvent::from_bytes(&mut sub_bytes, 0) {
-
         Ok(new_midi_event) => {
             midi.replace_event(event_id, new_midi_event);
         }
         Err(_) => ()
     }
 
-    Box::into_raw(midi);
     mem::forget(sub_bytes);
 }
 
 
 #[no_mangle]
 pub extern "C" fn get_event_property(midi_ptr: *mut MIDI, event_id: u64, argument: u8) -> *mut u8 {
-    let midi = unsafe { Box::from_raw(midi_ptr) };
+    let midi = unsafe { mem::ManuallyDrop::new(Box::from_raw(midi_ptr)) };
     let mut value = Vec::new();
     match midi.get_event(event_id) {
         Some(midievent) => {
@@ -167,9 +149,6 @@ pub extern "C" fn get_event_property(midi_ptr: *mut MIDI, event_id: u64, argumen
         }
         None => ()
     };
-
-    Box::into_raw(midi);
-
 
     let mut boxed_slice: Box<[u8]> = value.into_boxed_slice();
 
@@ -183,7 +162,7 @@ pub extern "C" fn get_event_property(midi_ptr: *mut MIDI, event_id: u64, argumen
 
 #[no_mangle]
 pub extern fn get_event_property_length(midi_ptr: *mut MIDI, event_id: u64, argument: u8) -> u8 {
-    let midi = unsafe { Box::from_raw(midi_ptr) };
+    let midi = unsafe { mem::ManuallyDrop::new(Box::from_raw(midi_ptr)) };
     let mut value = Vec::new();
     match midi.get_event(event_id) {
         Some(midievent) => {
@@ -192,13 +171,13 @@ pub extern fn get_event_property_length(midi_ptr: *mut MIDI, event_id: u64, argu
         None => ()
     };
 
-    Box::into_raw(midi);
+
     value.len() as u8
 }
 
 #[no_mangle]
 pub extern fn get_event_type(midi_ptr: *mut MIDI, event_id: u64) -> u8 {
-    let midi = unsafe { Box::from_raw(midi_ptr) };
+    let midi = unsafe { mem::ManuallyDrop::new(Box::from_raw(midi_ptr)) };
 
     let mut output = 0;
     match midi.get_event(event_id) {
@@ -208,14 +187,13 @@ pub extern fn get_event_type(midi_ptr: *mut MIDI, event_id: u64) -> u8 {
         None => ()
     };
 
-    Box::into_raw(midi);
 
     output
 }
 
 #[no_mangle]
 pub extern fn create_event(midi_ptr: *mut MIDI, track: u8, tick: u64, bytes_ptr: *mut u8, byte_length: u8) -> u64 {
-    let mut midi = unsafe { Box::from_raw(midi_ptr) };
+    let mut midi = unsafe { mem::ManuallyDrop::new(Box::from_raw(midi_ptr)) };
 
     let mut sub_bytes: Vec<u8> = unsafe { Vec::from_raw_parts(bytes_ptr, byte_length as usize, byte_length as usize) };
 
@@ -229,8 +207,6 @@ pub extern fn create_event(midi_ptr: *mut MIDI, track: u8, tick: u64, bytes_ptr:
         }
     };
 
-
-    Box::into_raw(midi);
     mem::forget(sub_bytes);
 
     new_event_id
@@ -238,9 +214,8 @@ pub extern fn create_event(midi_ptr: *mut MIDI, track: u8, tick: u64, bytes_ptr:
 
 #[no_mangle]
 pub extern fn set_event_position(midi_ptr: *mut MIDI, event_id: u64, track: u8, tick: u64) {
-    let mut midi = unsafe { Box::from_raw(midi_ptr) };
+    let mut midi = unsafe { mem::ManuallyDrop::new(Box::from_raw(midi_ptr)) };
     midi.move_event(track as usize, tick as usize, event_id);
-    Box::into_raw(midi);
 }
 
 
@@ -326,8 +301,7 @@ fn get_midi_type_code(midievent: MIDIEvent) -> u8 {
         OmniOff(_) => 74,
         OmniOn(_) => 75,
         MonophonicOperation(_, _) => 76,
-        PolyphonicOperation(_) => 77,
-        _ => 0 // Should be Unreachable
+        PolyphonicOperation(_) => 77
     }
 }
 
