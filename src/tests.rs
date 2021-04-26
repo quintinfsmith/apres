@@ -408,21 +408,3 @@ fn test_chords() {
         "A#m"
     );
 }
-
-#[test]
-fn test_aerith() {
-    let midi = MIDI::from_path("/mnt/media/Audio/Midis/Nobuo Uematsu - Aerith's Theme.mid");
-
-    match midi {
-        Ok(_) => {}
-        Err(ApresError::InvalidMIDIFile(_)) => {
-            assert!(false, "Invalid midi file");
-        }
-        Err(ApresError::InvalidBytes(bytes)) => {
-            assert!(false, format!("{:?}", bytes));
-        }
-        Err(e) => {
-            panic!(e);
-        }
-    }
-}
