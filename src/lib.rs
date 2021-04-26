@@ -4,7 +4,7 @@ use std::cmp::{max, min};
 use std::collections::{HashMap, HashSet};
 
 pub mod tests;
-
+#[derive(Debug)]
 pub enum ApresError {
     InvalidMIDIFile(String),
     InvalidBytes(Vec<u8>),
@@ -13,7 +13,7 @@ pub enum ApresError {
 }
 
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum MIDIEvent {
 	SequenceNumber(u16),
 	Text(String),
@@ -29,6 +29,7 @@ pub enum MIDIEvent {
 	SMPTEOffset(u8, u8, u8, u8, u8),
 	TimeSignature(u8, u8, u8, u8),
 	KeySignature(String),
+    SequencerSpecific(Vec<u8>),
 
 	NoteOn(u8, u8, u8),
 	NoteOff(u8, u8, u8),
@@ -218,6 +219,13 @@ impl MIDIBytes for MIDIEvent {
             MIDIEvent::KeySignature(string) => {
                 let (mi, sf) = get_mi_sf(string);
                 vec![0xFF, 0x59, 0x02, sf as u8, mi]
+            }
+
+            MIDIEvent::SequencerSpecific(data) => {
+                let mut output: Vec<u8> = vec![0xFF, 0x7F];
+                output.push(data.len() as u8); // Data length is limited to 1 byte
+                output.extend(data.iter().copied());
+                output
             }
 
             MIDIEvent::NoteOn(channel, note, velocity) => {
@@ -886,9 +894,9 @@ impl MIDIBytes for MIDIEvent {
                             output = Ok(event);
                         }
                         0x7F => {
-                            // TODO: I tihnk this is supposed to be SequencerSpecific, and i got the 2 conflated. Commenting out for now.
-                            //let event = MIDIEvent::SystemExclusive(bytedump);
-                            //output = output = Ok(event);
+                            let event = MIDIEvent::SequencerSpecific(bytedump[3..].to_vec());
+
+                            output = Ok(event);
                         }
                         _ => {
                             output = Err(ApresError::UnknownMetaEvent(bytes.to_vec()));
@@ -944,6 +952,7 @@ impl MIDIBytes for MIDIEvent {
 /// // Save it to a file
 /// midi.save("beep.mid");
 /// ```
+#[derive(Debug)]
 pub struct MIDI {
     ppqn: u16,
     midi_format: u16, // 16 because the format stores in 2 bytes, even though it only requires 2 bits (0,1,2)
@@ -997,8 +1006,9 @@ impl MIDI {
             Ok(midi_ob) => {
                 Ok(midi_ob)
             }
-            Err(_) => {
-                Err(ApresError::InvalidMIDIFile(file_path.to_string()))
+            Err(e) => {
+                Err(e)
+        //        Err(ApresError::InvalidMIDIFile(file_path.to_string()))
             }
         }
     }
