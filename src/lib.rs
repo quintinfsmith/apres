@@ -234,7 +234,7 @@ fn get_midi_type_code(midievent: MIDIEvent) -> u8 {
         SMPTEOffset(_, _, _, _, _) => 11,
         TimeSignature(_, _, _, _) => 12,
         KeySignature(_) => 13,
-        //SequencerSpecific => 14,
+        SequencerSpecific(_) => 14,
 
         NoteOn(_, _, _) => 15,
         NoteOff(_, _, _) => 16,
