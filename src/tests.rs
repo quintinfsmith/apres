@@ -408,3 +408,4 @@ fn test_chords() {
         "A#m"
     );
 }
+

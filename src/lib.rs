@@ -9,7 +9,8 @@ pub enum ApresError {
     InvalidMIDIFile(String),
     InvalidBytes(Vec<u8>),
     UnknownMetaEvent(Vec<u8>),
-    EventNotFound(u64)
+    EventNotFound(u64),
+    IllegibleString(Vec<u8>)
 }
 
 
@@ -815,7 +816,9 @@ impl MIDIBytes for MIDIEvent {
                                     let event = MIDIEvent::Text(textdump.to_string());
                                     output = Ok(event);
                                 }
-                                Err(_e) => { }
+                                Err(_e) => {
+                                    output = Err(ApresError::IllegibleString(bytedump.clone()));
+                                }
                             }
                         }
                         0x02 => {
@@ -824,7 +827,9 @@ impl MIDIBytes for MIDIEvent {
                                     let event = MIDIEvent::CopyRightNotice(textdump.to_string());
                                     output = Ok(event);
                                 }
-                                Err(_e) => { }
+                                Err(_e) => {
+                                    output = Err(ApresError::IllegibleString(bytedump.clone()));
+                                }
                             }
                         }
                         0x03 => {
@@ -833,7 +838,9 @@ impl MIDIBytes for MIDIEvent {
                                     let event = MIDIEvent::TrackName(textdump.to_string());
                                     output = Ok(event);
                                 }
-                                Err(_e) => { }
+                                Err(_e) => {
+                                    output = Err(ApresError::IllegibleString(bytedump.clone()));
+                                }
                             }
                         }
                         0x04 => {
@@ -842,7 +849,9 @@ impl MIDIBytes for MIDIEvent {
                                     let event = MIDIEvent::InstrumentName(textdump.to_string());
                                     output = Ok(event);
                                 }
-                                Err(_e) => { }
+                                Err(_e) => {
+                                    output = Err(ApresError::IllegibleString(bytedump.clone()));
+                                }
                             }
                         }
                         0x05 => {
@@ -851,7 +860,9 @@ impl MIDIBytes for MIDIEvent {
                                     let event = MIDIEvent::Lyric(textdump.to_string());
                                     output = Ok(event);
                                 }
-                                Err(_e) => { }
+                                Err(_e) => {
+                                    output = Err(ApresError::IllegibleString(bytedump.clone()));
+                                }
                             }
                         }
                         0x06 => {
@@ -860,7 +871,9 @@ impl MIDIBytes for MIDIEvent {
                                     let event = MIDIEvent::Marker(textdump.to_string());
                                     output = Ok(event);
                                 }
-                                Err(_e) => { }
+                                Err(_e) => {
+                                    output = Err(ApresError::IllegibleString(bytedump.clone()));
+                                }
                             }
                         }
                         0x07 => {
@@ -869,7 +882,9 @@ impl MIDIBytes for MIDIEvent {
                                     let event = MIDIEvent::CuePoint(textdump.to_string());
                                     output = Ok(event);
                                 }
-                                Err(_e) => { }
+                                Err(_e) => {
+                                    output = Err(ApresError::IllegibleString(bytedump.clone()));
+                                }
                             }
                         }
                         0x20 => {
@@ -1076,6 +1091,9 @@ impl MIDI {
                             Ok(())
                         }
                         Err(ApresError::UnknownMetaEvent(bytes)) => {
+                            Ok(())
+                        }
+                        Err(ApresError::IllegibleString(bytes)) => {
                             Ok(())
                         }
                         Err(e) => {
