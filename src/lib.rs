@@ -4,17 +4,24 @@ use std::cmp::{max, min};
 use std::collections::{HashMap, HashSet};
 
 pub mod tests;
+pub mod controller;
+
+use controller::Controller;
+
 #[derive(Debug)]
 pub enum ApresError {
     InvalidMIDIFile(String),
     InvalidBytes(Vec<u8>),
     UnknownMetaEvent(Vec<u8>),
     EventNotFound(u64),
-    IllegibleString(Vec<u8>)
+    IllegibleString(Vec<u8>),
+    PathNotFound(String),
+    PipeBroken,
+    Killed
 }
 
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum MIDIEvent {
 	SequenceNumber(u16),
 	Text(String),
@@ -88,6 +95,7 @@ pub enum MIDIEvent {
 	MTCQuarterFrame(u8, u8),
 	SongPositionPointer(u16),
 	SongSelect(u8),
+    TimeCode(f32, u8, u8, u8, u8),
 	EndOfTrack,
     TuneRequest,
     MIDIClock,
@@ -636,6 +644,18 @@ impl MIDIBytes for MIDIEvent {
                 vec![ 0xF1, b ]
             }
 
+            MIDIEvent::TimeCode(rate, hour, minute, second, frame) => {
+                let coded_rate = match rate {
+                    24.0 => { 0 }
+                    25.0 => { 1 }
+                    27.97 => { 2 }
+                    30.0 => { 3 }
+                    _ => { 3 } // Error
+                };
+                let first_byte: u8 = (coded_rate << 5) + hour;
+                vec![0xF1, first_byte, *minute, *second, *frame]
+            }
+
             MIDIEvent::SongPositionPointer(beat) => {
                 vec![
                     0xF2,
@@ -1067,7 +1087,7 @@ impl MIDI {
                 dequeue_n(bytes, 2); // Get Number of tracks
                 divword = dequeue_n(bytes, 2);
                 if divword & 0x8000 > 0 {
-                    smpte = ((((divword & 0x7F00) >> 8) as i8) as u32);
+                    smpte = (((divword & 0x7F00) >> 8) as i8) as u32;
                     tpf = divword & 0x00FF;
 
                 } else {
@@ -1259,10 +1279,12 @@ impl MIDI {
         highest_tick + 1
     }
 
+    /// Set Pulses Per Quarter Note
     pub fn set_ppqn(&mut self, new_ppqn: u16) {
         self.ppqn = new_ppqn;
     }
 
+    /// Get Pulses Per Quarter Note
     pub fn get_ppqn(&self) -> u16 {
         self.ppqn
     }
@@ -1325,6 +1347,17 @@ impl MIDI {
             Ok(())
         } else {
             Err(ApresError::EventNotFound(event_id))
+        }
+    }
+}
+
+pub fn listen<T>(path: &str, context: &mut T, callback: fn(&mut Controller, &mut T, &MIDIEvent) -> ()) -> Result<(), ApresError> {
+    match Controller::new(path) {
+        Ok(mut controller) => {
+            controller.listen(context, callback)
+        }
+        Err(e) => {
+            Err(e)
         }
     }
 }
