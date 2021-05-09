@@ -43,18 +43,18 @@ pub enum MIDIEvent {
 	NoteOff(u8, u8, u8),
 	AfterTouch(u8, u8, u8),
 
-	BankSelect(u8, u16),
-	ModulationWheel(u8, u16),
-	BreathController(u8, u16),
-	FootPedal(u8, u16),
-	PortamentoTime(u8, u16),
-	DataEntrySlider(u8, u16),
-	Volume(u8, u16),
-	Balance(u8, u16),
-	Pan(u8, u16),
-	Expression(u8, u16),
-	EffectControl(u8, u8, u16),
-	Slider(u8, u8, u8),
+	BankSelect(u8, Option<u8>, Option<u8>),
+	ModulationWheel(u8, Option<u8>, Option<u8>),
+	BreathController(u8, Option<u8>, Option<u8>),
+	FootPedal(u8, Option<u8>, Option<u8>),
+	PortamentoTime(u8, Option<u8>, Option<u8>),
+	DataEntrySlider(u8, Option<u8>, Option<u8>),
+	Volume(u8, Option<u8>, Option<u8>),
+	Balance(u8, Option<u8>, Option<u8>),
+	Pan(u8, Option<u8>, Option<u8>),
+	Expression(u8, Option<u8>, Option<u8>),
+	EffectControl(u8, u8, Option<u8>, Option<u8>),
+	GeneralPurpose(u8, u8, Option<u8>, Option<u8>),
 	HoldPedal(u8, u8),
 	Portamento(u8, u8),
 	Sustenuto(u8, u8),
@@ -74,10 +74,10 @@ pub enum MIDIEvent {
 	ChorusLevel(u8, u8),
 	CelesteLevel(u8, u8),
 	PhaserLevel(u8, u8),
-	DataButtonIncrement(u8),
-	DataButtonDecrement(u8),
-	RegisteredParameterNumber(u8, u16),
-	NonRegisteredParameterNumber(u8, u16),
+	DataIncrement(u8),
+	DataDecrement(u8),
+	RegisteredParameterNumber(u8, Option<u8>, Option<u8>),
+	NonRegisteredParameterNumber(u8, Option<u8>, Option<u8>),
 	AllControllersOff(u8),
 	LocalKeyboardEnable(u8),
 	LocalKeyboardDisable(u8),
@@ -261,101 +261,52 @@ impl MIDIBytes for MIDIEvent {
                 ]
             }
 
-            MIDIEvent::BankSelect(channel, value) => {
-                gen_coarse_fine_bytes(
-                    *channel,
-                    *value,
-                    0x00, 0x20
-                )
+            MIDIEvent::BankSelect(channel, msb, lsb) => {
+                gen_coarse_fine_bytes(*channel, *msb, *lsb, 0x00, 0x20)
             }
 
-            MIDIEvent::ModulationWheel(channel, value) => {
-                gen_coarse_fine_bytes(
-                    *channel,
-                    *value,
-                    0x01, 0x21
-                )
+            MIDIEvent::ModulationWheel(channel, msb, lsb) => {
+                gen_coarse_fine_bytes(*channel, *msb, *lsb, 0x01, 0x21)
             }
 
-            MIDIEvent::BreathController(channel, value) => {
-                gen_coarse_fine_bytes(
-                    *channel,
-                    *value,
-                    0x02, 0x22
-                )
+            MIDIEvent::BreathController(channel, msb, lsb) => {
+                gen_coarse_fine_bytes(*channel, *msb, *lsb, 0x02, 0x22)
             }
 
-            MIDIEvent::FootPedal(channel, value) => {
-                gen_coarse_fine_bytes(
-                    *channel,
-                    *value,
-                    0x04, 0x24
-                )
+            MIDIEvent::FootPedal(channel, msb, lsb) => {
+                gen_coarse_fine_bytes(*channel, *msb, *lsb, 0x04, 0x24)
             }
 
-            MIDIEvent::PortamentoTime(channel, value) => {
-                gen_coarse_fine_bytes(
-                    *channel,
-                    *value,
-                    0x05, 0x25
-                )
+            MIDIEvent::PortamentoTime(channel, msb, lsb) => {
+                gen_coarse_fine_bytes(*channel, *msb, *lsb, 0x05, 0x25)
             }
 
-            MIDIEvent::DataEntrySlider(channel, value) => {
-                gen_coarse_fine_bytes(
-                    *channel,
-                    *value,
-                    0x06, 0x26
-                )
+            MIDIEvent::DataEntrySlider(channel, msb, lsb) => {
+                gen_coarse_fine_bytes(*channel, *msb, *lsb, 0x06, 0x26)
             }
 
-            MIDIEvent::Volume(channel, value) => {
-                gen_coarse_fine_bytes(
-                    *channel,
-                    *value,
-                    0x07, 0x27
-                )
+            MIDIEvent::Volume(channel, msb, lsb) => {
+                gen_coarse_fine_bytes(*channel, *msb, *lsb, 0x07, 0x27)
             }
 
-            MIDIEvent::Balance(channel, value) => {
-                gen_coarse_fine_bytes(
-                    *channel,
-                    *value,
-                    0x08, 0x28
-                )
+            MIDIEvent::Balance(channel, msb, lsb) => {
+                gen_coarse_fine_bytes(*channel, *msb, *lsb, 0x08, 0x28)
             }
 
-
-            MIDIEvent::Pan(channel, value) => {
-                gen_coarse_fine_bytes(
-                    *channel,
-                    *value,
-                    0x0A, 0x2A
-                )
+            MIDIEvent::Pan(channel, msb, lsb) => {
+                gen_coarse_fine_bytes(*channel, *msb, *lsb, 0x0A, 0x2A)
             }
 
-            MIDIEvent::Expression(channel, value) => {
-                gen_coarse_fine_bytes(
-                    *channel,
-                    *value,
-                    0x0B, 0x2B
-                )
+            MIDIEvent::Expression(channel, msb, lsb) => {
+                gen_coarse_fine_bytes(*channel, *msb, *lsb, 0x0B, 0x2B)
             }
 
-            MIDIEvent::EffectControl(channel, which, value) => {
-                gen_coarse_fine_bytes(
-                    *channel,
-                    *value,
-                    0x0C + *which, 0x2C + *which
-                )
+            MIDIEvent::EffectControl(channel, which, msb, lsb) => {
+                gen_coarse_fine_bytes(*channel, *msb, *lsb, 0x0C + *which, 0x2C + *which)
             }
 
-            MIDIEvent::Slider(channel, which, value) => {
-                vec![
-                    0xB | *channel,
-                    0x10 + *which as u8,
-                    *value
-                ]
+            MIDIEvent::GeneralPurpose(channel, which, msb, lsb) => {
+                gen_coarse_fine_bytes(*channel, *msb, *lsb, 0x10 + *which, 0x30 + *which)
             }
 
             MIDIEvent::HoldPedal(channel, value) => {
@@ -510,28 +461,20 @@ impl MIDIBytes for MIDIEvent {
                 ]
             }
 
-            MIDIEvent::DataButtonIncrement(channel) => {
+            MIDIEvent::DataIncrement(channel) => {
                 vec![0xB0 | *channel, 0x60, 0x00]
             }
 
-            MIDIEvent::DataButtonDecrement(channel) => {
+            MIDIEvent::DataDecrement(channel) => {
                 vec![0xB0 | *channel, 0x61, 0x00]
             }
 
-            MIDIEvent::RegisteredParameterNumber(channel, value) => {
-                gen_coarse_fine_bytes(
-                    *channel,
-                    *value,
-                    0x65, 0x64
-                )
+            MIDIEvent::RegisteredParameterNumber(channel, msb, lsb) => {
+                gen_coarse_fine_bytes(*channel, *msb, *lsb, 0x65, 0x64)
             }
 
-            MIDIEvent::NonRegisteredParameterNumber(channel, value) => {
-                gen_coarse_fine_bytes(
-                    *channel,
-                    *value,
-                    0x65, 0x64
-                )
+            MIDIEvent::NonRegisteredParameterNumber(channel, msb, lsb) => {
+                gen_coarse_fine_bytes(*channel, *msb, *lsb, 0x63, 0x62)
             }
 
             MIDIEvent::AllControllersOff(channel) => {
@@ -744,8 +687,253 @@ impl MIDIBytes for MIDIEvent {
                         channel = leadbyte & 0x0F;
                         let controller = bytes.remove(0);
                         let value = bytes.remove(0);
-                        let event = MIDIEvent::ControlChange(channel, controller, value);
-                        output = Ok(event);
+                        output = match controller {
+                            0x00 => {
+                                Ok(MIDIEvent::BankSelect(channel, Some(value), None))
+                            }
+                            0x20 => {
+                                Ok(MIDIEvent::BankSelect(channel, None, Some(value)))
+                            }
+                            0x01 => {
+                                Ok(MIDIEvent::ModulationWheel(channel, Some(value), None))
+                            }
+                            0x21 => {
+                                Ok(MIDIEvent::ModulationWheel(channel, None, Some(value)))
+                            }
+                            0x02 => {
+                                Ok(MIDIEvent::BreathController(channel, Some(value), None))
+                            }
+                            0x22 => {
+                                Ok(MIDIEvent::BreathController(channel, None, Some(value)))
+                            }
+                            0x04 => {
+                                Ok(MIDIEvent::FootPedal(channel, Some(value), None))
+                            }
+                            0x24 => {
+                                Ok(MIDIEvent::FootPedal(channel, None, Some(value)))
+                            }
+                            0x05 => {
+                                Ok(MIDIEvent::PortamentoTime(channel, Some(value), None))
+                            }
+                            0x25 => {
+                                Ok(MIDIEvent::PortamentoTime(channel, None, Some(value)))
+                            }
+                            0x06 => {
+                                Ok(MIDIEvent::DataEntrySlider(channel, Some(value), None))
+                            }
+                            0x26 => {
+                                Ok(MIDIEvent::DataEntrySlider(channel, None, Some(value)))
+                            }
+                            0x07 => {
+                                Ok(MIDIEvent::Volume(channel, Some(value), None))
+                            }
+                            0x27 => {
+                                Ok(MIDIEvent::Volume(channel, None, Some(value)))
+                            }
+                            0x08 => {
+                                Ok(MIDIEvent::Balance(channel, Some(value), None))
+                            }
+                            0x28 => {
+                                Ok(MIDIEvent::Balance(channel, None, Some(value)))
+                            }
+                            0x0A => {
+                                Ok(MIDIEvent::Pan(channel, Some(value), None))
+                            }
+                            0x2A => {
+                                Ok(MIDIEvent::Pan(channel, None, Some(value)))
+                            }
+                            0x0B => {
+                                Ok(MIDIEvent::Expression(channel, Some(value), None))
+                            }
+                            0x2B => {
+                                Ok(MIDIEvent::Expression(channel, None, Some(value)))
+                            }
+                            0x0C => {
+                                Ok(MIDIEvent::EffectControl(channel, 0, Some(value), None))
+                            }
+                            0x2C => {
+                                Ok(MIDIEvent::EffectControl(channel, 0, None, Some(value)))
+                            }
+                            0x0D => {
+                                Ok(MIDIEvent::EffectControl(channel, 1, Some(value), None))
+                            }
+                            0x2D => {
+                                Ok(MIDIEvent::EffectControl(channel, 1, None, Some(value)))
+                            }
+
+                            0x10 => {
+                                Ok(MIDIEvent::GeneralPurpose(channel, 0, Some(value), None))
+                            }
+                            0x30 => {
+                                Ok(MIDIEvent::GeneralPurpose(channel, 0, None, Some(value)))
+                            }
+                            0x11 => {
+                                Ok(MIDIEvent::GeneralPurpose(channel, 1, Some(value), None))
+                            }
+                            0x31 => {
+                                Ok(MIDIEvent::GeneralPurpose(channel, 1, None, Some(value)))
+                            }
+                            0x12 => {
+                                Ok(MIDIEvent::GeneralPurpose(channel, 2, Some(value), None))
+                            }
+                            0x32 => {
+                                Ok(MIDIEvent::GeneralPurpose(channel, 2, None, Some(value)))
+                            }
+                            0x13 => {
+                                Ok(MIDIEvent::GeneralPurpose(channel, 3, Some(value), None))
+                            }
+                            0x33 => {
+                                Ok(MIDIEvent::GeneralPurpose(channel, 3, None, Some(value)))
+                            }
+                            0x40 => {
+                                Ok(MIDIEvent::HoldPedal(channel, value))
+                            }
+                            0x41 => {
+                                Ok(MIDIEvent::Portamento(channel, value))
+                            }
+                            0x42 => {
+                                Ok(MIDIEvent::Sustenuto(channel, value))
+                            }
+                            0x43 => {
+                                Ok(MIDIEvent::SoftPedal(channel, value))
+                            }
+                            0x44 => {
+                                Ok(MIDIEvent::Legato(channel, value))
+                            }
+                            0x45 => {
+                                Ok(MIDIEvent::Hold2Pedal(channel, value))
+                            }
+                            0x46 => {
+                                Ok(MIDIEvent::SoundVariation(channel, value))
+                            }
+                            0x47 => {
+                                Ok(MIDIEvent::SoundTimbre(channel, value))
+                            }
+                            0x48 => {
+                                Ok(MIDIEvent::SoundReleaseTime(channel, value))
+                            }
+                            0x49 => {
+                                Ok(MIDIEvent::SoundAttack(channel, value))
+                            }
+                            0x4A => {
+                                Ok(MIDIEvent::SoundBrightness(channel, value))
+                            }
+                            0x4B => {
+                                Ok(MIDIEvent::SoundControl(channel, 0, value))
+                            }
+                            0x4C => {
+                                Ok(MIDIEvent::SoundControl(channel, 1, value))
+                            }
+                            0x4D => {
+                                Ok(MIDIEvent::SoundControl(channel, 2, value))
+                            }
+                            0x4E => {
+                                Ok(MIDIEvent::SoundControl(channel, 3, value))
+                            }
+                            0x4F => {
+                                Ok(MIDIEvent::SoundControl(channel, 4, value))
+                            }
+                            0x50 => {
+                                if value == 0 {
+                                    Ok(MIDIEvent::GeneralButtonOff(channel, 0))
+                                } else {
+                                    Ok(MIDIEvent::GeneralButtonOn(channel, 0))
+                                }
+                            }
+                            0x51 => {
+                                if value == 0 {
+                                    Ok(MIDIEvent::GeneralButtonOff(channel, 1))
+                                } else {
+                                    Ok(MIDIEvent::GeneralButtonOn(channel, 1))
+                                }
+                            }
+                            0x52 => {
+                                if value == 0 {
+                                    Ok(MIDIEvent::GeneralButtonOff(channel, 2))
+                                } else {
+                                    Ok(MIDIEvent::GeneralButtonOn(channel, 2))
+                                }
+                            }
+                            0x53 => {
+                                if value == 0 {
+                                    Ok(MIDIEvent::GeneralButtonOff(channel, 3))
+                                } else {
+                                    Ok(MIDIEvent::GeneralButtonOn(channel, 3))
+                                }
+                            }
+
+                            0x5B => {
+                                Ok(MIDIEvent::EffectsLevel(channel, value))
+                            }
+
+                            0x5C => {
+                                Ok(MIDIEvent::TremuloLevel(channel, value))
+                            }
+
+                            0x5D => {
+                                Ok(MIDIEvent::ChorusLevel(channel, value))
+                            }
+                            0x5E => {
+                                Ok(MIDIEvent::CelesteLevel(channel, value))
+                            }
+
+                            0x5F => {
+                                Ok(MIDIEvent::PhaserLevel(channel, value))
+                            }
+
+                            0x60 => {
+                                Ok(MIDIEvent::DataIncrement(channel))
+                            }
+
+                            0x61 => {
+                                Ok(MIDIEvent::DataDecrement(channel))
+                            }
+                            0x62 => {
+                                Ok(MIDIEvent::NonRegisteredParameterNumber(channel, None, Some(value)))
+                            }
+
+                            0x63 => {
+                                Ok(MIDIEvent::NonRegisteredParameterNumber(channel, Some(value), None))
+                            }
+
+                            0x64 => {
+                                Ok(MIDIEvent::RegisteredParameterNumber(channel, None, Some(value)))
+                            }
+                            0x65 => {
+                                Ok(MIDIEvent::RegisteredParameterNumber(channel, Some(value), None))
+                            }
+                            0x78 => {
+                                Ok(MIDIEvent::AllSoundOff(channel))
+                            }
+                            0x79 => {
+                                Ok(MIDIEvent::AllControllersOff(channel))
+                            }
+                            0x7A => {
+                                if value == 0x40 {
+                                    Ok(MIDIEvent::LocalKeyboardEnable(channel))
+                                } else {
+                                    Ok(MIDIEvent::LocalKeyboardDisable(channel))
+                                }
+                            }
+                            0x7B => {
+                                Ok(MIDIEvent::AllNotesOff(channel))
+                            }
+                            0x7C => {
+                                Ok(MIDIEvent::OmniOff(channel))
+                            }
+                            0x7D => {
+                                Ok(MIDIEvent::OmniOn(channel))
+                            }
+                            0xFE => {
+                                Ok(MIDIEvent::MonophonicOperation(channel, value))
+                            }
+                            0xFF => {
+                                Ok(MIDIEvent::PolyphonicOperation(channel))
+                            }
+                            _ => {
+                                Ok(MIDIEvent::ControlChange(channel, controller, value))
+                            }
+                        }
                     }
                     0xC => {
                         channel = leadbyte & 0x0F;
@@ -801,16 +989,6 @@ impl MIDIBytes for MIDIEvent {
                 let song = bytes.remove(0);
                 let event = MIDIEvent::SongSelect(song & 0x7F);
                 output = Ok(event);
-            }
-
-            0xF1 | 0xF6 | 0xF8 | 0xFA | 0xFB | 0xFC | 0xFE => {
-                // Do Nothing. These are system-realtime and shouldn't be in a file.
-            }
-
-            0xF7 => {
-                varlength = get_variable_length_number(bytes);
-                n = dequeue_n(bytes, varlength as usize);
-                // TODO ADD EVENT
             }
 
             0xFF => {
@@ -938,6 +1116,10 @@ impl MIDIBytes for MIDIEvent {
                         }
                     }
                 }
+            }
+
+            0xF1 | 0xF6 | 0xF8 | 0xFA | 0xFB | 0xFC | 0xFE | 0xF7 => {
+                // Do Nothing. These are system-realtime and shouldn't be in a file.
             }
 
             0xF4 | 0xF5 | 0xF9 | 0xFD => {
@@ -1430,21 +1612,24 @@ fn build_pitch_wheel_change(channel: u8, lsb: u8, msb: u8) -> MIDIEvent {
     MIDIEvent::PitchWheelChange(channel, new_value)
 }
 
-fn gen_coarse_fine_bytes(channel: u8, value: u16, coarse_offset: u8, fine_offset: u8) -> Vec<u8> {
-    let mut output: Vec<u8> = Vec::new();
+fn gen_coarse_fine_bytes(channel: u8, msb: Option<u8>, lsb: Option<u8>, coarse_offset: u8, fine_offset: u8) -> Vec<u8> {
+    let mut output = vec![];
 
-    // MSB
-    if value > 0x7F {
-        output.push(0xB | channel);
-        output.push(coarse_offset);
-        output.push((value >> 7) as u8);
+    match msb {
+        Some(byte) => {
+            output.push(0xB0 | channel);
+            output.push(coarse_offset);
+            output.push(byte);
+        }
+        None => ()
     }
-
-    // LSB
-    if value & 0x7F != 0 {
-        output.push(0xB | channel);
-        output.push(fine_offset);
-        output.push((value & 0x7F) as u8);
+    match lsb {
+        Some(byte) => {
+            output.push(0xB0 | channel);
+            output.push(fine_offset);
+            output.push(byte);
+        }
+        None => ()
     }
 
     output
