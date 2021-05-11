@@ -173,41 +173,41 @@ impl Controller {
                                 Ok(MIDIEvent::Expression(channel, None, Some(value)))
 							}
                             0x0C => {
-                                Ok(MIDIEvent::EffectControl(channel, 0, Some(value), None))
+                                Ok(MIDIEvent::EffectControl1(channel, Some(value), None))
 							}
                             0x2C => {
-                                Ok(MIDIEvent::EffectControl(channel, 0, None, Some(value)))
+                                Ok(MIDIEvent::EffectControl1(channel, None, Some(value)))
 							}
                             0x0D => {
-                                Ok(MIDIEvent::EffectControl(channel, 1, Some(value), None))
+                                Ok(MIDIEvent::EffectControl2(channel, Some(value), None))
 							}
                             0x2D => {
-                                Ok(MIDIEvent::EffectControl(channel, 1, None, Some(value)))
+                                Ok(MIDIEvent::EffectControl2(channel, None, Some(value)))
 							}
 
                             0x10 => {
-                                Ok(MIDIEvent::GeneralPurpose(channel, 0, Some(value), None))
+                                Ok(MIDIEvent::GeneralPurpose1(channel, Some(value), None))
 							}
                             0x30 => {
-                                Ok(MIDIEvent::GeneralPurpose(channel, 0, None, Some(value)))
+                                Ok(MIDIEvent::GeneralPurpose1(channel, None, Some(value)))
 							}
                             0x11 => {
-                                Ok(MIDIEvent::GeneralPurpose(channel, 1, Some(value), None))
+                                Ok(MIDIEvent::GeneralPurpose2(channel, Some(value), None))
 							}
                             0x31 => {
-                                Ok(MIDIEvent::GeneralPurpose(channel, 1, None, Some(value)))
+                                Ok(MIDIEvent::GeneralPurpose2(channel, None, Some(value)))
 							}
                             0x12 => {
-                                Ok(MIDIEvent::GeneralPurpose(channel, 2, Some(value), None))
+                                Ok(MIDIEvent::GeneralPurpose3(channel, Some(value), None))
 							}
                             0x32 => {
-                                Ok(MIDIEvent::GeneralPurpose(channel, 2, None, Some(value)))
+                                Ok(MIDIEvent::GeneralPurpose3(channel, None, Some(value)))
 							}
                             0x13 => {
-                                Ok(MIDIEvent::GeneralPurpose(channel, 3, Some(value), None))
+                                Ok(MIDIEvent::GeneralPurpose4(channel, Some(value), None))
 							}
                             0x33 => {
-                                Ok(MIDIEvent::GeneralPurpose(channel, 3, None, Some(value)))
+                                Ok(MIDIEvent::GeneralPurpose4(channel, None, Some(value)))
 							}
                             0x40 => {
                                 Ok(MIDIEvent::HoldPedal(channel, value))
@@ -243,47 +243,31 @@ impl Controller {
                                 Ok(MIDIEvent::SoundBrightness(channel, value))
                             }
                             0x4B => {
-                                Ok(MIDIEvent::SoundControl(channel, 0, value))
+                                Ok(MIDIEvent::SoundControl1(channel, value))
                             }
                             0x4C => {
-                                Ok(MIDIEvent::SoundControl(channel, 1, value))
+                                Ok(MIDIEvent::SoundControl2(channel, value))
                             }
                             0x4D => {
-                                Ok(MIDIEvent::SoundControl(channel, 2, value))
+                                Ok(MIDIEvent::SoundControl3(channel, value))
                             }
                             0x4E => {
-                                Ok(MIDIEvent::SoundControl(channel, 3, value))
+                                Ok(MIDIEvent::SoundControl4(channel, value))
                             }
                             0x4F => {
-                                Ok(MIDIEvent::SoundControl(channel, 4, value))
+                                Ok(MIDIEvent::SoundControl5(channel, value))
                             }
                             0x50 => {
-                                if value == 0 {
-                                    Ok(MIDIEvent::GeneralButtonOff(channel, 0))
-                                } else {
-                                    Ok(MIDIEvent::GeneralButtonOn(channel, 0))
-                                }
+                                Ok(MIDIEvent::GeneralPurpose5(channel, value))
                             }
                             0x51 => {
-                                if value == 0 {
-                                    Ok(MIDIEvent::GeneralButtonOff(channel, 1))
-                                } else {
-                                    Ok(MIDIEvent::GeneralButtonOn(channel, 1))
-                                }
+                                Ok(MIDIEvent::GeneralPurpose6(channel, value))
                             }
                             0x52 => {
-                                if value == 0 {
-                                    Ok(MIDIEvent::GeneralButtonOff(channel, 2))
-                                } else {
-                                    Ok(MIDIEvent::GeneralButtonOn(channel, 2))
-                                }
+                                Ok(MIDIEvent::GeneralPurpose7(channel, value))
                             }
                             0x53 => {
-                                if value == 0 {
-                                    Ok(MIDIEvent::GeneralButtonOff(channel, 3))
-                                } else {
-                                    Ok(MIDIEvent::GeneralButtonOn(channel, 3))
-                                }
+                                Ok(MIDIEvent::GeneralPurpose8(channel, value))
                             }
 
                             0x5B => {
@@ -333,11 +317,7 @@ impl Controller {
                                 Ok(MIDIEvent::AllControllersOff(channel))
                             }
                             0x7A => {
-                                if value == 0x40 {
-                                    Ok(MIDIEvent::LocalKeyboardEnable(channel))
-                                } else {
-                                    Ok(MIDIEvent::LocalKeyboardDisable(channel))
-                                }
+                                Ok(MIDIEvent::LocalControl(channel, value))
                             }
                             0x7B => {
                                 Ok(MIDIEvent::AllNotesOff(channel))

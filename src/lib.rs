@@ -53,8 +53,12 @@ pub enum MIDIEvent {
 	Balance(u8, Option<u8>, Option<u8>),
 	Pan(u8, Option<u8>, Option<u8>),
 	Expression(u8, Option<u8>, Option<u8>),
-	EffectControl(u8, u8, Option<u8>, Option<u8>),
-	GeneralPurpose(u8, u8, Option<u8>, Option<u8>),
+	EffectControl1(u8, Option<u8>, Option<u8>),
+	EffectControl2(u8, Option<u8>, Option<u8>),
+	GeneralPurpose1(u8, Option<u8>, Option<u8>),
+	GeneralPurpose2(u8, Option<u8>, Option<u8>),
+	GeneralPurpose3(u8, Option<u8>, Option<u8>),
+	GeneralPurpose4(u8, Option<u8>, Option<u8>),
 	HoldPedal(u8, u8),
 	Portamento(u8, u8),
 	Sustenuto(u8, u8),
@@ -66,9 +70,15 @@ pub enum MIDIEvent {
 	SoundReleaseTime(u8, u8),
 	SoundAttack(u8, u8),
 	SoundBrightness(u8, u8),
-	SoundControl(u8, u8, u8),
-	GeneralButtonOn(u8, u8),
-	GeneralButtonOff(u8, u8),
+	SoundControl1(u8, u8),
+	SoundControl2(u8, u8),
+	SoundControl3(u8, u8),
+	SoundControl4(u8, u8),
+	SoundControl5(u8, u8),
+    GeneralPurpose5(u8, u8),
+    GeneralPurpose6(u8, u8),
+    GeneralPurpose7(u8, u8),
+    GeneralPurpose8(u8, u8),
 	EffectsLevel(u8, u8),
 	TremuloLevel(u8, u8),
 	ChorusLevel(u8, u8),
@@ -79,8 +89,7 @@ pub enum MIDIEvent {
 	RegisteredParameterNumber(u8, Option<u8>, Option<u8>),
 	NonRegisteredParameterNumber(u8, Option<u8>, Option<u8>),
 	AllControllersOff(u8),
-	LocalKeyboardEnable(u8),
-	LocalKeyboardDisable(u8),
+	LocalControl(u8, u8),
 	AllNotesOff(u8),
 	AllSoundOff(u8),
 	OmniOff(u8),
@@ -301,12 +310,36 @@ impl MIDIBytes for MIDIEvent {
                 gen_coarse_fine_bytes(*channel, *msb, *lsb, 0x0B, 0x2B)
             }
 
-            MIDIEvent::EffectControl(channel, which, msb, lsb) => {
-                gen_coarse_fine_bytes(*channel, *msb, *lsb, 0x0C + *which, 0x2C + *which)
+            MIDIEvent::EffectControl1(channel, msb, lsb) => {
+                gen_coarse_fine_bytes(*channel, *msb, *lsb, 0x0C, 0x2C)
+            }
+            MIDIEvent::EffectControl2(channel, msb, lsb) => {
+                gen_coarse_fine_bytes(*channel, *msb, *lsb, 0x0D, 0x2D)
             }
 
-            MIDIEvent::GeneralPurpose(channel, which, msb, lsb) => {
-                gen_coarse_fine_bytes(*channel, *msb, *lsb, 0x10 + *which, 0x30 + *which)
+            MIDIEvent::GeneralPurpose1(channel, msb, lsb) => {
+                gen_coarse_fine_bytes(*channel, *msb, *lsb, 0x10, 0x30)
+            }
+            MIDIEvent::GeneralPurpose2(channel, msb, lsb) => {
+                gen_coarse_fine_bytes(*channel, *msb, *lsb, 0x11, 0x31)
+            }
+            MIDIEvent::GeneralPurpose3(channel, msb, lsb) => {
+                gen_coarse_fine_bytes(*channel, *msb, *lsb, 0x12, 0x32)
+            }
+            MIDIEvent::GeneralPurpose4(channel, msb, lsb) => {
+                gen_coarse_fine_bytes(*channel, *msb, *lsb, 0x13, 0x33)
+            }
+            MIDIEvent::GeneralPurpose5(channel, value) => {
+                vec![ 0xB0 | *channel, 0x50, *value]
+            }
+            MIDIEvent::GeneralPurpose6(channel, value) => {
+                vec![ 0xB0 | *channel, 0x51, *value]
+            }
+            MIDIEvent::GeneralPurpose7(channel, value) => {
+                vec![ 0xB0 | *channel, 0x52, *value]
+            }
+            MIDIEvent::GeneralPurpose8(channel, value) => {
+                vec![ 0xB0 | *channel, 0x53, *value]
             }
 
             MIDIEvent::HoldPedal(channel, value) => {
@@ -319,7 +352,7 @@ impl MIDIBytes for MIDIEvent {
 
             MIDIEvent::Portamento(channel, value) => {
                 vec![
-                    0xb0 | *channel,
+                    0xB0 | *channel,
                     0x41,
                     *value
                 ]
@@ -327,7 +360,7 @@ impl MIDIBytes for MIDIEvent {
 
             MIDIEvent::Sustenuto(channel, value) => {
                 vec![
-                    0xb0 | *channel,
+                    0xB0 | *channel,
                     0x42,
                     *value
                 ]
@@ -335,7 +368,7 @@ impl MIDIBytes for MIDIEvent {
 
             MIDIEvent::SoftPedal(channel, value) => {
                 vec![
-                    0xb0 | *channel,
+                    0xB0 | *channel,
                     0x43,
                     *value
                 ]
@@ -343,7 +376,7 @@ impl MIDIBytes for MIDIEvent {
 
             MIDIEvent::Legato(channel, value) => {
                 vec![
-                    0xb0 | *channel,
+                    0xB0 | *channel,
                     0x44,
                     *value
                 ]
@@ -351,7 +384,7 @@ impl MIDIBytes for MIDIEvent {
 
             MIDIEvent::Hold2Pedal(channel, value) => {
                 vec![
-                    0xb0 | *channel,
+                    0xB0 | *channel,
                     0x45,
                     *value
                 ]
@@ -359,7 +392,7 @@ impl MIDIBytes for MIDIEvent {
 
             MIDIEvent::SoundVariation(channel, value) => {
                 vec![
-                    0xb0 | *channel,
+                    0xB0 | *channel,
                     0x46,
                     *value
                 ]
@@ -367,7 +400,7 @@ impl MIDIBytes for MIDIEvent {
 
             MIDIEvent::SoundTimbre(channel, value) => {
                 vec![
-                    0xb0 | *channel,
+                    0xB0 | *channel,
                     0x47,
                     *value
                 ]
@@ -375,7 +408,7 @@ impl MIDIBytes for MIDIEvent {
 
             MIDIEvent::SoundReleaseTime(channel, value) => {
                 vec![
-                    0xb0 | *channel,
+                    0xB0 | *channel,
                     0x48,
                     *value
                 ]
@@ -383,7 +416,7 @@ impl MIDIBytes for MIDIEvent {
 
             MIDIEvent::SoundAttack(channel, value) => {
                 vec![
-                    0xb0 | *channel,
+                    0xB0 | *channel,
                     0x49,
                     *value
                 ]
@@ -391,39 +424,31 @@ impl MIDIBytes for MIDIEvent {
 
             MIDIEvent::SoundBrightness(channel, value) => {
                 vec![
-                    0xb0 | *channel,
+                    0xB0 | *channel,
                     0x4A,
                     *value
                 ]
             }
 
-            MIDIEvent::SoundControl(channel, which, value) => {
-                vec![
-                    0xb0 | *channel,
-                    0x4B + *which,
-                    *value
-                ]
+            MIDIEvent::SoundControl1(channel, value) => {
+                vec![ 0xB0 | *channel, 0x4B, *value ]
             }
-
-            MIDIEvent::GeneralButtonOn(channel, which) => {
-                vec![
-                    0xB0 | *channel,
-                    0x50 + *which,
-                    0b01000000
-                ]
+            MIDIEvent::SoundControl2(channel, value) => {
+                vec![ 0xB0 | *channel, 0x4C, *value ]
             }
-
-            MIDIEvent::GeneralButtonOff(channel, which) => {
-                vec![
-                    0xB0 | *channel,
-                    0x50 + *which,
-                    0b00000000
-                ]
+            MIDIEvent::SoundControl3(channel, value) => {
+                vec![ 0xB0 | *channel, 0x4D, *value ]
+            }
+            MIDIEvent::SoundControl4(channel, value) => {
+                vec![ 0xB0 | *channel, 0x4E, *value ]
+            }
+            MIDIEvent::SoundControl5(channel, value) => {
+                vec![ 0xB0 | *channel, 0x4F, *value ]
             }
 
             MIDIEvent::EffectsLevel(channel, value) => {
                 vec![
-                    0xb0 | *channel,
+                    0xB0 | *channel,
                     0x5B,
                     *value
                 ]
@@ -431,7 +456,7 @@ impl MIDIBytes for MIDIEvent {
 
             MIDIEvent::TremuloLevel(channel, value) => {
                 vec![
-                    0xb0 | *channel,
+                    0xB0 | *channel,
                     0x5C,
                     *value
                 ]
@@ -439,7 +464,7 @@ impl MIDIBytes for MIDIEvent {
 
             MIDIEvent::ChorusLevel(channel, value) => {
                 vec![
-                    0xb0 | *channel,
+                    0xB0 | *channel,
                     0x5D,
                     *value
                 ]
@@ -447,7 +472,7 @@ impl MIDIBytes for MIDIEvent {
 
             MIDIEvent::CelesteLevel(channel, value) => {
                 vec![
-                    0xb0 | *channel,
+                    0xB0 | *channel,
                     0x5E,
                     *value
                 ]
@@ -455,7 +480,7 @@ impl MIDIBytes for MIDIEvent {
 
             MIDIEvent::PhaserLevel(channel, value) => {
                 vec![
-                    0xb0 | *channel,
+                    0xB0 | *channel,
                     0x5F,
                     *value
                 ]
@@ -484,18 +509,8 @@ impl MIDIBytes for MIDIEvent {
                 ]
             }
 
-            MIDIEvent::LocalKeyboardEnable(channel) => {
-                vec![
-                    0xB0 | *channel,
-                    0x7A, 0x40
-                ]
-            }
-
-            MIDIEvent::LocalKeyboardDisable(channel) => {
-                vec![
-                    0xB0 | *channel,
-                    0x7A, 0x00
-                ]
+            MIDIEvent::LocalControl(channel, value) => {
+                vec![ 0xB0 | *channel, 0x7A, *value ]
             }
 
             MIDIEvent::AllNotesOff(channel) => {
@@ -749,41 +764,41 @@ impl MIDIBytes for MIDIEvent {
                                 Ok(MIDIEvent::Expression(channel, None, Some(value)))
                             }
                             0x0C => {
-                                Ok(MIDIEvent::EffectControl(channel, 0, Some(value), None))
+                                Ok(MIDIEvent::EffectControl1(channel, Some(value), None))
                             }
                             0x2C => {
-                                Ok(MIDIEvent::EffectControl(channel, 0, None, Some(value)))
+                                Ok(MIDIEvent::EffectControl1(channel, None, Some(value)))
                             }
                             0x0D => {
-                                Ok(MIDIEvent::EffectControl(channel, 1, Some(value), None))
+                                Ok(MIDIEvent::EffectControl2(channel, Some(value), None))
                             }
                             0x2D => {
-                                Ok(MIDIEvent::EffectControl(channel, 1, None, Some(value)))
+                                Ok(MIDIEvent::EffectControl2(channel, None, Some(value)))
                             }
 
                             0x10 => {
-                                Ok(MIDIEvent::GeneralPurpose(channel, 0, Some(value), None))
+                                Ok(MIDIEvent::GeneralPurpose1(channel, Some(value), None))
                             }
                             0x30 => {
-                                Ok(MIDIEvent::GeneralPurpose(channel, 0, None, Some(value)))
+                                Ok(MIDIEvent::GeneralPurpose1(channel, None, Some(value)))
                             }
                             0x11 => {
-                                Ok(MIDIEvent::GeneralPurpose(channel, 1, Some(value), None))
+                                Ok(MIDIEvent::GeneralPurpose2(channel, Some(value), None))
                             }
                             0x31 => {
-                                Ok(MIDIEvent::GeneralPurpose(channel, 1, None, Some(value)))
+                                Ok(MIDIEvent::GeneralPurpose2(channel, None, Some(value)))
                             }
                             0x12 => {
-                                Ok(MIDIEvent::GeneralPurpose(channel, 2, Some(value), None))
+                                Ok(MIDIEvent::GeneralPurpose3(channel, Some(value), None))
                             }
                             0x32 => {
-                                Ok(MIDIEvent::GeneralPurpose(channel, 2, None, Some(value)))
+                                Ok(MIDIEvent::GeneralPurpose3(channel, None, Some(value)))
                             }
                             0x13 => {
-                                Ok(MIDIEvent::GeneralPurpose(channel, 3, Some(value), None))
+                                Ok(MIDIEvent::GeneralPurpose4(channel, Some(value), None))
                             }
                             0x33 => {
-                                Ok(MIDIEvent::GeneralPurpose(channel, 3, None, Some(value)))
+                                Ok(MIDIEvent::GeneralPurpose4(channel, None, Some(value)))
                             }
                             0x40 => {
                                 Ok(MIDIEvent::HoldPedal(channel, value))
@@ -819,47 +834,31 @@ impl MIDIBytes for MIDIEvent {
                                 Ok(MIDIEvent::SoundBrightness(channel, value))
                             }
                             0x4B => {
-                                Ok(MIDIEvent::SoundControl(channel, 0, value))
+                                Ok(MIDIEvent::SoundControl1(channel, value))
                             }
                             0x4C => {
-                                Ok(MIDIEvent::SoundControl(channel, 1, value))
+                                Ok(MIDIEvent::SoundControl2(channel, value))
                             }
                             0x4D => {
-                                Ok(MIDIEvent::SoundControl(channel, 2, value))
+                                Ok(MIDIEvent::SoundControl3(channel, value))
                             }
                             0x4E => {
-                                Ok(MIDIEvent::SoundControl(channel, 3, value))
+                                Ok(MIDIEvent::SoundControl4(channel, value))
                             }
                             0x4F => {
-                                Ok(MIDIEvent::SoundControl(channel, 4, value))
+                                Ok(MIDIEvent::SoundControl5(channel, value))
                             }
                             0x50 => {
-                                if value == 0 {
-                                    Ok(MIDIEvent::GeneralButtonOff(channel, 0))
-                                } else {
-                                    Ok(MIDIEvent::GeneralButtonOn(channel, 0))
-                                }
+                                Ok(MIDIEvent::GeneralPurpose5(channel, value))
                             }
                             0x51 => {
-                                if value == 0 {
-                                    Ok(MIDIEvent::GeneralButtonOff(channel, 1))
-                                } else {
-                                    Ok(MIDIEvent::GeneralButtonOn(channel, 1))
-                                }
+                                Ok(MIDIEvent::GeneralPurpose6(channel, value))
                             }
                             0x52 => {
-                                if value == 0 {
-                                    Ok(MIDIEvent::GeneralButtonOff(channel, 2))
-                                } else {
-                                    Ok(MIDIEvent::GeneralButtonOn(channel, 2))
-                                }
+                                Ok(MIDIEvent::GeneralPurpose7(channel, value))
                             }
                             0x53 => {
-                                if value == 0 {
-                                    Ok(MIDIEvent::GeneralButtonOff(channel, 3))
-                                } else {
-                                    Ok(MIDIEvent::GeneralButtonOn(channel, 3))
-                                }
+                                Ok(MIDIEvent::GeneralPurpose8(channel, value))
                             }
 
                             0x5B => {
@@ -909,11 +908,7 @@ impl MIDIBytes for MIDIEvent {
                                 Ok(MIDIEvent::AllControllersOff(channel))
                             }
                             0x7A => {
-                                if value == 0x40 {
-                                    Ok(MIDIEvent::LocalKeyboardEnable(channel))
-                                } else {
-                                    Ok(MIDIEvent::LocalKeyboardDisable(channel))
-                                }
+                                Ok(MIDIEvent::LocalControl(channel, value))
                             }
                             0x7B => {
                                 Ok(MIDIEvent::AllNotesOff(channel))
