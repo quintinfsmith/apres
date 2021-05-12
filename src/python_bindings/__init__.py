@@ -1596,6 +1596,7 @@ class MIDIController:
                 event = self.get_next_event()
             except PipeClosed:
                 self.listening = False
+                event = None
 
             if not event:
                 continue
