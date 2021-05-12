@@ -746,7 +746,7 @@ class VariableControlChange(ControlChange):
 
     def pullsync(self):
         self.controller = self.CONTROL_BYTE
-        self.value = self.get_property(2)[0]
+        self.value = self.get_property(1)[0]
         self.channel = self.get_property(0)[0]
 
 class InvariableControlChange(VariableControlChange):
