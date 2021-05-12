@@ -1282,6 +1282,8 @@ class MIDI:
         MonophonicOperation._rust_id: MonophonicOperation,
         DataIncrement._rust_id: DataIncrement,
         DataDecrement._rust_id: DataDecrement,
+        LocalControl._rust_id: LocalControl,
+        AllControllersOff._rust_id: AllControllersOff,
         AllNotesOff._rust_id: AllNotesOff,
         AllSoundOff._rust_id: AllSoundOff,
         OmniOff._rust_id: OmniOff,
