@@ -4,6 +4,10 @@ from cffi import FFI
 from ctypes.util import find_library
 import os
 import platform
+import time
+import select
+import pyinotify
+
 
 
 def logg(*msg):
@@ -698,8 +702,8 @@ class ControlChange(MIDIEvent):
     def __bytes__(self):
         return bytes([
             0xB0 | self.channel,
-            self.controller,
-            self.value
+            self.get_controller(),
+            self.get_value()
         ])
 
     def __init__(self, **kwargs):
@@ -734,6 +738,237 @@ class ControlChange(MIDIEvent):
     def set_value(self, value):
         self.value = value
         self.update_event()
+
+
+class VariableControlChange(ControlChange):
+    def get_controller(self):
+        return self.CONTROL_BYTE
+
+    def pullsync(self):
+        self.controller = self.CONTROL_BYTE
+        self.value = self.get_property(2)[0]
+        self.channel = self.get_property(0)[0]
+
+class InvariableControlChange(VariableControlChange):
+    def get_value(self):
+        return 0
+
+    def pullsync(self):
+        self.channel = self.get_property(0)[0]
+
+class HoldPedal(VariableControlChange):
+    _rust_id = 58
+    CONTROL_BYTE = 0x40
+class Portamento(VariableControlChange):
+    _rust_id = 59
+    CONTROL_BYTE = 0x41
+class Sustenuto(VariableControlChange):
+    _rust_id = 60
+    CONTROL_BYTE = 0x42
+class SoftPedal(VariableControlChange):
+    _rust_id = 61
+    CONTROL_BYTE = 0x43
+class Legato(VariableControlChange):
+    _rust_id = 62
+    CONTROL_BYTE = 0x44
+class Hold2Pedal(VariableControlChange):
+    _rust_id = 63
+    CONTROL_BYTE = 0x45
+class SoundVariation(VariableControlChange):
+    _rust_id = 64
+    CONTROL_BYTE = 0x46
+class SoundTimbre(VariableControlChange):
+    _rust_id = 65
+    CONTROL_BYTE = 0x47
+class SoundReleaseTime(VariableControlChange):
+    _rust_id = 66
+    CONTROL_BYTE = 0x48
+class SoundAttack(VariableControlChange):
+    _rust_id = 67
+    CONTROL_BYTE = 0x49
+class SoundBrightness(VariableControlChange):
+    _rust_id = 68
+    CONTROL_BYTE = 0x4A
+class SoundControl1(VariableControlChange):
+    _rust_id = 69
+    CONTROL_BYTE = 0x4B
+class SoundControl2(VariableControlChange):
+    _rust_id = 70
+    CONTROL_BYTE = 0x4C
+class SoundControl3(VariableControlChange):
+    _rust_id = 71
+    CONTROL_BYTE = 0x4D
+class SoundControl4(VariableControlChange):
+    _rust_id = 72
+    CONTROL_BYTE = 0x4E
+class SoundControl5(VariableControlChange):
+    _rust_id = 73
+    CONTROL_BYTE = 0x4F
+
+
+class EffectsLevel(VariableControlChange):
+    _rust_id = 86
+    CONTROL_BYTE = 0x5B
+class TremuloLevel(VariableControlChange):
+    _rust_id = 87
+    CONTROL_BYTE = 0x5C
+class ChorusLevel(VariableControlChange):
+    _rust_id = 88
+    CONTROL_BYTE = 0x5D
+class CelesteLevel(VariableControlChange):
+    _rust_id = 89
+    CONTROL_BYTE = 0x5E
+class PhaserLevel(VariableControlChange):
+    _rust_id = 90
+    CONTROL_BYTE = 0x5F
+class MonophonicOperation(VariableControlChange):
+    _rust_id = 103
+    CONTROL_BYTE = 0xFE
+
+class DataIncrement(InvariableControlChange):
+    _rust_id = 91
+    CONTROL_BYTE = 0x60
+class DataDecrement(InvariableControlChange):
+    _rust_id = 92
+    CONTROL_BYTE = 0x61
+class AllNotesOff(InvariableControlChange):
+    _rust_id = 99
+    CONTROL_BYTE = 0x7B
+class AllSoundOff(InvariableControlChange):
+    _rust_id = 100
+    CONTROL_BYTE = 0x78
+class OmniOff(InvariableControlChange):
+    _rust_id = 101
+    CONTROL_BYTE = 0x7C
+class OmniOn(InvariableControlChange):
+    _rust_id = 102
+    CONTROL_BYTE = 0x7D
+class PolyphonicOperation(InvariableControlChange):
+    _rust_id = 104
+    CONTROL_BYTE = 0xFF
+
+class BankSelect(VariableControlChange):
+    _rust_id = 34
+    CONTROL_BYTE = 0x00
+class BankSelectLSB(VariableControlChange):
+    _rust_id = 35
+    CONTROL_BYTE = 0x20
+class ModulationWheel(VariableControlChange):
+    _rust_id = 36
+    CONTROL_BYTE = 0x01
+class ModulationWheelLSB(VariableControlChange):
+    _rust_id = 37
+    CONTROL_BYTE = 0x21
+class BreathController(VariableControlChange):
+    _rust_id = 38
+    CONTROL_BYTE = 0x02
+class BreathControllerLSB(VariableControlChange):
+    _rust_id = 39
+    CONTROL_BYTE = 0x22
+class FootPedal(VariableControlChange):
+    _rust_id = 40
+    CONTROL_BYTE = 0x04
+class FootPedalLSB(VariableControlChange):
+    _rust_id = 41
+    CONTROL_BYTE = 0x24
+class PortamentoTime(VariableControlChange):
+    _rust_id = 42
+    CONTROL_BYTE = 0x05
+class PortamentoTimeLSB(VariableControlChange):
+    _rust_id = 43
+    CONTROL_BYTE = 0x25
+class DataEntry(VariableControlChange):
+    _rust_id = 44
+    CONTROL_BYTE = 0x06
+class DataEntryLSB(VariableControlChange):
+    _rust_id = 45
+    CONTROL_BYTE = 0x26
+class Volume(VariableControlChange):
+    _rust_id = 46
+    CONTROL_BYTE = 0x07
+class VolumeLSB(VariableControlChange):
+    _rust_id = 47
+    CONTROL_BYTE = 0x27
+class Balance(VariableControlChange):
+    _rust_id = 48
+    CONTROL_BYTE = 0x08
+class BalanceLSB(VariableControlChange):
+    _rust_id = 49
+    CONTROL_BYTE = 0x28
+class Pan(VariableControlChange):
+    _rust_id = 50
+    CONTROL_BYTE = 0x0A
+class PanLSB(VariableControlChange):
+    _rust_id = 51
+    CONTROL_BYTE = 0x2A
+class Expression(VariableControlChange):
+    _rust_id = 52
+    CONTROL_BYTE = 0x0B
+class ExpressionLSB(VariableControlChange):
+    _rust_id = 53
+    CONTROL_BYTE = 0x2B
+
+class NonRegisteredParameterNumber(VariableControlChange):
+    _rust_id = 95
+    CONTROL_BYTE = 0x63
+class NonRegisteredParameterNumberLSB(VariableControlChange):
+    _rust_id = 96
+    CONTROL_BYTE = 0x62
+class RegisteredParameterNumber(VariableControlChange):
+    _rust_id = 93
+    CONTROL_BYTE = 0x65
+class RegisteredParameterNumberLSB(VariableControlChange):
+    _rust_id = 94
+    CONTROL_BYTE = 0x64
+
+class EffectControl1(VariableControlChange):
+    _rust_id = 54
+    CONTROL_BYTE = 0x0C
+class EffectControl1LSB(VariableControlChange):
+    _rust_id = 55
+    CONTROL_BYTE = 0x2C
+class EffectControl2(VariableControlChange):
+    _rust_id = 56
+    CONTROL_BYTE = 0x0D
+class EffectControl2LSB(VariableControlChange):
+    _rust_id = 57
+    CONTROL_BYTE = 0x2D
+class GeneralPurpose1(VariableControlChange):
+    _rust_id = 74
+    CONTROL_BYTE = 0x10
+class GeneralPurpose1LSB(VariableControlChange):
+    _rust_id = 75
+    CONTROL_BYTE = 0x30
+class GeneralPurpose2(VariableControlChange):
+    _rust_id = 76
+    CONTROL_BYTE = 0x11
+class GeneralPurpose2LSB(VariableControlChange):
+    _rust_id = 77
+    CONTROL_BYTE = 0x31
+class GeneralPurpose3(VariableControlChange):
+    _rust_id = 78
+    CONTROL_BYTE = 0x12
+class GeneralPurpose3LSB(VariableControlChange):
+    _rust_id = 79
+    CONTROL_BYTE = 0x32
+class GeneralPurpose4(VariableControlChange):
+    _rust_id = 80
+    CONTROL_BYTE = 0x13
+class GeneralPurpose4LSB(VariableControlChange):
+    _rust_id = 81
+    CONTROL_BYTE = 0x33
+class GeneralPurpose5(VariableControlChange):
+    _rust_id = 82
+    CONTROL_BYTE = 0x50
+class GeneralPurpose6(VariableControlChange):
+    _rust_id = 83
+    CONTROL_BYTE = 0x51
+class GeneralPurpose7(VariableControlChange):
+    _rust_id = 84
+    CONTROL_BYTE = 0x52
+class GeneralPurpose8(VariableControlChange):
+    _rust_id = 85
+    CONTROL_BYTE = 0x53
 
 class ProgramChange(MIDIEvent):
     _rust_id = 19
@@ -965,6 +1200,32 @@ class Reset(MIDIEvent):
     def __bytes__(self):
         return bytes([0xFF])
 
+class TimeCode(MIDIEvent):
+    _rust_id = 105
+    def __init__(self, **kwargs):
+        if "uuid" not in kwargs.keys():
+            self.rate = kwargs["rate"]
+            self.hour = kwargs["hour"]
+            self.minute = kwargs["minute"]
+            self.second = kwargs["second"]
+            self.frame = kwargs["frame"]
+        super().__init__(**kwargs)
+
+    def pullsync(self):
+        self.rate = self.get_property(0)[0]
+        self.hour = self.get_property(1)[0]
+        self.minute = self.get_property(2)[0]
+        self.second = self.get_property(3)[0]
+        self.frame = self.get_property(4)[0]
+
+    def __bytes__(self):
+        return bytes([
+            (self.rate << 5) + self.hour,
+            self.minute & 0x3F,
+            self.second & 0x3F,
+            self.frame & 0x1F
+        ])
+
 class MIDI:
     """Usable object. Converted from midi files.
         s are the same midi files from simplicities sake.
@@ -990,6 +1251,79 @@ class MIDI:
         NoteOff._rust_id: NoteOff,
         PolyphonicKeyPressure._rust_id: PolyphonicKeyPressure,
         ControlChange._rust_id: ControlChange,
+        HoldPedal._rust_id: HoldPedal,
+        Portamento._rust_id: Portamento,
+        Sustenuto._rust_id: Sustenuto,
+        SoftPedal._rust_id: SoftPedal,
+        Legato._rust_id: Legato,
+        Hold2Pedal._rust_id: Hold2Pedal,
+        SoundVariation._rust_id: SoundVariation,
+        SoundTimbre._rust_id: SoundTimbre,
+        SoundReleaseTime._rust_id: SoundReleaseTime,
+        SoundAttack._rust_id: SoundAttack,
+        SoundBrightness._rust_id: SoundBrightness,
+        SoundControl1._rust_id: SoundControl1,
+        SoundControl2._rust_id: SoundControl2,
+        SoundControl3._rust_id: SoundControl3,
+        SoundControl4._rust_id: SoundControl4,
+        SoundControl5._rust_id: SoundControl5,
+        EffectsLevel._rust_id: EffectsLevel,
+        TremuloLevel._rust_id: TremuloLevel,
+        ChorusLevel._rust_id: ChorusLevel,
+        CelesteLevel._rust_id: CelesteLevel,
+        PhaserLevel._rust_id: PhaserLevel,
+        MonophonicOperation._rust_id: MonophonicOperation,
+        DataIncrement._rust_id: DataIncrement,
+        DataDecrement._rust_id: DataDecrement,
+        AllNotesOff._rust_id: AllNotesOff,
+        AllSoundOff._rust_id: AllSoundOff,
+        OmniOff._rust_id: OmniOff,
+        OmniOn._rust_id: OmniOn,
+        PolyphonicOperation._rust_id: PolyphonicOperation,
+        BankSelect._rust_id: BankSelect,
+        BankSelectLSB._rust_id: BankSelectLSB,
+        ModulationWheel._rust_id: ModulationWheel,
+        ModulationWheelLSB._rust_id: ModulationWheelLSB,
+        BreathController._rust_id: BreathController,
+        BreathControllerLSB._rust_id: BreathControllerLSB,
+        FootPedal._rust_id: FootPedal,
+        FootPedalLSB._rust_id: FootPedalLSB,
+        PortamentoTime._rust_id: PortamentoTime,
+        PortamentoTimeLSB._rust_id: PortamentoTimeLSB,
+        DataEntry._rust_id: DataEntry,
+        DataEntryLSB._rust_id: DataEntryLSB,
+        Volume._rust_id: Volume,
+        VolumeLSB._rust_id: VolumeLSB,
+        Balance._rust_id: Balance,
+        BalanceLSB._rust_id: BalanceLSB,
+        Pan._rust_id: Pan,
+        PanLSB._rust_id: PanLSB,
+        Expression._rust_id: Expression,
+        ExpressionLSB._rust_id: ExpressionLSB,
+        NonRegisteredParameterNumber._rust_id: NonRegisteredParameterNumber,
+        NonRegisteredParameterNumberLSB._rust_id: NonRegisteredParameterNumberLSB,
+        RegisteredParameterNumber._rust_id: RegisteredParameterNumber,
+        RegisteredParameterNumberLSB._rust_id: RegisteredParameterNumberLSB,
+
+        EffectControl1._rust_id: EffectControl1,
+        EffectControl1LSB._rust_id: EffectControl1LSB,
+        EffectControl2._rust_id: EffectControl2,
+        EffectControl2LSB._rust_id: EffectControl2LSB,
+        GeneralPurpose1._rust_id: GeneralPurpose1,
+        GeneralPurpose1LSB._rust_id: GeneralPurpose1LSB,
+        GeneralPurpose2._rust_id: GeneralPurpose2,
+        GeneralPurpose2LSB._rust_id: GeneralPurpose2LSB,
+        GeneralPurpose3._rust_id: GeneralPurpose3,
+        GeneralPurpose3LSB._rust_id: GeneralPurpose3LSB,
+        GeneralPurpose4._rust_id: GeneralPurpose4,
+        GeneralPurpose4LSB._rust_id: GeneralPurpose4LSB,
+        GeneralPurpose5._rust_id: GeneralPurpose5,
+        GeneralPurpose6._rust_id: GeneralPurpose6,
+        GeneralPurpose7._rust_id: GeneralPurpose7,
+        GeneralPurpose8._rust_id: GeneralPurpose8,
+
+
+
         ProgramChange._rust_id: ProgramChange,
         ChannelPressure._rust_id: ChannelPressure,
         PitchWheelChange._rust_id: PitchWheelChange,
@@ -1137,4 +1471,260 @@ class MIDI:
     def _event_move(self, event_uuid, new_track, new_tick):
         self.lib.move_event(self.pointer, event_uuid, new_track, new_tick)
 
+
+class PipeClosed(Exception):
+    '''Error Thrown when the midi device pipe is closed or disconnected'''
+
+class TaskHandler(pyinotify.ProcessEvent):
+    '''Event hooks to connect/disconnect from newly made midi device'''
+    def __init__(self, controller):
+        self.controller = controller
+        super().__init__()
+
+    def process_IN_CREATE(self, event):
+        '''Hook to connect when midi device is plugged in'''
+        if event.name[0:4] == 'midi':
+            time.sleep(.5)
+            self.controller.connect(event.pathname)
+
+    def process_IN_DELETE(self, event):
+        '''Hook to disconnect when midi device is unplugged'''
+        if event.name[0:4] == 'midi':
+            self.controller.disconnect(event.pathname)
+
+
+
+class MIDIController:
+    DEVROOT = '/dev/'
+    '''Read Input from Midi Device'''
+    def __init__(self, midipath=""):
+        self.pipe = None
+        self.midipath = None
+
+        if midipath:
+            if os.path.exists(midipath):
+                self.connect(midipath)
+        else:
+            for dev in os.listdir(MIDIController.DEVROOT):
+                if dev[0:4] == 'midi':
+                    self.connect(MIDIController.DEVROOT + dev)
+                    break
+
+
+        self.watch_manager = pyinotify.WatchManager()
+        notifier = pyinotify.ThreadedNotifier(self.watch_manager, TaskHandler(self))
+        notifier.daemon = True
+        notifier.start()
+        self.watch_manager.add_watch(
+            MIDIController.DEVROOT,
+            pyinotify.IN_CREATE | pyinotify.IN_DELETE
+        )
+
+        self.hook_map = {}
+
+    def set_hook(self, event_type, hook):
+        self.hook_map[event_type] = hook
+
+    def is_connected(self):
+        '''Check if pipe is open and ready to be read'''
+        return bool(self.pipe)
+
+    def connect(self, path):
+        '''Attempt to open a pipe to the path specified'''
+        if not self.pipe and os.path.exists(path):
+            self.pipe = open(path, 'rb')
+            self.midipath = path
+
+    def disconnect(self, midipath):
+        '''Close the pipe to the path specified'''
+        if self.midipath == midipath:
+            try:
+                if self.pipe != None:
+                    self.pipe.close()
+            except Exception as e:
+                raise e
+
+            self.pipe = None
+            self.midipath = ''
+
+    def close(self):
+        '''Tear down this midi controller'''
+        self.disconnect(self.midipath)
+
+    def get_next_byte(self):
+        '''Attempt to read next byte from pipe'''
+        output = None
+        while not output:
+            try:
+                ready, _, __ = select.select([self.pipe], [], [], 0)
+            except TypeError:
+                ready = []
+            except ValueError:
+                ready = []
+
+            if self.is_connected():
+                if self.pipe in ready:
+                    try:
+                        output = os.read(self.pipe.fileno(), 1)
+                        if output:
+                            output = output[0]
+                        else:
+                            continue
+                    except ValueError:
+                        continue
+
+                else: #wait for input
+                    time.sleep(.01)
+            else:
+                raise PipeClosed()
+
+        return output
+
+    def listen(self):
+        self.listening = True
+        while self.listening:
+            try:
+                event = self.get_next_event()
+            except PipeClosed:
+                self.listening = False
+
+            if not event:
+                continue
+
+            #FIXME: Massive kludge so I don't have to put in a shit tonne of bioler-plate, empty functions.
+            hookname = "hook_" + str(type(event).__name__)
+            if hookname in dir(self):
+                self.__getattribute__(hookname)(event)
+
+    def get_next_event(self):
+        '''Read Midi Input Device until relevant event is found'''
+        lead_byte = self.get_next_byte()
+
+        if lead_byte & 0xF0 == 0x80:
+            channel = lead_byte & 0x0F;
+            note = self.get_next_byte()
+            velocity = self.get_next_byte()
+            return NoteOff(channel=channel, note=note, velocity=velocity)
+
+        elif lead_byte & 0xF0 == 0x90:
+            channel = lead_byte & 0x0F;
+            note = self.get_next_byte()
+            velocity = self.get_next_byte()
+            if velocity == 0:
+                return NoteOff(channel=channel, note=note, velocity=0)
+            else:
+                return NoteOn(channel=channel, note=note, velocity=velocity)
+
+        elif lead_byte & 0xF0 == 0xA0:
+            channel = lead_byte & 0x0F
+            note = self.get_next_byte()
+            velocity = self.get_next_byte()
+            return AfterTouch(channel=channel, note=note, velocity=velocity)
+
+        elif lead_byte & 0xF0 == 0xB0:
+            channel = lead_byte & 0x0F
+            controller = self.get_next_byte()
+            value = self.get_next_byte()
+            return ControlChange(
+                channel=channel,
+                controller=controller,
+                value=value
+            )
+
+        elif lead_byte & 0xF0 == 0xC0:
+            channel = lead_byte & 0x0F
+            new_program = self.get_next_byte()
+            return ProgramChange(channel=channel, program=new_program)
+
+        elif lead_byte & 0xF0 == 0xD0:
+            channel = lead_byte & 0x0F
+            pressure = self.get_next_byte()
+            return ChannelPressure(channel=channel, pressure=pressure)
+
+        elif lead_byte & 0xF0 == 0xE0:
+            channel = lead_byte & 0x0F
+
+            lsb = self.get_next_byte()
+            msb = self.get_next_byte()
+
+            unsigned = (msb << 7) + (lsb & 0x7F)
+            value = ((0x3FFF * unsigned) - 2) / 2
+
+            return PitchWheelChange(channel=channel, value=value)
+
+        elif lead_byte == 0xF0:
+            # System Exclusive
+            bytedump = []
+            while True:
+                byte = self.get_next_byte()
+                if byte == 0xF7:
+                    break
+                else:
+                    bytedump.append(byte)
+
+            return SystemExclusive(data=bytedump)
+
+            # Time Code
+        elif lead_byte == 0xF1:
+            byte_a = self.get_next_byte()
+            coded_rate = byte_a >> 5
+            if coded_rate == 0:
+                rate = 24
+            elif coded_rate == 1:
+                rate = 25
+            elif coded_rate == 2:
+                29.97
+            else:
+                30
+
+            hour = byte_a & 0x1F
+            minute = self.get_next_byte() & 0x3F
+            second = self.get_next_byte() & 0x3F
+            frame = self.get_next_byte() & 0x1F
+
+            return TimeCode(rate=rate, hour=hour, minute=minute, second=second, frame=frame)
+
+        elif lead_byte == 0xF2:
+            least_significant_byte = self.get_next_byte()
+            most_significant_byte = self.get_next_byte()
+
+            beat = (most_significant_byte << 7) + least_significant_byte
+            return SongPositionPointer(beat=beat)
+
+        elif lead_byte == 0xF3:
+            song = self.get_next_byte()
+            return SongSelect(song & 0x7F)
+
+        elif lead_byte == 0xF6:
+            return TuneRequest()
+
+        elif lead_byte == 0xF7:
+            # Real Time SysEx
+            for _ in range(self.get_next_byte()):
+                byte = self.get_next_byte()
+                bytedump.push(byte)
+
+            return SystemExclusive(bytedump)
+
+        # Clock
+        elif lead_byte == 0xF8:
+            return MIDIClock()
+        # Start
+        elif lead_byte == 0xFA:
+            return MIDIStart()
+        # Continue
+        elif lead_byte == 0xFB:
+            return MIDIContinue()
+        #Stop
+        elif lead_byte == 0xFC:
+            return MIDIStop()
+        #Active Sensing
+        elif lead_byte == 0xFE:
+            return ActiveSense()
+        # System Reset
+        elif lead_byte == 0xFF:
+            return Reset()
+        # Undefined Behaviour
+        else:
+            return None
 

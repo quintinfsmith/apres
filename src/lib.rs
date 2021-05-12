@@ -259,49 +259,77 @@ fn get_midi_type_code(midievent: MIDIEvent) -> u8 {
         EndOfTrack => 8,
 
         BankSelect(_, _) => 34,
-        ModulationWheel(_, _) => 35,
-        BreathController(_, _) => 36,
-        FootPedal(_, _) => 37,
-        PortamentoTime(_, _) => 38,
-        DataEntrySlider(_, _) => 39,
-        Volume(_, _) => 40,
-        Balance(_, _) => 41,
-        Pan(_, _) => 42,
-        Expression(_, _) => 43,
-        EffectControl(_, _, _) => 44,
-        Slider(_, _, _) => 45,
-        HoldPedal(_, _) => 46,
-        Portamento(_, _) => 47,
-        Sustenuto(_, _) => 48,
-        SoftPedal(_, _) => 49,
-        Legato(_, _) => 50,
-        Hold2Pedal(_, _) => 51,
-        SoundVariation(_, _) => 52,
-        SoundTimbre(_, _) => 53,
-        SoundReleaseTime(_, _) => 54,
-        SoundAttack(_, _) => 55,
-        SoundBrightness(_, _) => 56,
-        SoundControl(_, _, _) => 57,
-        GeneralButtonOn(_, _) => 58,
-        GeneralButtonOff(_, _) => 59,
-        EffectsLevel(_, _) => 60,
-        TremuloLevel(_, _) => 61,
-        ChorusLevel(_, _) => 62,
-        CelesteLevel(_, _) => 63,
-        PhaserLevel(_, _) => 64,
-        DataButtonIncrement(_) => 65,
-        DataButtonDecrement(_) => 66,
-        RegisteredParameterNumber(_, _) => 67,
-        NonRegisteredParameterNumber(_, _) => 68,
-        AllControllersOff(_) => 69,
-        LocalKeyboardEnable(_) => 70,
-        LocalKeyboardDisable(_) => 71,
-        AllNotesOff(_) => 72,
-        AllSoundOff(_) => 73,
-        OmniOff(_) => 74,
-        OmniOn(_) => 75,
-        MonophonicOperation(_, _) => 76,
-        PolyphonicOperation(_) => 77
+        BankSelectLSB(_, _) => 35,
+        ModulationWheel(_, _) => 36,
+        ModulationWheelLSB(_, _) => 37,
+        BreathController(_, _) => 38,
+        BreathControllerLSB(_, _) => 39,
+        FootPedal(_, _) => 40,
+        FootPedalLSB(_, _) => 41,
+        PortamentoTime(_, _) => 42,
+        PortamentoTimeLSB(_, _) => 43,
+        DataEntry(_, _) => 44,
+        DataEntryLSB(_, _) => 45,
+        Volume(_, _) => 46,
+        VolumeLSB(_, _) => 47,
+        Balance(_, _) => 48,
+        BalanceLSB(_, _) => 49,
+        Pan(_, _) => 50,
+        PanLSB(_, _) => 51,
+        Expression(_, _) => 52,
+        ExpressionLSB(_, _) => 53,
+        EffectControl1(_, _) => 54,
+        EffectControl1LSB(_, _) => 55,
+        EffectControl2(_, _) => 56,
+        EffectControl2LSB(_, _) => 57,
+        HoldPedal(_, _) => 58,
+        Portamento(_, _) => 59,
+        Sustenuto(_, _) => 60,
+        SoftPedal(_, _) => 61,
+        Legato(_, _) => 62,
+        Hold2Pedal(_, _) => 63,
+        SoundVariation(_, _) => 64,
+        SoundTimbre(_, _) => 65,
+        SoundReleaseTime(_, _) => 66,
+        SoundAttack(_, _) => 67,
+        SoundBrightness(_, _) => 68,
+        SoundControl1(_, _) => 69,
+        SoundControl2(_, _) => 70,
+        SoundControl3(_, _) => 71,
+        SoundControl4(_, _) => 72,
+        SoundControl5(_, _) => 73,
+        GeneralPurpose1(_, _) => 74,
+        GeneralPurpose1LSB(_, _) => 75,
+        GeneralPurpose2(_, _) => 76,
+        GeneralPurpose2LSB(_, _) => 77,
+        GeneralPurpose3(_, _) => 78,
+        GeneralPurpose3LSB(_, _) => 79,
+        GeneralPurpose4(_, _) => 80,
+        GeneralPurpose4LSB(_, _) => 81,
+        GeneralPurpose5(_, _) => 82,
+        GeneralPurpose6(_, _) => 83,
+        GeneralPurpose7(_, _) => 84,
+        GeneralPurpose8(_, _) => 85,
+        EffectsLevel(_, _) => 86,
+        TremuloLevel(_, _) => 87,
+        ChorusLevel(_, _) => 88,
+        CelesteLevel(_, _) => 89,
+        PhaserLevel(_, _) => 90,
+        DataIncrement(_) => 91,
+        DataDecrement(_) => 92,
+        RegisteredParameterNumber(_, _) => 93,
+        RegisteredParameterNumberLSB(_, _) => 94,
+        NonRegisteredParameterNumber(_, _) => 95,
+        NonRegisteredParameterNumberLSB(_, _) => 96,
+        AllControllersOff(_) => 97,
+        LocalControl(_, _) => 98,
+        AllNotesOff(_) => 99,
+        AllSoundOff(_) => 100,
+        OmniOff(_) => 101,
+        OmniOn(_) => 102,
+        MonophonicOperation(_, _) => 103,
+        PolyphonicOperation(_) => 104,
+        TimeCode(_, _, _, _, _) => 105
     }
 }
 
@@ -313,30 +341,13 @@ fn get_midi_property(midievent: MIDIEvent, property_index: u8) -> Vec<u8> {
                 (sequence % 256) as u8
             ]
         }
-        Text(text) => {
-            text.as_bytes().to_vec()
-        }
 
-        CopyRightNotice(notice) => {
-            notice.as_bytes().to_vec()
-        }
-
-        TrackName(name) => {
-            name.as_bytes().to_vec()
-        }
-
-        InstrumentName(name) => {
-            name.as_bytes().to_vec()
-        }
-
-        Lyric(lyric) => {
-            lyric.as_bytes().to_vec()
-        }
-
-        Marker(text) => {
-            text.as_bytes().to_vec()
-        }
-
+        Text(text) |
+        CopyRightNotice(text) |
+        TrackName(text) |
+        InstrumentName(text) |
+        Lyric(text) |
+        Marker(text) |
         CuePoint(text) => {
             text.as_bytes().to_vec()
         }
@@ -355,24 +366,12 @@ fn get_midi_property(midievent: MIDIEvent, property_index: u8) -> Vec<u8> {
 
         SMPTEOffset(hour, minute, second, ff, fr) => {
             let output = match property_index {
-                0 => {
-                    hour
-                }
-                1 => {
-                    minute
-                }
-                2 => {
-                    second
-                }
-                3 => {
-                    ff
-                }
-                4 => {
-                    fr
-                }
-                _ => {
-                    0
-                }
+                0 => { hour }
+                1 => { minute }
+                2 => { second }
+                3 => { ff }
+                4 => { fr }
+                _ => { 0 }
             };
 
             vec![output]
@@ -380,132 +379,58 @@ fn get_midi_property(midievent: MIDIEvent, property_index: u8) -> Vec<u8> {
 
         TimeSignature(numerator, denominator, cpm, thirtysecondths_per_quarter) => {
             let output = match property_index {
-                0 => {
-                    numerator
-                }
-                1 => {
-                    denominator
-                }
-                2 => {
-                    cpm
-                }
-                3 => {
-                    thirtysecondths_per_quarter
-                }
-                _ => {
-                    0
-                }
+                0 => { numerator }
+                1 => { denominator }
+                2 => { cpm }
+                3 => { thirtysecondths_per_quarter }
+                _ => { 0 }
             };
 
             vec![output]
         }
 
-        KeySignature(key) => {
-           key.as_bytes().to_vec()
-        }
         //SequencerSpecific => 14,
 
-        NoteOn(channel, note, velocity) => {
+        NoteOn(channel, note, velocity) |
+        NoteOff(channel, note, velocity) |
+        AfterTouch(channel, note, velocity) => {
             match property_index {
-                0 => {
-                    vec![channel]
-                }
-                1 => {
-                    vec![note]
-                }
-                2 => {
-                    vec![velocity]
-                }
-                _ => {
-                    vec![]
-                }
+                0 => { vec![channel] }
+                1 => { vec![note] }
+                2 => { vec![velocity] }
+                _ => { vec![] }
             }
         }
 
-        NoteOff(channel, note, velocity) => {
-            match property_index {
-                0 => {
-                    vec![channel]
-                }
-                1 => {
-                    vec![note]
-                }
-                2 => {
-                    vec![velocity]
-                }
-                _ => {
-                    vec![]
-                }
-            }
-        }
-
-        AfterTouch(channel, note, pressure) => {
-            match property_index {
-                0 => {
-                   vec![channel]
-                }
-                1 => {
-                    vec![note]
-                }
-                2 => {
-                    vec![pressure]
-                }
-                _ => {
-                    vec![]
-                }
-            }
-        }
 
         ControlChange(channel, controller, value) => {
             match property_index {
-                0 => {
-                   vec![channel]
-                }
-                1 => {
-                    vec![controller]
-                }
-                2 => {
-                    vec![value]
-                }
-                _ => {
-                    vec![]
-                }
+                0 => { vec![channel] }
+                1 => { vec![controller] }
+                2 => { vec![value] }
+                _ => { vec![] }
             }
         }
 
         ProgramChange(channel, program) => {
             match property_index {
-                0 => {
-                    vec![channel]
-                }
-                1 => {
-                    vec![program]
-                }
-                _ => {
-                    vec![]
-                }
+                0 => { vec![channel] }
+                1 => { vec![program] }
+                _ => { vec![] }
             }
         }
 
         ChannelPressure(channel, pressure) => {
             match property_index {
-                0 => {
-                    vec![channel]
-                }
-                1 => {
-                    vec![pressure]
-                }
-                _ => {
-                    vec![]
-                }
+                0 => { vec![channel] }
+                1 => { vec![pressure] }
+                _ => { vec![] }
             }
         }
 
         PitchWheelChange(channel, value) => {
             match property_index {
-                0 => {
-                    vec![ channel ]
-                }
+                0 => { vec![ channel ] }
                 1 => {
                     let unsigned_value = get_pitchwheel_value(value);
                     vec![
@@ -513,9 +438,7 @@ fn get_midi_property(midievent: MIDIEvent, property_index: u8) -> Vec<u8> {
                         (unsigned_value % 256) as u8
                     ]
                 }
-                _ => {
-                    vec![]
-                }
+                _ => { vec![] }
             }
         }
 
@@ -525,15 +448,9 @@ fn get_midi_property(midievent: MIDIEvent, property_index: u8) -> Vec<u8> {
 
         MTCQuarterFrame(message_type, value) => {
             match property_index {
-                0 => {
-                   vec![ message_type ]
-                }
-                1 => {
-                   vec![ value ]
-                }
-                _ => {
-                    vec![]
-                }
+                0 => { vec![ message_type ] }
+                1 => { vec![ value ] }
+                _ => { vec![] }
             }
         }
 
@@ -550,560 +467,106 @@ fn get_midi_property(midievent: MIDIEvent, property_index: u8) -> Vec<u8> {
             ]
         }
 
-        BankSelect(channel, value) => {
-            match property_index {
-                0 => {
-                    vec![channel]
-                }
-                1 => {
-                    vec![
-                        (value >> 8) as u8,
-                        (value & 0xFF) as u8
-                    ]
-                }
-                _ => {
-                    vec![]
-                }
-            }
-        }
-
-        ModulationWheel(channel, value) => {
-            match property_index {
-                0 => {
-                    vec![channel]
-                }
-                1 => {
-                    vec![
-                        (value >> 8) as u8,
-                        (value & 0xFF) as u8
-                    ]
-                }
-                _ => {
-                    vec![]
-                }
-            }
-        }
-        BreathController(channel, value) => {
-            match property_index {
-                0 => {
-                    vec![channel]
-                }
-                1 => {
-                    vec![
-                        (value >> 8) as u8,
-                        (value & 0xFF) as u8
-                    ]
-                }
-                _ => {
-                    vec![]
-                }
-            }
-        }
-        FootPedal(channel, value) => {
-            match property_index {
-                0 => {
-                    vec![channel]
-                }
-                1 => {
-                    vec![
-                        (value >> 8) as u8,
-                        (value & 0xFF) as u8
-                    ]
-                }
-                _ => {
-                    vec![]
-                }
-            }
-        }
-        PortamentoTime(channel, value) => {
-            match property_index {
-                0 => {
-                    vec![channel]
-                }
-                1 => {
-                    vec![
-                        (value >> 8) as u8,
-                        (value & 0xFF) as u8
-                    ]
-                }
-                _ => {
-                    vec![]
-                }
-            }
-        }
-        DataEntrySlider(channel, value) => {
-            match property_index {
-                0 => {
-                    vec![channel]
-                }
-                1 => {
-                    vec![
-                        (value >> 8) as u8,
-                        (value & 0xFF) as u8
-                    ]
-                }
-                _ => {
-                    vec![]
-                }
-            }
-        }
-        Volume(channel, value) => {
-            match property_index {
-                0 => {
-                    vec![channel]
-                }
-                1 => {
-                    vec![
-                        (value >> 8) as u8,
-                        (value & 0xFF) as u8
-                    ]
-                }
-                _ => {
-                    vec![]
-                }
-            }
-        }
-        Balance(channel, value) => {
-            match property_index {
-                0 => {
-                    vec![channel]
-                }
-                1 => {
-                    vec![
-                        (value >> 8) as u8,
-                        (value & 0xFF) as u8
-                    ]
-                }
-                _ => {
-                    vec![]
-                }
-            }
-        }
-        Pan(channel, value) => {
-            match property_index {
-                0 => {
-                    vec![channel]
-                }
-                1 => {
-                    vec![
-                        (value >> 8) as u8,
-                        (value & 0xFF) as u8
-                    ]
-                }
-                _ => {
-                    vec![]
-                }
-            }
-        }
-        Expression(channel, value) => {
-            match property_index {
-                0 => {
-                    vec![channel]
-                }
-                1 => {
-                    vec![
-                        (value >> 8) as u8,
-                        (value & 0xFF) as u8
-                    ]
-                }
-                _ => {
-                    vec![]
-                }
-            }
-        }
-        EffectControl(channel, which, value) => {
-            match property_index {
-                0 => {
-                    vec![channel]
-                }
-                1 => {
-                    vec![which]
-                }
-                2 => {
-                    vec![
-                        (value >> 8) as u8,
-                        (value & 0xFF) as u8
-                    ]
-                }
-                _ => {
-                    vec![]
-                }
-            }
-        }
-        Slider(channel, which, value) => {
-            match property_index {
-                0 => {
-                    vec![channel]
-                }
-                1 => {
-                    vec![which]
-                }
-                2 => {
-                    vec![value]
-                }
-                _ => {
-                    vec![]
-                }
-            }
-        }
-        HoldPedal(channel, value) => {
-            match property_index {
-                0 => {
-                    vec![channel]
-                }
-                1 => {
-                    vec![value]
-                }
-                _ => {
-                    vec![]
-                }
-            }
-        }
-        Portamento(channel, value) => {
-            match property_index {
-                0 => {
-                    vec![channel]
-                }
-                1 => {
-                    vec![value]
-                }
-                _ => {
-                    vec![]
-                }
-            }
-        }
-        Sustenuto(channel, value) => {
-            match property_index {
-                0 => {
-                    vec![channel]
-                }
-                1 => {
-                    vec![value]
-                }
-                _ => {
-                    vec![]
-                }
-            }
-        }
-        SoftPedal(channel, value) => {
-            match property_index {
-                0 => {
-                    vec![channel]
-                }
-                1 => {
-                    vec![value]
-                }
-                _ => {
-                    vec![]
-                }
-            }
-        }
-        Legato(channel, value) => {
-            match property_index {
-                0 => {
-                    vec![channel]
-                }
-                1 => {
-                    vec![value]
-                }
-                _ => {
-                    vec![]
-                }
-            }
-        }
-        Hold2Pedal(channel, value) => {
-            match property_index {
-                0 => {
-                    vec![channel]
-                }
-                1 => {
-                    vec![value]
-                }
-                _ => {
-                    vec![]
-                }
-            }
-        }
-        SoundVariation(channel, value) => {
-            match property_index {
-                0 => {
-                    vec![channel]
-                }
-                1 => {
-                    vec![value]
-                }
-                _ => {
-                    vec![]
-                }
-            }
-        }
-        SoundTimbre(channel, value) => {
-            match property_index {
-                0 => {
-                    vec![channel]
-                }
-                1 => {
-                    vec![value]
-                }
-                _ => {
-                    vec![]
-                }
-            }
-        }
-        SoundReleaseTime(channel, value) => {
-            match property_index {
-                0 => {
-                    vec![channel]
-                }
-                1 => {
-                    vec![value]
-                }
-                _ => {
-                    vec![]
-                }
-            }
-        }
-        SoundAttack(channel, value) => {
-            match property_index {
-                0 => {
-                    vec![channel]
-                }
-                1 => {
-                    vec![value]
-                }
-                _ => {
-                    vec![]
-                }
-            }
-        }
-        SoundBrightness(channel, value) => {
-            match property_index {
-                0 => {
-                    vec![channel]
-                }
-                1 => {
-                    vec![value]
-                }
-                _ => {
-                    vec![]
-                }
-            }
-        }
-        SoundControl(channel, which, value) => {
-            match property_index {
-                0 => {
-                    vec![channel]
-                }
-                1 => {
-                    vec![which]
-                }
-                2 => {
-                    vec![value]
-                }
-                _ => {
-                    vec![]
-                }
-            }
-        }
-
-        GeneralButtonOn(channel, which) => {
-            match property_index {
-                0 => {
-                    vec![channel]
-                }
-                1 => {
-                    vec![which]
-                }
-                _ => {
-                    vec![]
-                }
-            }
-        }
-
-        GeneralButtonOff(channel, which) => {
-            match property_index {
-                0 => {
-                    vec![channel]
-                }
-                1 => {
-                    vec![which]
-                }
-                _ => {
-                    vec![]
-                }
-            }
-        }
-
-        EffectsLevel(channel, value) => {
-            match property_index {
-                0 => {
-                    vec![channel]
-                }
-                1 => {
-                    vec![value]
-                }
-                _ => {
-                    vec![]
-                }
-            }
-        }
-
-        TremuloLevel(channel, value) => {
-            match property_index {
-                0 => {
-                    vec![channel]
-                }
-                1 => {
-                    vec![value]
-                }
-                _ => {
-                    vec![]
-                }
-            }
-        }
-
-        ChorusLevel(channel, value) => {
-            match property_index {
-                0 => {
-                    vec![channel]
-                }
-                1 => {
-                    vec![value]
-                }
-                _ => {
-                    vec![]
-                }
-            }
-        }
-
-        CelesteLevel(channel, value) => {
-            match property_index {
-                0 => {
-                    vec![channel]
-                }
-                1 => {
-                    vec![value]
-                }
-                _ => {
-                    vec![]
-                }
-            }
-        }
-
-        PhaserLevel(channel, value) => {
-            match property_index {
-                0 => {
-                    vec![channel]
-                }
-                1 => {
-                    vec![value]
-                }
-                _ => {
-                    vec![]
-                }
-            }
-        }
-
-        DataButtonIncrement(channel) => {
-            match property_index {
-                0 => {
-                    vec![channel]
-                }
-                _ => {
-                    vec![]
-                }
-            }
-        }
-
-        DataButtonDecrement(channel) => {
-            match property_index {
-                0 => {
-                    vec![channel]
-                }
-                _ => {
-                    vec![]
-                }
-            }
-        }
-
-        RegisteredParameterNumber(channel, value) => {
-            match property_index {
-                0 => {
-                    vec![channel]
-                }
-                1 => {
-                    vec![
-                        (value >> 8) as u8,
-                        (value & 0xFF) as u8
-                    ]
-                }
-                _ => {
-                    vec![]
-                }
-            }
-        }
-
-        NonRegisteredParameterNumber(channel, value) => {
-            match property_index {
-                0 => {
-                    vec![channel]
-                }
-                1 => {
-                    vec![
-                        (value >> 8) as u8,
-                        (value & 0xFF) as u8
-                    ]
-                }
-                _ => {
-                    vec![]
-                }
-            }
-        }
-
-        AllControllersOff(channel) => {
-            vec![channel]
-        }
-
-        LocalKeyboardEnable(channel) => {
-            vec![channel]
-        }
-
-        LocalKeyboardDisable(channel) => {
-            vec![channel]
-        }
-
-        AllNotesOff(channel) => {
-            vec![channel]
-        }
-
-        AllSoundOff(channel) => {
-            vec![channel]
-        }
-
-        OmniOff(channel) => {
-            vec![channel]
-        }
-
-        OmniOn(channel) => {
-            vec![channel]
-        }
-
+        BankSelect(channel, value) |
+        BankSelectLSB(channel, value) |
+        ModulationWheel(channel, value) |
+        ModulationWheelLSB(channel, value) |
+        BreathController(channel, value) |
+        BreathControllerLSB(channel, value) |
+        FootPedal(channel, value) |
+        FootPedalLSB(channel, value) |
+        PortamentoTime(channel, value) |
+        PortamentoTimeLSB(channel, value) |
+        DataEntry(channel, value) |
+        DataEntryLSB(channel, value) |
+        Volume(channel, value) |
+        VolumeLSB(channel, value) |
+        Balance(channel, value) |
+        BalanceLSB(channel, value) |
+        Pan(channel, value) |
+        PanLSB(channel, value) |
+        Expression(channel, value) |
+        ExpressionLSB(channel, value) |
+        EffectControl1(channel, value) |
+        EffectControl1LSB(channel, value) |
+        EffectControl2(channel, value) |
+        EffectControl2LSB(channel, value) |
+        HoldPedal(channel, value) |
+        Portamento(channel, value) |
+        Sustenuto(channel, value) |
+        SoftPedal(channel, value) |
+        Legato(channel, value) |
+        Hold2Pedal(channel, value) |
+        SoundVariation(channel, value) |
+        SoundTimbre(channel, value) |
+        SoundReleaseTime(channel, value) |
+        SoundAttack(channel, value) |
+        SoundBrightness(channel, value) |
+        SoundControl1(channel, value) |
+        SoundControl2(channel, value) |
+        SoundControl3(channel, value) |
+        SoundControl4(channel, value) |
+        SoundControl5(channel, value) |
+        GeneralPurpose1(channel, value) |
+        GeneralPurpose1LSB(channel, value) |
+        GeneralPurpose2(channel, value) |
+        GeneralPurpose2LSB(channel, value) |
+        GeneralPurpose3(channel, value) |
+        GeneralPurpose3LSB(channel, value) |
+        GeneralPurpose4(channel, value) |
+        GeneralPurpose4LSB(channel, value) |
+        GeneralPurpose5(channel, value) |
+        GeneralPurpose6(channel, value) |
+        GeneralPurpose7(channel, value) |
+        GeneralPurpose8(channel, value) |
+        EffectsLevel(channel, value) |
+        TremuloLevel(channel, value) |
+        ChorusLevel(channel, value) |
+        CelesteLevel(channel, value) |
+        PhaserLevel(channel, value) |
+        RegisteredParameterNumber(channel, value) |
+        NonRegisteredParameterNumber(channel, value) |
+        RegisteredParameterNumberLSB(channel, value) |
+        NonRegisteredParameterNumberLSB(channel, value) |
+        LocalControl(channel, value) |
         MonophonicOperation(channel, value) => {
             match property_index {
-                0 => {
-                    vec![channel]
-                }
-                1 => {
-                    vec![value]
-                }
-                _ => {
-                    vec![]
-                }
+                0 => { vec![channel] }
+                1 => { vec![value] }
+                _ => { vec![] }
             }
         }
 
+        DataIncrement(channel) |
+        DataDecrement(channel) |
+        AllControllersOff(channel) |
+        AllNotesOff(channel) |
+        AllSoundOff(channel) |
+        OmniOff(channel) |
+        OmniOn(channel) |
         PolyphonicOperation(channel) => {
             vec![channel]
+        }
+
+        TimeCode(rate, hour, minute, second, frame) => {
+            match property_index {
+                0 => {
+                    let coded = match rate {
+                        24.0 => { 0 }
+                        25.0 => { 1 }
+                        29.97 => { 2 }
+                        30.0 => { 3 }
+                        _ => { 3 }
+                    };
+                    vec![coded]
+                }
+                1 => { vec![hour] }
+                2 => { vec![minute] }
+                3 => { vec![second] }
+                4 => { vec![frame] }
+                _ => { vec![] }
+            }
+
         }
 
         _ => {
