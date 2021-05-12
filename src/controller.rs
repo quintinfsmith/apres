@@ -27,16 +27,16 @@ impl Controller {
     pub fn listen<T>(&mut self, context: &mut T, callback: Callback<T>) -> Result<(), ApresError> {
         self.listening = true;
 
-        let start_time = Instant::now();
-        let ignore_time = Duration::new(0, 100_000_000);
+        //let start_time = Instant::now();
+        //let ignore_time = Duration::new(0, 100_000_000);
 
         while self.listening {
             match self.get_next() {
                 Ok(event) => {
                     // Fixme: Kludge to prevent pre-existing events from firing
-                    if start_time.elapsed() > ignore_time {
-                        callback(self, context, &event);
-                    }
+                    //if start_time.elapsed() > ignore_time {
+                    callback(self, context, &event);
+                    //}
                 }
                 Err(e) => {
                     self.listening = false;
@@ -74,9 +74,6 @@ impl Controller {
         let lead_byte = self.get_next_byte()?;
         match lead_byte {
             0..=0x7F => {
-                //bytes.insert(0, lead_byte);
-                //bytes.insert(0, default_byte);
-                //output = MIDIEvent::from_bytes(bytes, default_byte);
                 Err(ApresError::InvalidBytes(vec![lead_byte]))
             }
 

@@ -336,15 +336,6 @@ fn test_aftertouch_event() {
 }
 
 #[test]
-fn test_control_change_event() {
-    let event = ControlChange(14, 23, 33);
-    assert_eq!(
-        event.as_bytes().as_slice(),
-        [0xBE, 0x17, 0x21]
-    );
-}
-
-#[test]
 fn test_program_change_event() {
     let event = ProgramChange(14, 23);
     assert_eq!(
@@ -395,6 +386,160 @@ fn test_system_exclusive_event() {
         event.as_bytes().as_slice(),
         [0xF0, 0x00, 0x00, 0x01, 0x00, 0xF7]
     );
+}
+
+
+#[test]
+fn test_control_change_events() {
+    let mut event: MIDIEvent;
+    let channel = 1;
+    let value = 25;
+
+    event = ControlChange(0x0E, 0x17, 0x21);
+    assert_eq!( event.as_bytes().as_slice(), [0xBE, 0x17, 0x21]);
+    event = BankSelect(channel, value);
+    assert_eq!(event.as_bytes().as_slice(), [0xB0 | channel, 0x00, value]);
+    event = BankSelectLSB(channel, value);
+    assert_eq!(event.as_bytes().as_slice(), [0xB0 | channel, 0x20, value]);
+    event = ModulationWheel(channel, value);
+    assert_eq!(event.as_bytes().as_slice(), [0xB0 | channel, 0x01, value]);
+    event = ModulationWheelLSB(channel, value);
+    assert_eq!(event.as_bytes().as_slice(), [0xB0 | channel, 0x21, value]);
+    event = BreathController(channel, value);
+    assert_eq!(event.as_bytes().as_slice(), [0xB0 | channel, 0x02, value]);
+    event = BreathControllerLSB(channel, value);
+    assert_eq!(event.as_bytes().as_slice(), [0xB0 | channel, 0x22, value]);
+    event = FootPedal(channel, value);
+    assert_eq!(event.as_bytes().as_slice(), [0xB0 | channel, 0x04, value]);
+    event = FootPedalLSB(channel, value);
+    assert_eq!(event.as_bytes().as_slice(), [0xB0 | channel, 0x24, value]);
+    event = PortamentoTime(channel, value);
+    assert_eq!(event.as_bytes().as_slice(), [0xB0 | channel, 0x05, value]);
+    event = PortamentoTimeLSB(channel, value);
+    assert_eq!(event.as_bytes().as_slice(), [0xB0 | channel, 0x25, value]);
+    event = DataEntry(channel, value);
+    assert_eq!(event.as_bytes().as_slice(), [0xB0 | channel, 0x06, value]);
+    event = DataEntryLSB(channel, value);
+    assert_eq!(event.as_bytes().as_slice(), [0xB0 | channel, 0x26, value]);
+    event = Volume(channel, value);
+    assert_eq!(event.as_bytes().as_slice(), [0xB0 | channel, 0x07, value]);
+    event = VolumeLSB(channel, value);
+    assert_eq!(event.as_bytes().as_slice(), [0xB0 | channel, 0x27, value]);
+    event = Balance(channel, value);
+    assert_eq!(event.as_bytes().as_slice(), [0xB0 | channel, 0x08, value]);
+    event = BalanceLSB(channel, value);
+    assert_eq!(event.as_bytes().as_slice(), [0xB0 | channel, 0x28, value]);
+    event = Pan(channel, value);
+    assert_eq!(event.as_bytes().as_slice(), [0xB0 | channel, 0x0A, value]);
+    event = PanLSB(channel, value);
+    assert_eq!(event.as_bytes().as_slice(), [0xB0 | channel, 0x2A, value]);
+    event = Expression(channel, value);
+    assert_eq!(event.as_bytes().as_slice(), [0xB0 | channel, 0x0B, value]);
+    event = ExpressionLSB(channel, value);
+    assert_eq!(event.as_bytes().as_slice(), [0xB0 | channel, 0x2B, value]);
+    event = EffectControl1(channel, value);
+    assert_eq!(event.as_bytes().as_slice(), [0xB0 | channel, 0x0C, value]);
+    event = EffectControl1LSB(channel, value);
+    assert_eq!(event.as_bytes().as_slice(), [0xB0 | channel, 0x2C, value]);
+    event = EffectControl2(channel, value);
+    assert_eq!(event.as_bytes().as_slice(), [0xB0 | channel, 0x0D, value]);
+    event = EffectControl2LSB(channel, value);
+    assert_eq!(event.as_bytes().as_slice(), [0xB0 | channel, 0x2D, value]);
+    event = GeneralPurpose1(channel, value);
+    assert_eq!(event.as_bytes().as_slice(), [0xB0 | channel, 0x10, value]);
+    event = GeneralPurpose1LSB(channel, value);
+    assert_eq!(event.as_bytes().as_slice(), [0xB0 | channel, 0x30, value]);
+    event = GeneralPurpose2(channel, value);
+    assert_eq!(event.as_bytes().as_slice(), [0xB0 | channel, 0x11, value]);
+    event = GeneralPurpose2LSB(channel, value);
+    assert_eq!(event.as_bytes().as_slice(), [0xB0 | channel, 0x31, value]);
+    event = GeneralPurpose3(channel, value);
+    assert_eq!(event.as_bytes().as_slice(), [0xB0 | channel, 0x12, value]);
+    event = GeneralPurpose3LSB(channel, value);
+    assert_eq!(event.as_bytes().as_slice(), [0xB0 | channel, 0x32, value]);
+    event = GeneralPurpose4(channel, value);
+    assert_eq!(event.as_bytes().as_slice(), [0xB0 | channel, 0x13, value]);
+    event = GeneralPurpose4LSB(channel, value);
+    assert_eq!(event.as_bytes().as_slice(), [0xB0 | channel, 0x33, value]);
+    event = HoldPedal(channel, value);
+    assert_eq!(event.as_bytes().as_slice(), [0xB0 | channel, 0x40, value]);
+    event = Portamento(channel, value);
+    assert_eq!(event.as_bytes().as_slice(), [0xB0 | channel, 0x41, value]);
+    event = Sustenuto(channel, value);
+    assert_eq!(event.as_bytes().as_slice(), [0xB0 | channel, 0x42, value]);
+    event = SoftPedal(channel, value);
+    assert_eq!(event.as_bytes().as_slice(), [0xB0 | channel, 0x43, value]);
+    event = Legato(channel, value);
+    assert_eq!(event.as_bytes().as_slice(), [0xB0 | channel, 0x44, value]);
+    event = Hold2Pedal(channel, value);
+    assert_eq!(event.as_bytes().as_slice(), [0xB0 | channel, 0x45, value]);
+    event = SoundVariation(channel, value);
+    assert_eq!(event.as_bytes().as_slice(), [0xB0 | channel, 0x46, value]);
+    event = SoundTimbre(channel, value);
+    assert_eq!(event.as_bytes().as_slice(), [0xB0 | channel, 0x47, value]);
+    event = SoundReleaseTime(channel, value);
+    assert_eq!(event.as_bytes().as_slice(), [0xB0 | channel, 0x48, value]);
+    event = SoundAttack(channel, value);
+    assert_eq!(event.as_bytes().as_slice(), [0xB0 | channel, 0x49, value]);
+    event = SoundBrightness(channel, value);
+    assert_eq!(event.as_bytes().as_slice(), [0xB0 | channel, 0x4A, value]);
+    event = SoundControl1(channel, value);
+    assert_eq!(event.as_bytes().as_slice(), [0xB0 | channel, 0x4B, value]);
+    event = SoundControl2(channel, value);
+    assert_eq!(event.as_bytes().as_slice(), [0xB0 | channel, 0x4C, value]);
+    event = SoundControl3(channel, value);
+    assert_eq!(event.as_bytes().as_slice(), [0xB0 | channel, 0x4D, value]);
+    event = SoundControl4(channel, value);
+    assert_eq!(event.as_bytes().as_slice(), [0xB0 | channel, 0x4E, value]);
+    event = SoundControl5(channel, value);
+    assert_eq!(event.as_bytes().as_slice(), [0xB0 | channel, 0x4F, value]);
+    event = GeneralPurpose5(channel, value);
+    assert_eq!(event.as_bytes().as_slice(), [0xB0 | channel, 0x50, value]);
+    event = GeneralPurpose6(channel, value);
+    assert_eq!(event.as_bytes().as_slice(), [0xB0 | channel, 0x51, value]);
+    event = GeneralPurpose7(channel, value);
+    assert_eq!(event.as_bytes().as_slice(), [0xB0 | channel, 0x52, value]);
+    event = GeneralPurpose8(channel, value);
+    assert_eq!(event.as_bytes().as_slice(), [0xB0 | channel, 0x53, value]);
+    event = EffectsLevel(channel, value);
+    assert_eq!(event.as_bytes().as_slice(), [0xB0 | channel, 0x5B, value]);
+    event = TremuloLevel(channel, value);
+    assert_eq!(event.as_bytes().as_slice(), [0xB0 | channel, 0x5C, value]);
+    event = ChorusLevel(channel, value);
+    assert_eq!(event.as_bytes().as_slice(), [0xB0 | channel, 0x5D, value]);
+    event = CelesteLevel(channel, value);
+    assert_eq!(event.as_bytes().as_slice(), [0xB0 | channel, 0x5E, value]);
+    event = PhaserLevel(channel, value);
+    assert_eq!(event.as_bytes().as_slice(), [0xB0 | channel, 0x5F, value]);
+    event = RegisteredParameterNumber(channel, value);
+    assert_eq!(event.as_bytes().as_slice(), [0xB0 | channel, 0x65, value]);
+    event = RegisteredParameterNumberLSB(channel, value);
+    assert_eq!(event.as_bytes().as_slice(), [0xB0 | channel, 0x64, value]);
+    event = NonRegisteredParameterNumber(channel, value);
+    assert_eq!(event.as_bytes().as_slice(), [0xB0 | channel, 0x63, value]);
+    event = NonRegisteredParameterNumberLSB(channel, value);
+    assert_eq!(event.as_bytes().as_slice(), [0xB0 | channel, 0x62, value]);
+    event = LocalControl(channel, value);
+    assert_eq!(event.as_bytes().as_slice(), [0xB0 | channel, 0x7A, value]);
+    event = MonophonicOperation(channel, value);
+    assert_eq!(event.as_bytes().as_slice(), [0xB0 | channel, 0xFE, value]);
+
+    event = DataIncrement(channel);
+    assert_eq!(event.as_bytes().as_slice(), [0xB0 | channel, 0x60, 0]);
+    event = DataDecrement(channel);
+    assert_eq!(event.as_bytes().as_slice(), [0xB0 | channel, 0x61, 0]);
+    event = PolyphonicOperation(channel);
+    assert_eq!(event.as_bytes().as_slice(), [0xB0 | channel, 0xFF, 0]);
+    event = AllSoundOff(channel);
+    assert_eq!(event.as_bytes().as_slice(), [0xB0 | channel, 0x78, 0]);
+    event = AllControllersOff(channel);
+    assert_eq!(event.as_bytes().as_slice(), [0xB0 | channel, 0x79, 0]);
+    event = AllNotesOff(channel);
+    assert_eq!(event.as_bytes().as_slice(), [0xB0 | channel, 0x7B, 0]);
+    event = OmniOff(channel);
+    assert_eq!(event.as_bytes().as_slice(), [0xB0 | channel, 0x7C, 0]);
+    event = OmniOn(channel);
+    assert_eq!(event.as_bytes().as_slice(), [0xB0 | channel, 0x7D, 0]);
 }
 
 #[test]

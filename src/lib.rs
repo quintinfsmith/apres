@@ -115,6 +115,7 @@ pub enum MIDIEvent {
 	MonophonicOperation(u8, u8),
 	PolyphonicOperation(u8),
 	ControlChange(u8, u8, u8),
+
 	ProgramChange(u8, u8),
 	ChannelPressure(u8, u8),
 	PitchWheelChange(u8, f64),
@@ -123,6 +124,7 @@ pub enum MIDIEvent {
 	SongPositionPointer(u16),
 	SongSelect(u8),
     TimeCode(f32, u8, u8, u8, u8),
+
 	EndOfTrack,
     TuneRequest,
     MIDIClock,
