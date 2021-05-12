@@ -821,6 +821,9 @@ class CelesteLevel(VariableControlChange):
 class PhaserLevel(VariableControlChange):
     _rust_id = 90
     CONTROL_BYTE = 0x5F
+class LocalControl(VariableControlChange):
+    _rust_id = 98
+    CONTROL_BYTE = 0x7A
 class MonophonicOperation(VariableControlChange):
     _rust_id = 103
     CONTROL_BYTE = 0xFE
@@ -831,6 +834,10 @@ class DataIncrement(InvariableControlChange):
 class DataDecrement(InvariableControlChange):
     _rust_id = 92
     CONTROL_BYTE = 0x61
+class AllControllersOff(InvariableControlChange):
+    _rust_id = 97
+    CONTROL_BYTE = 0x79
+
 class AllNotesOff(InvariableControlChange):
     _rust_id = 99
     CONTROL_BYTE = 0x7B
