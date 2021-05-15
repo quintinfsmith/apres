@@ -6,8 +6,6 @@ import os
 import platform
 import time
 import select
-import pyinotify
-
 
 
 def logg(*msg):
@@ -1484,51 +1482,12 @@ class MIDI:
 class PipeClosed(Exception):
     '''Error Thrown when the midi device pipe is closed or disconnected'''
 
-class TaskHandler(pyinotify.ProcessEvent):
-    '''Event hooks to connect/disconnect from newly made midi device'''
-    def __init__(self, controller):
-        self.controller = controller
-        super().__init__()
-
-    def process_IN_CREATE(self, event):
-        '''Hook to connect when midi device is plugged in'''
-        if event.name[0:4] == 'midi':
-            time.sleep(.5)
-            self.controller.connect(event.pathname)
-
-    def process_IN_DELETE(self, event):
-        '''Hook to disconnect when midi device is unplugged'''
-        if event.name[0:4] == 'midi':
-            self.controller.disconnect(event.pathname)
-
-
-
 class MIDIController:
-    DEVROOT = '/dev/'
     '''Read Input from Midi Device'''
-    def __init__(self, midipath=""):
+    def __init__(self, default_path=""):
         self.pipe = None
         self.midipath = None
-
-        if midipath:
-            if os.path.exists(midipath):
-                self.connect(midipath)
-        else:
-            for dev in os.listdir(MIDIController.DEVROOT):
-                if dev[0:4] == 'midi':
-                    self.connect(MIDIController.DEVROOT + dev)
-                    break
-
-
-        self.watch_manager = pyinotify.WatchManager()
-        notifier = pyinotify.ThreadedNotifier(self.watch_manager, TaskHandler(self))
-        notifier.daemon = True
-        notifier.start()
-        self.watch_manager.add_watch(
-            MIDIController.DEVROOT,
-            pyinotify.IN_CREATE | pyinotify.IN_DELETE
-        )
-
+        self.connect(default_path)
         self.hook_map = {}
 
     def set_hook(self, event_type, hook):
@@ -1540,25 +1499,24 @@ class MIDIController:
 
     def connect(self, path):
         '''Attempt to open a pipe to the path specified'''
-        if not self.pipe and os.path.exists(path):
+        if not self.pipe:
             self.pipe = open(path, 'rb')
             self.midipath = path
 
-    def disconnect(self, midipath):
-        '''Close the pipe to the path specified'''
-        if self.midipath == midipath:
-            try:
-                if self.pipe != None:
-                    self.pipe.close()
-            except Exception as e:
-                raise e
+    def disconnect(self):
+        '''Close the pipe.'''
+        try:
+            if self.pipe != None:
+                self.pipe.close()
+        except Exception as e:
+            raise e
 
-            self.pipe = None
-            self.midipath = ''
+        self.pipe = None
+        self.midipath = ''
 
     def close(self):
         '''Tear down this midi controller'''
-        self.disconnect(self.midipath)
+        self.disconnect()
 
     def get_next_byte(self):
         '''Attempt to read next byte from pipe'''
