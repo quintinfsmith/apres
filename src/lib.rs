@@ -1168,7 +1168,7 @@ impl MIDIBytes for MIDIEvent {
                             output = Ok(event);
                         }
                         0x58 => {
-                            let event = MIDIEvent::TimeSignature(bytedump[0], (2u32.pow(bytedump[1] as u32) as u8), bytedump[2], bytedump[3]);
+                            let event = MIDIEvent::TimeSignature(bytedump[0], bytedump[1], bytedump[2], bytedump[3]);
                             output = Ok(event);
                         }
                         0x59 => {
