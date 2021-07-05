@@ -1,12 +1,14 @@
 '''Mutable Midi Library'''
-import sys, site
-from cffi import FFI
-from ctypes.util import find_library
+import sys
+import site
 import os
 import platform
 import time
 import select
-
+import threading
+from typing import Type, Callable
+from ctypes.util import find_library
+from cffi import FFI
 
 def logg(*msg):
     with open("logg", "a") as fp:
@@ -29,7 +31,7 @@ class InvalidMIDIFile(Exception):
     pass
 
 class MIDIEvent:
-    def __init__(self, **kwargs):
+    def __init__(self, **_kwargs):
         self.uuid = None
 
     def pullsync(self):
@@ -62,7 +64,7 @@ class MIDIEvent:
     def move(self, **kwargs):
         active_track = 0
         if "track" in kwargs.keys():
-            active_track = track
+            active_track = kwargs['track']
 
         if "tick" in kwargs.keys():
             active_tick = kwargs["tick"]
@@ -297,9 +299,6 @@ class EndOfTrack(MIDIEvent):
     def pullsync(self):
         pass
 
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-
 class ChannelPrefix(MIDIEvent):
     _rust_id = 9
     channel = 0
@@ -487,7 +486,7 @@ class TimeSignature(MIDIEvent):
         self.update_event()
 
     def set_thirtysecondths_per_quarter_note(self, tspqn):
-        self.thirtysecondths_per_quarter_note = tspqn
+        self.thirtysecondths_per_quarter = tspqn
         self.update_event()
 
 
@@ -579,7 +578,7 @@ class NoteOn(MIDIEvent):
             self.velocity
         ])
     def __init__(self, **kwargs):
-        if not "uuid" in kwargs.keys():
+        if "uuid" not in kwargs.keys():
             self.channel = kwargs["channel"]
             self.note = kwargs["note"]
             self.velocity = kwargs["velocity"]
@@ -739,6 +738,7 @@ class ControlChange(MIDIEvent):
 
 
 class VariableControlChange(ControlChange):
+    CONTROL_BYTE = 0
     def get_controller(self):
         return self.CONTROL_BYTE
 
@@ -1114,12 +1114,12 @@ class MTCQuarterFrame(MIDIEvent):
     _rust_id = 24
     time_code = 0
     def __bytes__(self):
-        return bytes([0xF1, time_code])
+        return bytes([0xF1, self.time_code])
 
     def __init__(self, **kwargs):
         if "uuid" not in kwargs.keys():
             self.time_code = kwargs["time_code"] & 0xFF
-        super().__init__(kwargs)
+        super().__init__(**kwargs)
 
     def pullsync(self):
         self.time_code = self.get_property(0)[0] & 0xFF
@@ -1156,7 +1156,7 @@ class SongSelect(MIDIEvent):
         return bytes([0xF3, self.song & 0xFF])
 
     def __init__(self, **kwargs):
-        if "uuid" not in kwrags.keys():
+        if "uuid" not in kwargs.keys():
             self.song = kwargs["song"]
         super().__init__(**kwargs)
 
@@ -1394,7 +1394,7 @@ class MIDI:
 
     def get_all_events(self):
         event_list = []
-        for event_id, (track, tick) in self.event_positions.items():
+        for event_id, (_, tick) in self.event_positions.items():
             event_list.append((tick, event_id))
         event_list.sort()
 
@@ -1486,18 +1486,20 @@ class MIDIController:
     '''Read Input from Midi Device'''
     def __init__(self, default_path=""):
         self.pipe = None
+        self.listening = False
         self.midipath = None
         self.connect(default_path)
         self.hook_map = {}
+        self.event_queue = []
 
-    def set_hook(self, event_type, hook):
+    def set_hook(self, event_type: Type[MIDIEvent], hook: Callable[MIDIEvent, None]):
         self.hook_map[event_type] = hook
 
-    def is_connected(self):
+    def is_connected(self) -> bool:
         '''Check if pipe is open and ready to be read'''
         return bool(self.pipe)
 
-    def connect(self, path):
+    def connect(self, path: str):
         '''Attempt to open a pipe to the path specified'''
         if not self.pipe:
             self.pipe = open(path, 'rb')
@@ -1506,7 +1508,7 @@ class MIDIController:
     def disconnect(self):
         '''Close the pipe.'''
         try:
-            if self.pipe != None:
+            if self.pipe is not None:
                 self.pipe.close()
         except Exception as e:
             raise e
@@ -1518,7 +1520,7 @@ class MIDIController:
         '''Tear down this midi controller'''
         self.disconnect()
 
-    def get_next_byte(self):
+    def get_next_byte(self) -> int:
         '''Attempt to read next byte from pipe'''
         output = None
         while not output:
@@ -1540,7 +1542,8 @@ class MIDIController:
                     except ValueError:
                         continue
 
-                else: #wait for input
+                else:
+                # wait for input
                     time.sleep(.01)
             else:
                 raise PipeClosed()
@@ -1549,6 +1552,8 @@ class MIDIController:
 
     def listen(self):
         self.listening = True
+        pq_thread = threading.Thread(target=self._process_queue)
+        pq_thread.start()
         while self.listening:
             try:
                 event = self.get_next_event()
@@ -1562,7 +1567,15 @@ class MIDIController:
             #FIXME: Massive kludge so I don't have to put in a shit tonne of bioler-plate, empty functions.
             hookname = "hook_" + str(type(event).__name__)
             if hookname in dir(self):
-                self.__getattribute__(hookname)(event)
+                self.event_queue.append((self.__getattribute__(hookname), event))
+
+    def _process_queue(self):
+        while self.listening:
+            try:
+                hook, event = self.event_queue.pop(0)
+                hook(event)
+            except:
+                time.sleep(.01)
 
     def get_next_event(self):
         '''Read Midi Input Device until relevant event is found'''
@@ -1587,7 +1600,7 @@ class MIDIController:
             channel = lead_byte & 0x0F
             note = self.get_next_byte()
             velocity = self.get_next_byte()
-            return AfterTouch(channel=channel, note=note, velocity=velocity)
+            return PolyphonicKeyPressure(channel=channel, note=note, velocity=velocity)
 
         elif lead_byte & 0xF0 == 0xB0:
             channel = lead_byte & 0x0F
@@ -1641,9 +1654,9 @@ class MIDIController:
             elif coded_rate == 1:
                 rate = 25
             elif coded_rate == 2:
-                29.97
+                rate = 29.97
             else:
-                30
+                rate = 30
 
             hour = byte_a & 0x1F
             minute = self.get_next_byte() & 0x3F
@@ -1695,4 +1708,19 @@ class MIDIController:
         # Undefined Behaviour
         else:
             return None
+
+
+def to_variable_length(number: int) -> bytes:
+    output = []
+    is_first_pass = True
+    working_number = number
+    while working_number > 0 or is_first_pass:
+        tmp = working_number & 0x7F
+        working_number >>= 7
+        if not is_first_pass:
+            tmp |= 0x80
+        else:
+            is_first_pass = False
+        output.append(tmp)
+    return bytes(output[::-1])
 
