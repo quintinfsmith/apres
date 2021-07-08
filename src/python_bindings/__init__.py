@@ -6,7 +6,7 @@ import platform
 import time
 import select
 import threading
-from typing import Type, Callable
+from typing import Type, Callable, Final
 from ctypes.util import find_library
 from cffi import FFI
 
