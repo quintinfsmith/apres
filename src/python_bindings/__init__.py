@@ -34,7 +34,7 @@ class MIDIEvent:
     def __init__(self, **_kwargs):
         self.uuid = None
 
-    def pullsync(self):
+    def pullsync(self) -> None:
         '''update the python object with data from the rust layer'''
         pass
 
@@ -79,7 +79,7 @@ class MIDIEvent:
 class SequenceNumber(MIDIEvent):
     _rust_id = 22
     sequence = 0
-    def __bytes__(self):
+    def __bytes__(self) -> bytes:
         output = [
             0xFF,
             self.eid,
@@ -94,7 +94,7 @@ class SequenceNumber(MIDIEvent):
             self.sequence = kwargs['sequence']
         super().__init__(**kwargs)
 
-    def pullsync(self):
+    def pullsync(self) -> None:
         self.sequence = 0
         for b in self.get_property(0):
             self.sequence *= 256
@@ -111,7 +111,7 @@ class SequenceNumber(MIDIEvent):
 class Text(MIDIEvent):
     _rust_id = 1
     text = ''
-    def __bytes__(self):
+    def __bytes__(self) -> bytes:
         output = [0xFF, 0x01]
         text_bytes = self.text.encode("utf8")
         output.extend(to_variable_length(len(text_bytes)))
@@ -122,7 +122,7 @@ class Text(MIDIEvent):
             self.text = kwargs['text']
         super().__init__(**kwargs)
 
-    def pullsync(self):
+    def pullsync(self) -> None:
         text = self.get_property(0)
         bytelist = bytes(text)
         self.text = bytelist.decode("utf8")
@@ -138,7 +138,7 @@ class Text(MIDIEvent):
 class CopyRightNotice(MIDIEvent):
     _rust_id = 2
     text = ""
-    def __bytes__(self):
+    def __bytes__(self) -> bytes:
         output = [0xFF, 0x02]
         text_bytes = self.text.encode("utf8")
         output.extend(to_variable_length(len(text_bytes)))
@@ -149,7 +149,7 @@ class CopyRightNotice(MIDIEvent):
             self.text = kwargs["text"]
         super().__init__(**kwargs)
 
-    def pullsync(self):
+    def pullsync(self) -> None:
         text = self.get_property(0)
         bytelist = bytes(text)
         self.text = bytelist.decode("utf8")
@@ -164,7 +164,7 @@ class CopyRightNotice(MIDIEvent):
 class TrackName(MIDIEvent):
     _rust_id = 3
     name = ""
-    def __bytes__(self):
+    def __bytes__(self) -> bytes:
         output = [0xFF, 0x03]
         text_bytes = self.name.encode("utf8")
         output.extend(to_variable_length(len(text_bytes)))
@@ -175,7 +175,7 @@ class TrackName(MIDIEvent):
             self.name = kwargs["name"]
         super().__init__(**kwargs)
 
-    def pullsync(self):
+    def pullsync(self) -> None:
         name = self.get_property(0)
         bytelist = bytes(name)
         self.name = bytelist.decode("utf8")
@@ -190,7 +190,7 @@ class TrackName(MIDIEvent):
 class InstrumentName(MIDIEvent):
     _rust_id = 4
     name = ""
-    def __bytes__(self):
+    def __bytes__(self) -> bytes:
         output = [0xFF, 0x04]
         text_bytes = self.name.encode("utf8")
         output.extend(to_variable_length(len(text_bytes)))
@@ -201,7 +201,7 @@ class InstrumentName(MIDIEvent):
             self.name = kwargs["name"]
         super().__init__(**kwargs)
 
-    def pullsync(self):
+    def pullsync(self) -> None:
         name = self.get_property(0)
         bytelist = bytes(name)
         self.name = bytelist.decode("utf8")
@@ -216,7 +216,7 @@ class InstrumentName(MIDIEvent):
 class Lyric(MIDIEvent):
     _rust_id = 5
     lyric = ""
-    def __bytes__(self):
+    def __bytes__(self) -> bytes:
         output = [0xFF, 0x05]
         text_bytes = self.lyric.encode("utf8")
         output.extend(to_variable_length(len(text_bytes)))
@@ -227,7 +227,7 @@ class Lyric(MIDIEvent):
             self.lyric = kwargs["lyric"]
         super().__init__(**kwargs)
 
-    def pullsync(self):
+    def pullsync(self) -> None:
         lyric = self.get_property(0)
         bytelist = bytes(lyric)
         self.lyric = bytelist.decode("utf8")
@@ -242,7 +242,7 @@ class Lyric(MIDIEvent):
 class Marker(MIDIEvent):
     _rust_id = 6
     text = ""
-    def __bytes__(self):
+    def __bytes__(self) -> bytes:
         output = [0xFF, 0x06]
         text_bytes = self.text.encode("utf8")
         output.extend(to_variable_length(len(text_bytes)))
@@ -253,7 +253,7 @@ class Marker(MIDIEvent):
             self.text = kwargs["text"]
         super().__init__(**kwargs)
 
-    def pullsync(self):
+    def pullsync(self) -> None:
         text = self.get_property(0)
         bytelist = bytes(text)
         self.text = bytelist.decode("utf8")
@@ -268,7 +268,7 @@ class Marker(MIDIEvent):
 class CuePoint(MIDIEvent):
     _rust_id = 7
     text = ""
-    def __bytes__(self):
+    def __bytes__(self) -> bytes:
         output = [0xFF, 0x07]
         text_bytes = self.text.encode("utf8")
         output.extend(to_variable_length(len(text_bytes)))
@@ -279,7 +279,7 @@ class CuePoint(MIDIEvent):
             self.text = kwargs["text"]
         super().__init__(**kwargs)
 
-    def pullsync(self):
+    def pullsync(self) -> None:
         text = self.get_property(0)
         bytelist = bytes(text)
         self.text = bytelist.decode("utf8")
@@ -293,16 +293,16 @@ class CuePoint(MIDIEvent):
 
 class EndOfTrack(MIDIEvent):
     _rust_id = 8
-    def __bytes__(self):
+    def __bytes__(self) -> bytes:
         return bytes([0xFF, 0x2F, 0x00])
 
-    def pullsync(self):
+    def pullsync(self) -> None:
         pass
 
 class ChannelPrefix(MIDIEvent):
     _rust_id = 9
     channel = 0
-    def __bytes__(self):
+    def __bytes__(self) -> bytes:
         return bytes([0xFF, 0x20, 0x01, self.channel])
 
     def __init__(self, **kwargs):
@@ -310,7 +310,7 @@ class ChannelPrefix(MIDIEvent):
             self.channel = kwargs["channel"]
         super().__init__(**kwargs)
 
-    def pullsync(self):
+    def pullsync(self) -> None:
         channel = self.get_property(0)
         self.channel = channel[0]
 
@@ -324,7 +324,7 @@ class ChannelPrefix(MIDIEvent):
 class SetTempo(MIDIEvent):
     _rust_id = 10
     us_per_quarter_note = 500000
-    def __bytes__(self):
+    def __bytes__(self) -> bytes:
         return bytes([
             0xFF, 0x51, 0x03,
             (self.us_per_quarter_note // (256 ** 2)) % 256,
@@ -345,7 +345,7 @@ class SetTempo(MIDIEvent):
 
         super().__init__(**kwargs)
 
-    def pullsync(self):
+    def pullsync(self) -> None:
         self.us_per_quarter_note = 0
         for n in self.get_property(0):
             self.us_per_quarter_note *= 256
@@ -378,7 +378,7 @@ class SetTempo(MIDIEvent):
 
 class SMPTEOffset(MIDIEvent):
     _rust_id = 11
-    def __bytes__(self):
+    def __bytes__(self) -> bytes:
         return bytes([
             0xFF, 0x54, 0x05,
             self.hour, self.minute, self.second,
@@ -394,7 +394,7 @@ class SMPTEOffset(MIDIEvent):
             self.fr = kwargs["fr"]
         super().__init__(**kwargs)
 
-    def pullsync(self):
+    def pullsync(self) -> None:
         self.hour = self.get_property(0)[0]
         self.minute = self.get_property(1)[0]
         self.second = self.get_property(2)[0]
@@ -439,7 +439,7 @@ class SMPTEOffset(MIDIEvent):
 
 class TimeSignature(MIDIEvent):
     _rust_id = 12
-    def __bytes__(self):
+    def __bytes__(self) -> bytes:
         return bytes([
             0xFF, 0x58, 0x04,
             self.numerator, self.denominator,
@@ -455,11 +455,11 @@ class TimeSignature(MIDIEvent):
             self.thirtysecondths_per_quarter = kwargs["tspqn"]
         super().__init__(**kwargs)
 
-    def pullsync(self):
+    def pullsync(self) -> None:
         self.numerator = self.get_property(0)[0]
         self.denominator = self.get_property(1)[0]
-        self.clocks_per_metronome = self.get_property(3)[0]
-        self.thirtysecondths_per_quarter = self.get_property(4)[0]
+        self.clocks_per_metronome = self.get_property(2)[0]
+        self.thirtysecondths_per_quarter = self.get_property(3)[0]
 
     def get_numerator(self):
         return self.numerator
@@ -524,7 +524,7 @@ class KeySignature(MIDIEvent):
         "Gm": (1, 8 | 2)
     }
 
-    def __bytes__(self):
+    def __bytes__(self) -> bytes:
         mi, sf = self.misf_map[self.key]
         return bytes([0xFF, 0x59, 0x02, sf, mi])
 
@@ -533,7 +533,7 @@ class KeySignature(MIDIEvent):
             self.key = kwargs["key"]
         super().__init__(**kwargs)
 
-    def pullsync(self):
+    def pullsync(self) -> None:
         self.key = bytes(self.get_property(0)).decode("utf8")
 
     def get_key(self):
@@ -547,7 +547,7 @@ class KeySignature(MIDIEvent):
 class Sequencer(MIDIEvent):
     _rust_id = 14
     data = b''
-    def __bytes__(self):
+    def __bytes__(self) -> bytes:
         output = [0xFF, 0x7F]
         data_length = len(self.data)
         output.extend(to_variable_length(data_length))
@@ -558,7 +558,7 @@ class Sequencer(MIDIEvent):
             self.data = kwargs["data"]
         super().__init__(**kwargs)
 
-    def pullsync(self):
+    def pullsync(self) -> None:
         self.data = bytes(self.get_property(0))
 
     def get_data(self):
@@ -571,7 +571,7 @@ class Sequencer(MIDIEvent):
 
 class NoteOn(MIDIEvent):
     _rust_id = 15
-    def __bytes__(self):
+    def __bytes__(self) -> bytes:
         return bytes([
             0x90 | self.channel,
             self.note,
@@ -584,7 +584,7 @@ class NoteOn(MIDIEvent):
             self.velocity = kwargs["velocity"]
         super().__init__(**kwargs)
 
-    def pullsync(self):
+    def pullsync(self) -> None:
         prop = self.get_property(0)
         self.channel = prop[0]
         self.note = self.get_property(1)[0]
@@ -613,7 +613,7 @@ class NoteOn(MIDIEvent):
 
 class NoteOff(MIDIEvent):
     _rust_id = 16
-    def __bytes__(self):
+    def __bytes__(self) -> bytes:
         return bytes([
             0x80 | self.channel,
             self.note,
@@ -627,7 +627,7 @@ class NoteOff(MIDIEvent):
             self.velocity = kwargs["velocity"]
         super().__init__(**kwargs)
 
-    def pullsync(self):
+    def pullsync(self) -> None:
         self.channel = self.get_property(0)[0]
         self.note = self.get_property(1)[0]
         self.velocity = self.get_property(2)[0]
@@ -655,7 +655,7 @@ class NoteOff(MIDIEvent):
 
 class PolyphonicKeyPressure(MIDIEvent):
     _rust_id = 17
-    def __bytes__(self):
+    def __bytes__(self) -> bytes:
         return bytes([
             0xA0 | self.channel,
             self.note,
@@ -668,7 +668,7 @@ class PolyphonicKeyPressure(MIDIEvent):
             self.pressure = kwargs["pressure"]
         super().__init__(**kwargs)
 
-    def pullsync(self):
+    def pullsync(self) -> None:
         self.channel = self.get_property(0)[0]
         self.note = self.get_property(1)[0]
         self.pressure = self.get_property(2)[0]
@@ -696,7 +696,7 @@ class PolyphonicKeyPressure(MIDIEvent):
 
 class ControlChange(MIDIEvent):
     _rust_id = 18
-    def __bytes__(self):
+    def __bytes__(self) -> bytes:
         return bytes([
             0xB0 | self.channel,
             self.get_controller(),
@@ -710,7 +710,7 @@ class ControlChange(MIDIEvent):
             self.value = kwargs["value"]
         super().__init__(**kwargs)
 
-    def pullsync(self):
+    def pullsync(self) -> None:
         self.value = self.get_property(2)[0]
         self.channel = self.get_property(0)[0]
         self.controller = self.get_property(1)[0]
@@ -742,7 +742,7 @@ class VariableControlChange(ControlChange):
     def get_controller(self):
         return self.CONTROL_BYTE
 
-    def pullsync(self):
+    def pullsync(self) -> None:
         self.controller = self.CONTROL_BYTE
         self.value = self.get_property(1)[0]
         self.channel = self.get_property(0)[0]
@@ -751,7 +751,7 @@ class InvariableControlChange(VariableControlChange):
     def get_value(self):
         return 0
 
-    def pullsync(self):
+    def pullsync(self) -> None:
         self.channel = self.get_property(0)[0]
 
 class HoldPedal(VariableControlChange):
@@ -977,7 +977,7 @@ class GeneralPurpose8(VariableControlChange):
 
 class ProgramChange(MIDIEvent):
     _rust_id = 19
-    def __bytes__(self):
+    def __bytes__(self) -> bytes:
         return bytes([
             0xC0 | self.channel,
             self.program
@@ -989,7 +989,7 @@ class ProgramChange(MIDIEvent):
             self.program = kwargs["program"]
         super().__init__(**kwargs)
 
-    def pullsync(self):
+    def pullsync(self) -> None:
         self.channel = self.get_property(0)[0]
         self.program = self.get_property(1)[0]
 
@@ -1010,7 +1010,7 @@ class ProgramChange(MIDIEvent):
 
 class ChannelPressure(MIDIEvent):
     _rust_id = 20
-    def __bytes__(self):
+    def __bytes__(self) -> bytes:
         return bytes([
             0xD0 | self.channel,
             self.pressure
@@ -1022,7 +1022,7 @@ class ChannelPressure(MIDIEvent):
             self.pressure = kwargs["pressure"]
         super().__init__(**kwargs)
 
-    def pullsync(self):
+    def pullsync(self) -> None:
         self.channel = self.get_property(0)[0]
         self.pressure = self.get_property(1)[0]
 
@@ -1047,7 +1047,7 @@ class PitchWheelChange(MIDIEvent):
     '''
 
     _rust_id = 21
-    def __bytes__(self):
+    def __bytes__(self) -> bytes:
         unsigned_value = self.get_unsigned_value()
         least = unsigned_value & 0x007F
         most = (unsigned_value >> 7) & 0x007F
@@ -1059,7 +1059,7 @@ class PitchWheelChange(MIDIEvent):
             self.value = kwargs["value"]
         super().__init__(**kwargs)
 
-    def pullsync(self):
+    def pullsync(self) -> None:
         self.channel = self.get_property(0)[0]
 
         prop = self.get_property(1)
@@ -1087,7 +1087,7 @@ class PitchWheelChange(MIDIEvent):
 class SystemExclusive(MIDIEvent):
     _rust_id = 23
     data = b''
-    def __bytes__(self):
+    def __bytes__(self) -> bytes:
         output = [0xF0]
         for b in self.data:
             output.append(b)
@@ -1100,7 +1100,7 @@ class SystemExclusive(MIDIEvent):
 
         super().__init__(**kwargs)
 
-    def pullsync(self):
+    def pullsync(self) -> None:
         self.data = bytes(self.get_property(0))
 
     def get_data(self):
@@ -1121,7 +1121,7 @@ class MTCQuarterFrame(MIDIEvent):
             self.time_code = kwargs["time_code"] & 0xFF
         super().__init__(**kwargs)
 
-    def pullsync(self):
+    def pullsync(self) -> None:
         self.time_code = self.get_property(0)[0] & 0xFF
 
     def get_time_code(self):
@@ -1129,7 +1129,7 @@ class MTCQuarterFrame(MIDIEvent):
 
 class SongPositionPointer(MIDIEvent):
     _rust_id = 25
-    def __bytes__(self):
+    def __bytes__(self) -> bytes:
         least = self.beat & 0x7F
         most = (self.beat >> 7) & 0x7F
         return bytes([0xF2, least, most])
@@ -1139,7 +1139,7 @@ class SongPositionPointer(MIDIEvent):
             self.beat = kwargs["beat"]
         super().__init__(**kwargs)
 
-    def pullsync(self):
+    def pullsync(self) -> None:
         prop = self.get_property(0)
         self.beat = (prop[0] * 256) + prop[1]
 
@@ -1152,7 +1152,7 @@ class SongPositionPointer(MIDIEvent):
 
 class SongSelect(MIDIEvent):
     _rust_id = 26
-    def __bytes__(self):
+    def __bytes__(self) -> bytes:
         return bytes([0xF3, self.song & 0xFF])
 
     def __init__(self, **kwargs):
@@ -1160,7 +1160,7 @@ class SongSelect(MIDIEvent):
             self.song = kwargs["song"]
         super().__init__(**kwargs)
 
-    def pullsync(self):
+    def pullsync(self) -> None:
         self.song = self.get_property(0)[0]
 
     def get_song(self):
@@ -1172,37 +1172,37 @@ class SongSelect(MIDIEvent):
 
 class TuneRequest(MIDIEvent):
     _rust_id = 27
-    def __bytes__(self):
+    def __bytes__(self) -> bytes:
         return bytes([0xF6])
 
 class MIDIClock(MIDIEvent):
     _rust_id = 28
-    def __bytes__(self):
+    def __bytes__(self) -> bytes:
         return bytes([0xF8])
 
 class MIDIStart(MIDIEvent):
     _rust_id = 29
-    def __bytes__(self):
+    def __bytes__(self) -> bytes:
         return bytes([0xFA])
 
 class MIDIContinue(MIDIEvent):
     _rust_id = 30
-    def __bytes__(self):
+    def __bytes__(self) -> bytes:
         return bytes([0xFB])
 
 class MIDIStop(MIDIEvent):
     _rust_id = 31
-    def __bytes__(self):
+    def __bytes__(self) -> bytes:
         return bytes([0xFC])
 
 class ActiveSense(MIDIEvent):
     _rust_id = 32
-    def __bytes__(self):
+    def __bytes__(self) -> bytes:
         return bytes([0xFE])
 
 class Reset(MIDIEvent):
     _rust_id = 33
-    def __bytes__(self):
+    def __bytes__(self) -> bytes:
         return bytes([0xFF])
 
 class TimeCode(MIDIEvent):
@@ -1216,14 +1216,14 @@ class TimeCode(MIDIEvent):
             self.frame = kwargs["frame"]
         super().__init__(**kwargs)
 
-    def pullsync(self):
+    def pullsync(self) -> None:
         self.rate = self.get_property(0)[0]
         self.hour = self.get_property(1)[0]
         self.minute = self.get_property(2)[0]
         self.second = self.get_property(3)[0]
         self.frame = self.get_property(4)[0]
 
-    def __bytes__(self):
+    def __bytes__(self) -> bytes:
         return bytes([
             (self.rate << 5) + self.hour,
             self.minute & 0x3F,
@@ -1235,7 +1235,7 @@ class MIDI:
     """Usable object. Converted from midi files.
         s are the same midi files from simplicities sake.
     """
-    event_constructors = {
+    event_constructors: Final[dict[int, MIDIEvent]] = {
         Text._rust_id: Text,
         CopyRightNotice._rust_id: CopyRightNotice,
         TrackName._rust_id: TrackName,
@@ -1337,10 +1337,10 @@ class MIDI:
         SequenceNumber._rust_id: SequenceNumber
     }
 
-    def _get_track_count(self):
+    def _get_track_count(self) -> int:
         return self.lib.get_track_count(self.pointer)
 
-    def __init__(self, path=""):
+    def __init__(self, path: str = ""):
         self.ffi = FFI()
         self.ffi.cdef("""
             typedef void* MIDI;
@@ -1392,7 +1392,7 @@ class MIDI:
             self.path = ''
             self.pointer = self.lib.new()
 
-    def get_all_events(self):
+    def get_all_events(self) -> list[tuple[int, MIDIEvent]]:
         event_list = []
         for event_id, (_, tick) in self.event_positions.items():
             event_list.append((tick, event_id))
@@ -1404,7 +1404,7 @@ class MIDI:
 
         return output
 
-    def add_event(self, event, **kwargs):
+    def add_event(self, event: MIDIEvent, **kwargs) -> None:
         if event.uuid:
             raise AlreadyInMIDI()
 
@@ -1426,16 +1426,16 @@ class MIDI:
         self.events[event_uuid] = event
         self.event_positions[event_uuid] = (active_track, active_tick)
 
-    def _replace_event(self, event):
+    def _replace_event(self, event: MIDIEvent) -> None:
         new_bytes = bytes(event)
         self.lib.replace_event(self.pointer, event.uuid, new_bytes, len(new_bytes))
 
-    def _pushsync_event(self, event, track, tick):
+    def _pushsync_event(self, event: MIDIEvent, track: int, tick: int) -> int:
         orig_bytes = bytes(event)
         event_id = self.lib.create_event(self.pointer, track, tick, orig_bytes, len(orig_bytes))
         return event_id
 
-    def _event_get_position(self, eid):
+    def _event_get_position(self, eid: int) -> tuple[int, int]:
         tick = self.lib.get_event_tick(self.pointer, eid) - 1
         track = self.lib.get_event_track(self.pointer, eid) - 1
         if tick == -1 or track == -1:
@@ -1443,20 +1443,20 @@ class MIDI:
 
         return (track, tick)
 
-    def _track_get_length(self, track_number):
+    def _track_get_length(self, track_number: int) -> int:
         return self.lib.get_track_length(self.pointer, track_number)
 
-    def _event_get_type(self, event_uuid):
+    def _event_get_type(self, event_uuid: int) -> int:
         return self.lib.get_event_type(self.pointer, event_uuid)
 
-    def _event_get_property(self, event_uuid, event_property):
+    def _event_get_property(self, event_uuid: int, event_property: int) -> bytearray:
         length = self.lib.get_event_property_length(self.pointer, event_uuid, event_property)
         bufferlist = bytearray(length)
         array_pointer = self.lib.get_event_property(self.pointer, event_uuid, event_property)
         self.ffi.memmove(bufferlist, array_pointer, length)
         return bufferlist
 
-    def _get_event(self, event_uuid):
+    def _get_event(self, event_uuid: int) -> MIDIEvent:
         type_num = self._event_get_type(event_uuid)
         if type_num == 0:
             raise EventNotFound()
@@ -1471,11 +1471,11 @@ class MIDI:
         return event
 
 
-    def save(self, path):
+    def save(self, path: str) -> None:
         fmt_path = bytes(path, 'utf-8')
         self.lib.save(self.pointer, fmt_path)
 
-    def _event_move(self, event_uuid, new_track, new_tick):
+    def _event_move(self, event_uuid: int, new_track: int, new_tick: int) -> None:
         self.lib.move_event(self.pointer, event_uuid, new_track, new_tick)
 
 
@@ -1484,7 +1484,7 @@ class PipeClosed(Exception):
 
 class MIDIController:
     '''Read Input from Midi Device'''
-    def __init__(self, default_path=""):
+    def __init__(self, default_path: str =""):
         self.pipe = None
         self.listening = False
         self.midipath = None
