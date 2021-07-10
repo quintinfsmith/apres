@@ -1523,7 +1523,7 @@ class MIDIController:
     def get_next_byte(self) -> int:
         '''Attempt to read next byte from pipe'''
         output = None
-        while not output:
+        while output == None:
             try:
                 ready, _, __ = select.select([self.pipe], [], [], 0)
             except TypeError:
@@ -1605,8 +1605,154 @@ class MIDIController:
         elif lead_byte & 0xF0 == 0xB0:
             channel = lead_byte & 0x0F
             controller = self.get_next_byte()
+            if controller == HoldPedal.CONTROL_BYTE:
+                constructor = HoldPedal
+            elif controller == Portamento.CONTROL_BYTE:
+                constructor = Portamento
+            elif controller == Sustenuto.CONTROL_BYTE:
+                constructor = Sustenuto
+            elif controller == SoftPedal.CONTROL_BYTE:
+                constructor = SoftPedal
+            elif controller == Legato.CONTROL_BYTE:
+                constructor = Legato
+            elif controller == Hold2Pedal.CONTROL_BYTE:
+                constructor = Hold2Pedal
+            elif controller == SoundVariation.CONTROL_BYTE:
+                constructor = SoundVariation
+            elif controller == SoundTimbre.CONTROL_BYTE:
+                constructor = SoundTimbre
+            elif controller == SoundReleaseTime.CONTROL_BYTE:
+                constructor = SoundReleaseTime
+            elif controller == SoundAttack.CONTROL_BYTE:
+                constructor = SoundAttack
+            elif controller == SoundBrightness.CONTROL_BYTE:
+                constructor = SoundBrightness
+            elif controller == SoundControl1.CONTROL_BYTE:
+                constructor = SoundControl1
+            elif controller == SoundControl2.CONTROL_BYTE:
+                constructor = SoundControl2
+            elif controller == SoundControl3.CONTROL_BYTE:
+                constructor = SoundControl3
+            elif controller == SoundControl4.CONTROL_BYTE:
+                constructor = SoundControl4
+            elif controller == SoundControl5.CONTROL_BYTE:
+                constructor = SoundControl5
+            elif controller == EffectsLevel.CONTROL_BYTE:
+                constructor = EffectsLevel
+            elif controller == TremuloLevel.CONTROL_BYTE:
+                constructor = TremuloLevel
+            elif controller == ChorusLevel.CONTROL_BYTE:
+                constructor = ChorusLevel
+            elif controller == CelesteLevel.CONTROL_BYTE:
+                constructor = CelesteLevel
+            elif controller == PhaserLevel.CONTROL_BYTE:
+                constructor = PhaserLevel
+            elif controller == LocalControl.CONTROL_BYTE:
+                constructor = LocalControl
+            elif controller == MonophonicOperation.CONTROL_BYTE:
+                constructor = MonophonicOperation
+            elif controller == BankSelect.CONTROL_BYTE:
+                constructor = BankSelect
+            elif controller == BankSelectLSB.CONTROL_BYTE:
+                constructor = BankSelectLSB
+            elif controller == ModulationWheel.CONTROL_BYTE:
+                constructor = ModulationWheel
+            elif controller == ModulationWheelLSB.CONTROL_BYTE:
+                constructor = ModulationWheelLSB
+            elif controller == BreathController.CONTROL_BYTE:
+                constructor = BreathController
+            elif controller == BreathControllerLSB.CONTROL_BYTE:
+                constructor = BreathControllerLSB
+            elif controller == FootPedal.CONTROL_BYTE:
+                constructor = FootPedal
+            elif controller == FootPedalLSB.CONTROL_BYTE:
+                constructor = FootPedalLSB
+            elif controller == PortamentoTime.CONTROL_BYTE:
+                constructor = PortamentoTime
+            elif controller == PortamentoTimeLSB.CONTROL_BYTE:
+                constructor = PortamentoTimeLSB
+            elif controller == DataEntry.CONTROL_BYTE:
+                constructor = DataEntry
+            elif controller == DataEntryLSB.CONTROL_BYTE:
+                constructor = DataEntryLSB
+            elif controller == Volume.CONTROL_BYTE:
+                constructor = Volume
+            elif controller == VolumeLSB.CONTROL_BYTE:
+                constructor = VolumeLSB
+            elif controller == Balance.CONTROL_BYTE:
+                constructor = Balance
+            elif controller == BalanceLSB.CONTROL_BYTE:
+                constructor = BalanceLSB
+            elif controller == Pan.CONTROL_BYTE:
+                constructor = Pan
+            elif controller == PanLSB.CONTROL_BYTE:
+                constructor = PanLSB
+            elif controller == Expression.CONTROL_BYTE:
+                constructor = Expression
+            elif controller == ExpressionLSB.CONTROL_BYTE:
+                constructor = ExpressionLSB
+            elif controller == NonRegisteredParameterNumber.CONTROL_BYTE:
+                constructor = NonRegisteredParameterNumber
+            elif controller == NonRegisteredParameterNumberLSB.CONTROL_BYTE:
+                constructor = NonRegisteredParameterNumberLSB
+            elif controller == RegisteredParameterNumber.CONTROL_BYTE:
+                constructor = RegisteredParameterNumber
+            elif controller == RegisteredParameterNumberLSB.CONTROL_BYTE:
+                constructor = RegisteredParameterNumberLSB
+            elif controller == EffectControl1.CONTROL_BYTE:
+                constructor = EffectControl1
+            elif controller == EffectControl1LSB.CONTROL_BYTE:
+                constructor = EffectControl1LSB
+            elif controller == EffectControl2.CONTROL_BYTE:
+                constructor = EffectControl2
+            elif controller == EffectControl2LSB.CONTROL_BYTE:
+                constructor = EffectControl2LSB
+            elif controller == GeneralPurpose1.CONTROL_BYTE:
+                constructor = GeneralPurpose1
+            elif controller == GeneralPurpose1LSB.CONTROL_BYTE:
+                constructor = GeneralPurpose1LSB
+            elif controller == GeneralPurpose2.CONTROL_BYTE:
+                constructor = GeneralPurpose2
+            elif controller == GeneralPurpose2LSB.CONTROL_BYTE:
+                constructor = GeneralPurpose2LSB
+            elif controller == GeneralPurpose3.CONTROL_BYTE:
+                constructor = GeneralPurpose3
+            elif controller == GeneralPurpose3LSB.CONTROL_BYTE:
+                constructor = GeneralPurpose3LSB
+            elif controller == GeneralPurpose4.CONTROL_BYTE:
+                constructor = GeneralPurpose4
+            elif controller == GeneralPurpose4LSB.CONTROL_BYTE:
+                constructor = GeneralPurpose4LSB
+            elif controller == GeneralPurpose5.CONTROL_BYTE:
+                constructor = GeneralPurpose5
+            elif controller == GeneralPurpose6.CONTROL_BYTE:
+                constructor = GeneralPurpose6
+            elif controller == GeneralPurpose7.CONTROL_BYTE:
+                constructor = GeneralPurpose7
+            elif controller == GeneralPurpose8.CONTROL_BYTE:
+                constructor = GeneralPurpose8
+            # Invariable ControlChanges
+            elif controller == DataIncrement.CONTROL_BYTE:
+                constructor = DataIncrement
+            elif controller == DataDecrement.CONTROL_BYTE:
+                constructor = DataDecrement
+            elif controller == AllControllersOff.CONTROL_BYTE:
+                constructor = AllControllersOff
+            elif controller == AllNotesOff.CONTROL_BYTE:
+                constructor = AllNotesOff
+            elif controller == AllSoundOff.CONTROL_BYTE:
+                constructor = AllSoundOff
+            elif controller == OmniOff.CONTROL_BYTE:
+                constructor = OmniOff
+            elif controller == OmniOn.CONTROL_BYTE:
+                constructor = OmniOn
+            elif controller == PolyphonicOperation.CONTROL_BYTE:
+                constructor = PolyphonicOperation
+            else:
+                constructor = ControlChange
+
             value = self.get_next_byte()
-            return ControlChange(
+            return constructor(
                 channel=channel,
                 controller=controller,
                 value=value
