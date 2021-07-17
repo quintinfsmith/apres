@@ -80,7 +80,7 @@ class MIDIEvent:
         midi.event_move(self.uuid, active_track, active_tick)
 
     def get_midi(self):
-        return self.get_midi()
+        return self._midi
 
     def set_midi(self, midi):
         self._midi = midi
