@@ -6,35 +6,35 @@ import platform
 import time
 import select
 import threading
-from typing import Type, Callable, Final
 from ctypes.util import find_library
 from cffi import FFI
-
-def logg(*msg):
-    with open("logg", "a") as fp:
-        for m in msg:
-            fp.write(str(m) + "\n")
 
 class NoTickException(Exception):
     pass
 
 class EventNotFound(Exception):
+    ''' Passed when an event id is given that doesn't belong to any known event '''
     pass
 
 class AlreadyInMIDI(Exception):
+    ''' Passed when attempting to add an event to a midi that already has the associated id '''
     pass
 
 class NoMIDI(Exception):
+    ''' Passed when attempting to call a function that requires a MIDI object be associated with the event, but is not '''
     pass
 
 class InvalidMIDIFile(Exception):
+    ''' Passed when reading an unrecognizeable file '''
     pass
 
 class MIDIEvent:
+    ''' Abstract representation of a MIDI event '''
     def __init__(self, **_kwargs):
         self.uuid = None
+        self._midi = None
 
-    def pullsync(self) -> None:
+    def pullsync(self):
         '''update the python object with data from the rust layer'''
         pass
 
@@ -42,22 +42,25 @@ class MIDIEvent:
         self.uuid = uuid
 
     def update_event(self):
-        if self._midi:
-            self._midi._replace_event(self)
+        midi = self.get_midi()
+        if midi:
+            midi.replace_event(self)
 
     def get_property(self, event_number):
-        if not self._midi:
+        midi = self.get_midi()
+        if not midi:
             raise NoMIDI()
 
-        prop = self._midi._event_get_property(self.uuid, event_number)
+        prop = midi.event_get_property(self.uuid, event_number)
         return prop
 
     def get_position(self):
-        if not self._midi:
+        midi = self.get_midi()
+        if not midi:
             raise NoMIDI()
 
-        pos = self._midi._event_get_position(self.uuid)
-        self._midi.event_positions[self.uuid] = pos
+        pos = midi.event_get_position(self.uuid)
+        midi.event_positions[self.uuid] = pos
         return pos
 
 
@@ -66,23 +69,32 @@ class MIDIEvent:
         if "track" in kwargs.keys():
             active_track = kwargs['track']
 
+        midi = self.get_midi()
         if "tick" in kwargs.keys():
             active_tick = kwargs["tick"]
         elif "wait" in kwargs.keys():
-            active_tick = self._track_get_length(active_track) - 1 + kwargs['wait']
+            active_tick = midi.track_get_length(active_track) - 1 + kwargs['wait']
         else:
-            active_tick = self._track_get_length(active_track) - 1
+            active_tick = midi.track_get_length(active_track) - 1
 
-        self._midi._event_move(self.uuid, active_track, active_tick)
+        midi.event_move(self.uuid, active_track, active_tick)
+
+    def get_midi(self):
+        return self.get_midi()
+
+    def set_midi(self, midi):
+        self._midi = midi
 
 
 class SequenceNumber(MIDIEvent):
-    _rust_id = 22
+    @staticmethod
+    def get_rust_id():
+        return 22
     sequence = 0
-    def __bytes__(self) -> bytes:
+    def __bytes__(self):
         output = [
             0xFF,
-            self.eid,
+            0x00,
             0x02,
             self.sequence // 256,
             self.sequence % 256
@@ -94,7 +106,7 @@ class SequenceNumber(MIDIEvent):
             self.sequence = kwargs['sequence']
         super().__init__(**kwargs)
 
-    def pullsync(self) -> None:
+    def pullsync(self):
         self.sequence = 0
         for b in self.get_property(0):
             self.sequence *= 256
@@ -109,9 +121,11 @@ class SequenceNumber(MIDIEvent):
 
 
 class Text(MIDIEvent):
-    _rust_id = 1
+    @staticmethod
+    def get_rust_id():
+        return 1
     text = ''
-    def __bytes__(self) -> bytes:
+    def __bytes__(self):
         output = [0xFF, 0x01]
         text_bytes = self.text.encode("utf8")
         output.extend(to_variable_length(len(text_bytes)))
@@ -122,7 +136,7 @@ class Text(MIDIEvent):
             self.text = kwargs['text']
         super().__init__(**kwargs)
 
-    def pullsync(self) -> None:
+    def pullsync(self):
         text = self.get_property(0)
         bytelist = bytes(text)
         self.text = bytelist.decode("utf8")
@@ -136,9 +150,11 @@ class Text(MIDIEvent):
 
 
 class CopyRightNotice(MIDIEvent):
-    _rust_id = 2
+    @staticmethod
+    def get_rust_id():
+        return 2
     text = ""
-    def __bytes__(self) -> bytes:
+    def __bytes__(self):
         output = [0xFF, 0x02]
         text_bytes = self.text.encode("utf8")
         output.extend(to_variable_length(len(text_bytes)))
@@ -149,7 +165,7 @@ class CopyRightNotice(MIDIEvent):
             self.text = kwargs["text"]
         super().__init__(**kwargs)
 
-    def pullsync(self) -> None:
+    def pullsync(self):
         text = self.get_property(0)
         bytelist = bytes(text)
         self.text = bytelist.decode("utf8")
@@ -162,9 +178,11 @@ class CopyRightNotice(MIDIEvent):
         self.update_event()
 
 class TrackName(MIDIEvent):
-    _rust_id = 3
+    @staticmethod
+    def get_rust_id():
+        return 3
     name = ""
-    def __bytes__(self) -> bytes:
+    def __bytes__(self):
         output = [0xFF, 0x03]
         text_bytes = self.name.encode("utf8")
         output.extend(to_variable_length(len(text_bytes)))
@@ -175,7 +193,7 @@ class TrackName(MIDIEvent):
             self.name = kwargs["name"]
         super().__init__(**kwargs)
 
-    def pullsync(self) -> None:
+    def pullsync(self):
         name = self.get_property(0)
         bytelist = bytes(name)
         self.name = bytelist.decode("utf8")
@@ -188,9 +206,11 @@ class TrackName(MIDIEvent):
         self.update_event()
 
 class InstrumentName(MIDIEvent):
-    _rust_id = 4
+    @staticmethod
+    def get_rust_id():
+        return 4
     name = ""
-    def __bytes__(self) -> bytes:
+    def __bytes__(self):
         output = [0xFF, 0x04]
         text_bytes = self.name.encode("utf8")
         output.extend(to_variable_length(len(text_bytes)))
@@ -201,7 +221,7 @@ class InstrumentName(MIDIEvent):
             self.name = kwargs["name"]
         super().__init__(**kwargs)
 
-    def pullsync(self) -> None:
+    def pullsync(self):
         name = self.get_property(0)
         bytelist = bytes(name)
         self.name = bytelist.decode("utf8")
@@ -214,9 +234,11 @@ class InstrumentName(MIDIEvent):
         self.update_event()
 
 class Lyric(MIDIEvent):
-    _rust_id = 5
+    @staticmethod
+    def get_rust_id():
+        return 5
     lyric = ""
-    def __bytes__(self) -> bytes:
+    def __bytes__(self):
         output = [0xFF, 0x05]
         text_bytes = self.lyric.encode("utf8")
         output.extend(to_variable_length(len(text_bytes)))
@@ -227,7 +249,7 @@ class Lyric(MIDIEvent):
             self.lyric = kwargs["lyric"]
         super().__init__(**kwargs)
 
-    def pullsync(self) -> None:
+    def pullsync(self):
         lyric = self.get_property(0)
         bytelist = bytes(lyric)
         self.lyric = bytelist.decode("utf8")
@@ -240,9 +262,11 @@ class Lyric(MIDIEvent):
         self.update_event()
 
 class Marker(MIDIEvent):
-    _rust_id = 6
+    @staticmethod
+    def get_rust_id():
+        return 6
     text = ""
-    def __bytes__(self) -> bytes:
+    def __bytes__(self):
         output = [0xFF, 0x06]
         text_bytes = self.text.encode("utf8")
         output.extend(to_variable_length(len(text_bytes)))
@@ -253,7 +277,7 @@ class Marker(MIDIEvent):
             self.text = kwargs["text"]
         super().__init__(**kwargs)
 
-    def pullsync(self) -> None:
+    def pullsync(self):
         text = self.get_property(0)
         bytelist = bytes(text)
         self.text = bytelist.decode("utf8")
@@ -266,9 +290,11 @@ class Marker(MIDIEvent):
         self.update_event()
 
 class CuePoint(MIDIEvent):
-    _rust_id = 7
+    @staticmethod
+    def get_rust_id():
+        return 7
     text = ""
-    def __bytes__(self) -> bytes:
+    def __bytes__(self):
         output = [0xFF, 0x07]
         text_bytes = self.text.encode("utf8")
         output.extend(to_variable_length(len(text_bytes)))
@@ -279,7 +305,7 @@ class CuePoint(MIDIEvent):
             self.text = kwargs["text"]
         super().__init__(**kwargs)
 
-    def pullsync(self) -> None:
+    def pullsync(self):
         text = self.get_property(0)
         bytelist = bytes(text)
         self.text = bytelist.decode("utf8")
@@ -292,17 +318,22 @@ class CuePoint(MIDIEvent):
         self.update_event()
 
 class EndOfTrack(MIDIEvent):
-    _rust_id = 8
-    def __bytes__(self) -> bytes:
+    @staticmethod
+    def get_rust_id():
+        return 8
+    def __bytes__(self):
         return bytes([0xFF, 0x2F, 0x00])
 
-    def pullsync(self) -> None:
+    def pullsync(self):
         pass
 
 class ChannelPrefix(MIDIEvent):
-    _rust_id = 9
+    @staticmethod
+    def get_rust_id():
+        return 9
+
     channel = 0
-    def __bytes__(self) -> bytes:
+    def __bytes__(self):
         return bytes([0xFF, 0x20, 0x01, self.channel])
 
     def __init__(self, **kwargs):
@@ -310,7 +341,7 @@ class ChannelPrefix(MIDIEvent):
             self.channel = kwargs["channel"]
         super().__init__(**kwargs)
 
-    def pullsync(self) -> None:
+    def pullsync(self):
         channel = self.get_property(0)
         self.channel = channel[0]
 
@@ -322,9 +353,11 @@ class ChannelPrefix(MIDIEvent):
         self.update_event()
 
 class SetTempo(MIDIEvent):
-    _rust_id = 10
+    @staticmethod
+    def get_rust_id():
+        return 10
     us_per_quarter_note = 500000
-    def __bytes__(self) -> bytes:
+    def __bytes__(self):
         return bytes([
             0xFF, 0x51, 0x03,
             (self.us_per_quarter_note // (256 ** 2)) % 256,
@@ -345,7 +378,7 @@ class SetTempo(MIDIEvent):
 
         super().__init__(**kwargs)
 
-    def pullsync(self) -> None:
+    def pullsync(self):
         self.us_per_quarter_note = 0
         for n in self.get_property(0):
             self.us_per_quarter_note *= 256
@@ -377,8 +410,10 @@ class SetTempo(MIDIEvent):
         self.update_event()
 
 class SMPTEOffset(MIDIEvent):
-    _rust_id = 11
-    def __bytes__(self) -> bytes:
+    @staticmethod
+    def get_rust_id():
+        return 11
+    def __bytes__(self):
         return bytes([
             0xFF, 0x54, 0x05,
             self.hour, self.minute, self.second,
@@ -394,7 +429,7 @@ class SMPTEOffset(MIDIEvent):
             self.fr = kwargs["fr"]
         super().__init__(**kwargs)
 
-    def pullsync(self) -> None:
+    def pullsync(self):
         self.hour = self.get_property(0)[0]
         self.minute = self.get_property(1)[0]
         self.second = self.get_property(2)[0]
@@ -438,8 +473,10 @@ class SMPTEOffset(MIDIEvent):
 
 
 class TimeSignature(MIDIEvent):
-    _rust_id = 12
-    def __bytes__(self) -> bytes:
+    @staticmethod
+    def get_rust_id():
+        return 12
+    def __bytes__(self):
         return bytes([
             0xFF, 0x58, 0x04,
             self.numerator, self.denominator,
@@ -455,7 +492,7 @@ class TimeSignature(MIDIEvent):
             self.thirtysecondths_per_quarter = kwargs["tspqn"]
         super().__init__(**kwargs)
 
-    def pullsync(self) -> None:
+    def pullsync(self):
         self.numerator = self.get_property(0)[0]
         self.denominator = self.get_property(1)[0]
         self.clocks_per_metronome = self.get_property(2)[0]
@@ -491,7 +528,9 @@ class TimeSignature(MIDIEvent):
 
 
 class KeySignature(MIDIEvent):
-    _rust_id = 13
+    @staticmethod
+    def get_rust_id():
+        return 13
     misf_map = {
         "A": (0, 3),
         "A#": (0, 8 | 2),
@@ -524,7 +563,7 @@ class KeySignature(MIDIEvent):
         "Gm": (1, 8 | 2)
     }
 
-    def __bytes__(self) -> bytes:
+    def __bytes__(self):
         mi, sf = self.misf_map[self.key]
         return bytes([0xFF, 0x59, 0x02, sf, mi])
 
@@ -533,7 +572,7 @@ class KeySignature(MIDIEvent):
             self.key = kwargs["key"]
         super().__init__(**kwargs)
 
-    def pullsync(self) -> None:
+    def pullsync(self):
         self.key = bytes(self.get_property(0)).decode("utf8")
 
     def get_key(self):
@@ -545,9 +584,11 @@ class KeySignature(MIDIEvent):
 
 
 class Sequencer(MIDIEvent):
-    _rust_id = 14
+    @staticmethod
+    def get_rust_id():
+        return 14
     data = b''
-    def __bytes__(self) -> bytes:
+    def __bytes__(self):
         output = [0xFF, 0x7F]
         data_length = len(self.data)
         output.extend(to_variable_length(data_length))
@@ -558,7 +599,7 @@ class Sequencer(MIDIEvent):
             self.data = kwargs["data"]
         super().__init__(**kwargs)
 
-    def pullsync(self) -> None:
+    def pullsync(self):
         self.data = bytes(self.get_property(0))
 
     def get_data(self):
@@ -570,8 +611,10 @@ class Sequencer(MIDIEvent):
 
 
 class NoteOn(MIDIEvent):
-    _rust_id = 15
-    def __bytes__(self) -> bytes:
+    @staticmethod
+    def get_rust_id():
+        return 15
+    def __bytes__(self):
         return bytes([
             0x90 | self.channel,
             self.note,
@@ -584,7 +627,7 @@ class NoteOn(MIDIEvent):
             self.velocity = kwargs["velocity"]
         super().__init__(**kwargs)
 
-    def pullsync(self) -> None:
+    def pullsync(self):
         prop = self.get_property(0)
         self.channel = prop[0]
         self.note = self.get_property(1)[0]
@@ -612,8 +655,10 @@ class NoteOn(MIDIEvent):
         self.update_event()
 
 class NoteOff(MIDIEvent):
-    _rust_id = 16
-    def __bytes__(self) -> bytes:
+    @staticmethod
+    def get_rust_id():
+        return 16
+    def __bytes__(self):
         return bytes([
             0x80 | self.channel,
             self.note,
@@ -627,7 +672,7 @@ class NoteOff(MIDIEvent):
             self.velocity = kwargs["velocity"]
         super().__init__(**kwargs)
 
-    def pullsync(self) -> None:
+    def pullsync(self):
         self.channel = self.get_property(0)[0]
         self.note = self.get_property(1)[0]
         self.velocity = self.get_property(2)[0]
@@ -654,8 +699,10 @@ class NoteOff(MIDIEvent):
         self.update_event()
 
 class PolyphonicKeyPressure(MIDIEvent):
-    _rust_id = 17
-    def __bytes__(self) -> bytes:
+    @staticmethod
+    def get_rust_id():
+        return 17
+    def __bytes__(self):
         return bytes([
             0xA0 | self.channel,
             self.note,
@@ -668,7 +715,7 @@ class PolyphonicKeyPressure(MIDIEvent):
             self.pressure = kwargs["pressure"]
         super().__init__(**kwargs)
 
-    def pullsync(self) -> None:
+    def pullsync(self):
         self.channel = self.get_property(0)[0]
         self.note = self.get_property(1)[0]
         self.pressure = self.get_property(2)[0]
@@ -695,8 +742,10 @@ class PolyphonicKeyPressure(MIDIEvent):
         self.update_event()
 
 class ControlChange(MIDIEvent):
-    _rust_id = 18
-    def __bytes__(self) -> bytes:
+    @staticmethod
+    def get_rust_id():
+        return 18
+    def __bytes__(self):
         return bytes([
             0xB0 | self.channel,
             self.get_controller(),
@@ -710,7 +759,7 @@ class ControlChange(MIDIEvent):
             self.value = kwargs["value"]
         super().__init__(**kwargs)
 
-    def pullsync(self) -> None:
+    def pullsync(self):
         self.value = self.get_property(2)[0]
         self.channel = self.get_property(0)[0]
         self.controller = self.get_property(1)[0]
@@ -742,7 +791,7 @@ class VariableControlChange(ControlChange):
     def get_controller(self):
         return self.CONTROL_BYTE
 
-    def pullsync(self) -> None:
+    def pullsync(self):
         self.controller = self.CONTROL_BYTE
         self.value = self.get_property(1)[0]
         self.channel = self.get_property(0)[0]
@@ -751,233 +800,377 @@ class InvariableControlChange(VariableControlChange):
     def get_value(self):
         return 0
 
-    def pullsync(self) -> None:
+    def pullsync(self):
         self.channel = self.get_property(0)[0]
 
 class HoldPedal(VariableControlChange):
-    _rust_id = 58
+    @staticmethod
+    def get_rust_id():
+        return 58
     CONTROL_BYTE = 0x40
 class Portamento(VariableControlChange):
-    _rust_id = 59
+    @staticmethod
+    def get_rust_id():
+        return 59
     CONTROL_BYTE = 0x41
 class Sustenuto(VariableControlChange):
-    _rust_id = 60
+    @staticmethod
+    def get_rust_id():
+        return 60
     CONTROL_BYTE = 0x42
 class SoftPedal(VariableControlChange):
-    _rust_id = 61
+    @staticmethod
+    def get_rust_id():
+        return 61
     CONTROL_BYTE = 0x43
 class Legato(VariableControlChange):
-    _rust_id = 62
+    @staticmethod
+    def get_rust_id():
+        return 62
     CONTROL_BYTE = 0x44
 class Hold2Pedal(VariableControlChange):
-    _rust_id = 63
+    @staticmethod
+    def get_rust_id():
+        return 63
     CONTROL_BYTE = 0x45
 class SoundVariation(VariableControlChange):
-    _rust_id = 64
+    @staticmethod
+    def get_rust_id():
+        return 64
     CONTROL_BYTE = 0x46
 class SoundTimbre(VariableControlChange):
-    _rust_id = 65
+    @staticmethod
+    def get_rust_id():
+        return 65
     CONTROL_BYTE = 0x47
 class SoundReleaseTime(VariableControlChange):
-    _rust_id = 66
+    @staticmethod
+    def get_rust_id():
+        return 66
     CONTROL_BYTE = 0x48
 class SoundAttack(VariableControlChange):
-    _rust_id = 67
+    @staticmethod
+    def get_rust_id():
+        return 67
     CONTROL_BYTE = 0x49
 class SoundBrightness(VariableControlChange):
-    _rust_id = 68
+    @staticmethod
+    def get_rust_id():
+        return 68
     CONTROL_BYTE = 0x4A
 class SoundControl1(VariableControlChange):
-    _rust_id = 69
+    @staticmethod
+    def get_rust_id():
+        return 69
     CONTROL_BYTE = 0x4B
 class SoundControl2(VariableControlChange):
-    _rust_id = 70
+    @staticmethod
+    def get_rust_id():
+        return 70
     CONTROL_BYTE = 0x4C
 class SoundControl3(VariableControlChange):
-    _rust_id = 71
+    @staticmethod
+    def get_rust_id():
+        return 71
     CONTROL_BYTE = 0x4D
 class SoundControl4(VariableControlChange):
-    _rust_id = 72
+    @staticmethod
+    def get_rust_id():
+        return 72
     CONTROL_BYTE = 0x4E
 class SoundControl5(VariableControlChange):
-    _rust_id = 73
+    @staticmethod
+    def get_rust_id():
+        return 73
     CONTROL_BYTE = 0x4F
 
 
 class EffectsLevel(VariableControlChange):
-    _rust_id = 86
+    @staticmethod
+    def get_rust_id():
+        return 86
     CONTROL_BYTE = 0x5B
 class TremuloLevel(VariableControlChange):
-    _rust_id = 87
+    @staticmethod
+    def get_rust_id():
+        return 87
     CONTROL_BYTE = 0x5C
 class ChorusLevel(VariableControlChange):
-    _rust_id = 88
+    @staticmethod
+    def get_rust_id():
+        return 88
     CONTROL_BYTE = 0x5D
 class CelesteLevel(VariableControlChange):
-    _rust_id = 89
+    @staticmethod
+    def get_rust_id():
+        return 89
     CONTROL_BYTE = 0x5E
 class PhaserLevel(VariableControlChange):
-    _rust_id = 90
+    @staticmethod
+    def get_rust_id():
+        return 90
     CONTROL_BYTE = 0x5F
 class LocalControl(VariableControlChange):
-    _rust_id = 98
+    @staticmethod
+    def get_rust_id():
+        return 98
     CONTROL_BYTE = 0x7A
 class MonophonicOperation(VariableControlChange):
-    _rust_id = 103
+    @staticmethod
+    def get_rust_id():
+        return 103
     CONTROL_BYTE = 0xFE
 
 class DataIncrement(InvariableControlChange):
-    _rust_id = 91
+    @staticmethod
+    def get_rust_id():
+        return 91
     CONTROL_BYTE = 0x60
 class DataDecrement(InvariableControlChange):
-    _rust_id = 92
+    @staticmethod
+    def get_rust_id():
+        return 92
     CONTROL_BYTE = 0x61
 class AllControllersOff(InvariableControlChange):
-    _rust_id = 97
+    @staticmethod
+    def get_rust_id():
+        return 97
     CONTROL_BYTE = 0x79
 
 class AllNotesOff(InvariableControlChange):
-    _rust_id = 99
+    @staticmethod
+    def get_rust_id():
+        return 99
     CONTROL_BYTE = 0x7B
 class AllSoundOff(InvariableControlChange):
-    _rust_id = 100
+    @staticmethod
+    def get_rust_id():
+        return 100
     CONTROL_BYTE = 0x78
 class OmniOff(InvariableControlChange):
-    _rust_id = 101
+    @staticmethod
+    def get_rust_id():
+        return 101
     CONTROL_BYTE = 0x7C
 class OmniOn(InvariableControlChange):
-    _rust_id = 102
+    @staticmethod
+    def get_rust_id():
+        return 102
     CONTROL_BYTE = 0x7D
 class PolyphonicOperation(InvariableControlChange):
-    _rust_id = 104
+    @staticmethod
+    def get_rust_id():
+        return 104
     CONTROL_BYTE = 0xFF
 
 class BankSelect(VariableControlChange):
-    _rust_id = 34
+    @staticmethod
+    def get_rust_id():
+        return 34
     CONTROL_BYTE = 0x00
 class BankSelectLSB(VariableControlChange):
-    _rust_id = 35
+    @staticmethod
+    def get_rust_id():
+        return 35
     CONTROL_BYTE = 0x20
 class ModulationWheel(VariableControlChange):
-    _rust_id = 36
+    @staticmethod
+    def get_rust_id():
+        return 36
     CONTROL_BYTE = 0x01
 class ModulationWheelLSB(VariableControlChange):
-    _rust_id = 37
+    @staticmethod
+    def get_rust_id():
+        return 37
     CONTROL_BYTE = 0x21
 class BreathController(VariableControlChange):
-    _rust_id = 38
+    @staticmethod
+    def get_rust_id():
+        return 38
     CONTROL_BYTE = 0x02
 class BreathControllerLSB(VariableControlChange):
-    _rust_id = 39
+    @staticmethod
+    def get_rust_id():
+        return 39
     CONTROL_BYTE = 0x22
 class FootPedal(VariableControlChange):
-    _rust_id = 40
+    @staticmethod
+    def get_rust_id():
+        return 40
     CONTROL_BYTE = 0x04
 class FootPedalLSB(VariableControlChange):
-    _rust_id = 41
+    @staticmethod
+    def get_rust_id():
+        return 41
     CONTROL_BYTE = 0x24
 class PortamentoTime(VariableControlChange):
-    _rust_id = 42
+    @staticmethod
+    def get_rust_id():
+        return 42
     CONTROL_BYTE = 0x05
 class PortamentoTimeLSB(VariableControlChange):
-    _rust_id = 43
+    @staticmethod
+    def get_rust_id():
+        return 43
     CONTROL_BYTE = 0x25
 class DataEntry(VariableControlChange):
-    _rust_id = 44
+    @staticmethod
+    def get_rust_id():
+        return 44
     CONTROL_BYTE = 0x06
 class DataEntryLSB(VariableControlChange):
-    _rust_id = 45
+    @staticmethod
+    def get_rust_id():
+        return 45
     CONTROL_BYTE = 0x26
 class Volume(VariableControlChange):
-    _rust_id = 46
+    @staticmethod
+    def get_rust_id():
+        return 46
     CONTROL_BYTE = 0x07
 class VolumeLSB(VariableControlChange):
-    _rust_id = 47
+    @staticmethod
+    def get_rust_id():
+        return 47
     CONTROL_BYTE = 0x27
 class Balance(VariableControlChange):
-    _rust_id = 48
+    @staticmethod
+    def get_rust_id():
+        return 48
     CONTROL_BYTE = 0x08
 class BalanceLSB(VariableControlChange):
-    _rust_id = 49
+    @staticmethod
+    def get_rust_id():
+        return 49
     CONTROL_BYTE = 0x28
 class Pan(VariableControlChange):
-    _rust_id = 50
+    @staticmethod
+    def get_rust_id():
+        return 50
     CONTROL_BYTE = 0x0A
 class PanLSB(VariableControlChange):
-    _rust_id = 51
+    @staticmethod
+    def get_rust_id():
+        return 51
     CONTROL_BYTE = 0x2A
 class Expression(VariableControlChange):
-    _rust_id = 52
+    @staticmethod
+    def get_rust_id():
+        return 52
     CONTROL_BYTE = 0x0B
 class ExpressionLSB(VariableControlChange):
-    _rust_id = 53
+    @staticmethod
+    def get_rust_id():
+        return 53
     CONTROL_BYTE = 0x2B
 
 class NonRegisteredParameterNumber(VariableControlChange):
-    _rust_id = 95
+    @staticmethod
+    def get_rust_id():
+        return 95
     CONTROL_BYTE = 0x63
 class NonRegisteredParameterNumberLSB(VariableControlChange):
-    _rust_id = 96
+    @staticmethod
+    def get_rust_id():
+        return 96
     CONTROL_BYTE = 0x62
 class RegisteredParameterNumber(VariableControlChange):
-    _rust_id = 93
+    @staticmethod
+    def get_rust_id():
+        return 93
     CONTROL_BYTE = 0x65
 class RegisteredParameterNumberLSB(VariableControlChange):
-    _rust_id = 94
+    @staticmethod
+    def get_rust_id():
+        return 94
     CONTROL_BYTE = 0x64
 
 class EffectControl1(VariableControlChange):
-    _rust_id = 54
+    @staticmethod
+    def get_rust_id():
+        return 54
     CONTROL_BYTE = 0x0C
 class EffectControl1LSB(VariableControlChange):
-    _rust_id = 55
+    @staticmethod
+    def get_rust_id():
+        return 55
     CONTROL_BYTE = 0x2C
 class EffectControl2(VariableControlChange):
-    _rust_id = 56
+    @staticmethod
+    def get_rust_id():
+        return 56
     CONTROL_BYTE = 0x0D
 class EffectControl2LSB(VariableControlChange):
-    _rust_id = 57
+    @staticmethod
+    def get_rust_id():
+        return 57
     CONTROL_BYTE = 0x2D
 class GeneralPurpose1(VariableControlChange):
-    _rust_id = 74
+    @staticmethod
+    def get_rust_id():
+        return 74
     CONTROL_BYTE = 0x10
 class GeneralPurpose1LSB(VariableControlChange):
-    _rust_id = 75
+    @staticmethod
+    def get_rust_id():
+        return 75
     CONTROL_BYTE = 0x30
 class GeneralPurpose2(VariableControlChange):
-    _rust_id = 76
+    @staticmethod
+    def get_rust_id():
+        return 76
     CONTROL_BYTE = 0x11
 class GeneralPurpose2LSB(VariableControlChange):
-    _rust_id = 77
+    @staticmethod
+    def get_rust_id():
+        return 77
     CONTROL_BYTE = 0x31
 class GeneralPurpose3(VariableControlChange):
-    _rust_id = 78
+    @staticmethod
+    def get_rust_id():
+        return 78
     CONTROL_BYTE = 0x12
 class GeneralPurpose3LSB(VariableControlChange):
-    _rust_id = 79
+    @staticmethod
+    def get_rust_id():
+        return 79
     CONTROL_BYTE = 0x32
 class GeneralPurpose4(VariableControlChange):
-    _rust_id = 80
+    @staticmethod
+    def get_rust_id():
+        return 80
     CONTROL_BYTE = 0x13
 class GeneralPurpose4LSB(VariableControlChange):
-    _rust_id = 81
+    @staticmethod
+    def get_rust_id():
+        return 81
     CONTROL_BYTE = 0x33
 class GeneralPurpose5(VariableControlChange):
-    _rust_id = 82
+    @staticmethod
+    def get_rust_id():
+        return 82
     CONTROL_BYTE = 0x50
 class GeneralPurpose6(VariableControlChange):
-    _rust_id = 83
+    @staticmethod
+    def get_rust_id():
+        return 83
     CONTROL_BYTE = 0x51
 class GeneralPurpose7(VariableControlChange):
-    _rust_id = 84
+    @staticmethod
+    def get_rust_id():
+        return 84
     CONTROL_BYTE = 0x52
 class GeneralPurpose8(VariableControlChange):
-    _rust_id = 85
+    @staticmethod
+    def get_rust_id():
+        return 85
     CONTROL_BYTE = 0x53
 
 class ProgramChange(MIDIEvent):
-    _rust_id = 19
-    def __bytes__(self) -> bytes:
+    @staticmethod
+    def get_rust_id():
+        return 19
+    def __bytes__(self):
         return bytes([
             0xC0 | self.channel,
             self.program
@@ -989,7 +1182,7 @@ class ProgramChange(MIDIEvent):
             self.program = kwargs["program"]
         super().__init__(**kwargs)
 
-    def pullsync(self) -> None:
+    def pullsync(self):
         self.channel = self.get_property(0)[0]
         self.program = self.get_property(1)[0]
 
@@ -1009,8 +1202,10 @@ class ProgramChange(MIDIEvent):
 
 
 class ChannelPressure(MIDIEvent):
-    _rust_id = 20
-    def __bytes__(self) -> bytes:
+    @staticmethod
+    def get_rust_id():
+        return 20
+    def __bytes__(self):
         return bytes([
             0xD0 | self.channel,
             self.pressure
@@ -1022,7 +1217,7 @@ class ChannelPressure(MIDIEvent):
             self.pressure = kwargs["pressure"]
         super().__init__(**kwargs)
 
-    def pullsync(self) -> None:
+    def pullsync(self):
         self.channel = self.get_property(0)[0]
         self.pressure = self.get_property(1)[0]
 
@@ -1046,8 +1241,10 @@ class PitchWheelChange(MIDIEvent):
         NOTE: value is stored as float from [-1, 1]
     '''
 
-    _rust_id = 21
-    def __bytes__(self) -> bytes:
+    @staticmethod
+    def get_rust_id():
+        return 21
+    def __bytes__(self):
         unsigned_value = self.get_unsigned_value()
         least = unsigned_value & 0x007F
         most = (unsigned_value >> 7) & 0x007F
@@ -1059,7 +1256,7 @@ class PitchWheelChange(MIDIEvent):
             self.value = kwargs["value"]
         super().__init__(**kwargs)
 
-    def pullsync(self) -> None:
+    def pullsync(self):
         self.channel = self.get_property(0)[0]
 
         prop = self.get_property(1)
@@ -1085,9 +1282,11 @@ class PitchWheelChange(MIDIEvent):
         return int((self.value + 1) * (2 / 0x3FFF))
 
 class SystemExclusive(MIDIEvent):
-    _rust_id = 23
+    @staticmethod
+    def get_rust_id():
+        return 23
     data = b''
-    def __bytes__(self) -> bytes:
+    def __bytes__(self):
         output = [0xF0]
         for b in self.data:
             output.append(b)
@@ -1100,7 +1299,7 @@ class SystemExclusive(MIDIEvent):
 
         super().__init__(**kwargs)
 
-    def pullsync(self) -> None:
+    def pullsync(self):
         self.data = bytes(self.get_property(0))
 
     def get_data(self):
@@ -1111,7 +1310,9 @@ class SystemExclusive(MIDIEvent):
         self.update_event()
 
 class MTCQuarterFrame(MIDIEvent):
-    _rust_id = 24
+    @staticmethod
+    def get_rust_id():
+        return 24
     time_code = 0
     def __bytes__(self):
         return bytes([0xF1, self.time_code])
@@ -1121,15 +1322,17 @@ class MTCQuarterFrame(MIDIEvent):
             self.time_code = kwargs["time_code"] & 0xFF
         super().__init__(**kwargs)
 
-    def pullsync(self) -> None:
+    def pullsync(self):
         self.time_code = self.get_property(0)[0] & 0xFF
 
     def get_time_code(self):
         return self.time_code
 
 class SongPositionPointer(MIDIEvent):
-    _rust_id = 25
-    def __bytes__(self) -> bytes:
+    @staticmethod
+    def get_rust_id():
+        return 25
+    def __bytes__(self):
         least = self.beat & 0x7F
         most = (self.beat >> 7) & 0x7F
         return bytes([0xF2, least, most])
@@ -1139,7 +1342,7 @@ class SongPositionPointer(MIDIEvent):
             self.beat = kwargs["beat"]
         super().__init__(**kwargs)
 
-    def pullsync(self) -> None:
+    def pullsync(self):
         prop = self.get_property(0)
         self.beat = (prop[0] * 256) + prop[1]
 
@@ -1151,8 +1354,10 @@ class SongPositionPointer(MIDIEvent):
         self.update_event()
 
 class SongSelect(MIDIEvent):
-    _rust_id = 26
-    def __bytes__(self) -> bytes:
+    @staticmethod
+    def get_rust_id():
+        return 26
+    def __bytes__(self):
         return bytes([0xF3, self.song & 0xFF])
 
     def __init__(self, **kwargs):
@@ -1160,7 +1365,7 @@ class SongSelect(MIDIEvent):
             self.song = kwargs["song"]
         super().__init__(**kwargs)
 
-    def pullsync(self) -> None:
+    def pullsync(self):
         self.song = self.get_property(0)[0]
 
     def get_song(self):
@@ -1171,42 +1376,58 @@ class SongSelect(MIDIEvent):
         self.update_event()
 
 class TuneRequest(MIDIEvent):
-    _rust_id = 27
-    def __bytes__(self) -> bytes:
+    @staticmethod
+    def get_rust_id():
+        return 27
+    def __bytes__(self):
         return bytes([0xF6])
 
 class MIDIClock(MIDIEvent):
-    _rust_id = 28
-    def __bytes__(self) -> bytes:
+    @staticmethod
+    def get_rust_id():
+        return 28
+    def __bytes__(self):
         return bytes([0xF8])
 
 class MIDIStart(MIDIEvent):
-    _rust_id = 29
-    def __bytes__(self) -> bytes:
+    @staticmethod
+    def get_rust_id():
+        return 29
+    def __bytes__(self):
         return bytes([0xFA])
 
 class MIDIContinue(MIDIEvent):
-    _rust_id = 30
-    def __bytes__(self) -> bytes:
+    @staticmethod
+    def get_rust_id():
+        return 30
+    def __bytes__(self):
         return bytes([0xFB])
 
 class MIDIStop(MIDIEvent):
-    _rust_id = 31
-    def __bytes__(self) -> bytes:
+    @staticmethod
+    def get_rust_id():
+        return 31
+    def __bytes__(self):
         return bytes([0xFC])
 
 class ActiveSense(MIDIEvent):
-    _rust_id = 32
-    def __bytes__(self) -> bytes:
+    @staticmethod
+    def get_rust_id():
+        return 32
+    def __bytes__(self):
         return bytes([0xFE])
 
 class Reset(MIDIEvent):
-    _rust_id = 33
-    def __bytes__(self) -> bytes:
+    @staticmethod
+    def get_rust_id():
+        return 33
+    def __bytes__(self):
         return bytes([0xFF])
 
 class TimeCode(MIDIEvent):
-    _rust_id = 105
+    @staticmethod
+    def get_rust_id():
+        return 105
     def __init__(self, **kwargs):
         if "uuid" not in kwargs.keys():
             self.rate = kwargs["rate"]
@@ -1216,14 +1437,14 @@ class TimeCode(MIDIEvent):
             self.frame = kwargs["frame"]
         super().__init__(**kwargs)
 
-    def pullsync(self) -> None:
+    def pullsync(self):
         self.rate = self.get_property(0)[0]
         self.hour = self.get_property(1)[0]
         self.minute = self.get_property(2)[0]
         self.second = self.get_property(3)[0]
         self.frame = self.get_property(4)[0]
 
-    def __bytes__(self) -> bytes:
+    def __bytes__(self):
         return bytes([
             (self.rate << 5) + self.hour,
             self.minute & 0x3F,
@@ -1235,112 +1456,112 @@ class MIDI:
     """Usable object. Converted from midi files.
         s are the same midi files from simplicities sake.
     """
-    event_constructors: Final[dict[int, MIDIEvent]] = {
-        Text._rust_id: Text,
-        CopyRightNotice._rust_id: CopyRightNotice,
-        TrackName._rust_id: TrackName,
-        InstrumentName._rust_id: InstrumentName,
-        Lyric._rust_id: Lyric,
-        Marker._rust_id: Marker,
-        CuePoint._rust_id: CuePoint,
-        EndOfTrack._rust_id: EndOfTrack,
-        ChannelPrefix._rust_id: ChannelPrefix,
-        SetTempo._rust_id: SetTempo,
-        SMPTEOffset._rust_id: SMPTEOffset,
-        TimeSignature._rust_id: TimeSignature,
-        KeySignature._rust_id: KeySignature,
-        Sequencer._rust_id: Sequencer,
-        SystemExclusive._rust_id: SystemExclusive,
+    event_constructors = {
+        Text.get_rust_id(): Text,
+        CopyRightNotice.get_rust_id(): CopyRightNotice,
+        TrackName.get_rust_id(): TrackName,
+        InstrumentName.get_rust_id(): InstrumentName,
+        Lyric.get_rust_id(): Lyric,
+        Marker.get_rust_id(): Marker,
+        CuePoint.get_rust_id(): CuePoint,
+        EndOfTrack.get_rust_id(): EndOfTrack,
+        ChannelPrefix.get_rust_id(): ChannelPrefix,
+        SetTempo.get_rust_id(): SetTempo,
+        SMPTEOffset.get_rust_id(): SMPTEOffset,
+        TimeSignature.get_rust_id(): TimeSignature,
+        KeySignature.get_rust_id(): KeySignature,
+        Sequencer.get_rust_id(): Sequencer,
+        SystemExclusive.get_rust_id(): SystemExclusive,
 
-        NoteOn._rust_id: NoteOn,
-        NoteOff._rust_id: NoteOff,
-        PolyphonicKeyPressure._rust_id: PolyphonicKeyPressure,
-        ControlChange._rust_id: ControlChange,
-        HoldPedal._rust_id: HoldPedal,
-        Portamento._rust_id: Portamento,
-        Sustenuto._rust_id: Sustenuto,
-        SoftPedal._rust_id: SoftPedal,
-        Legato._rust_id: Legato,
-        Hold2Pedal._rust_id: Hold2Pedal,
-        SoundVariation._rust_id: SoundVariation,
-        SoundTimbre._rust_id: SoundTimbre,
-        SoundReleaseTime._rust_id: SoundReleaseTime,
-        SoundAttack._rust_id: SoundAttack,
-        SoundBrightness._rust_id: SoundBrightness,
-        SoundControl1._rust_id: SoundControl1,
-        SoundControl2._rust_id: SoundControl2,
-        SoundControl3._rust_id: SoundControl3,
-        SoundControl4._rust_id: SoundControl4,
-        SoundControl5._rust_id: SoundControl5,
-        EffectsLevel._rust_id: EffectsLevel,
-        TremuloLevel._rust_id: TremuloLevel,
-        ChorusLevel._rust_id: ChorusLevel,
-        CelesteLevel._rust_id: CelesteLevel,
-        PhaserLevel._rust_id: PhaserLevel,
-        MonophonicOperation._rust_id: MonophonicOperation,
-        DataIncrement._rust_id: DataIncrement,
-        DataDecrement._rust_id: DataDecrement,
-        LocalControl._rust_id: LocalControl,
-        AllControllersOff._rust_id: AllControllersOff,
-        AllNotesOff._rust_id: AllNotesOff,
-        AllSoundOff._rust_id: AllSoundOff,
-        OmniOff._rust_id: OmniOff,
-        OmniOn._rust_id: OmniOn,
-        PolyphonicOperation._rust_id: PolyphonicOperation,
-        BankSelect._rust_id: BankSelect,
-        BankSelectLSB._rust_id: BankSelectLSB,
-        ModulationWheel._rust_id: ModulationWheel,
-        ModulationWheelLSB._rust_id: ModulationWheelLSB,
-        BreathController._rust_id: BreathController,
-        BreathControllerLSB._rust_id: BreathControllerLSB,
-        FootPedal._rust_id: FootPedal,
-        FootPedalLSB._rust_id: FootPedalLSB,
-        PortamentoTime._rust_id: PortamentoTime,
-        PortamentoTimeLSB._rust_id: PortamentoTimeLSB,
-        DataEntry._rust_id: DataEntry,
-        DataEntryLSB._rust_id: DataEntryLSB,
-        Volume._rust_id: Volume,
-        VolumeLSB._rust_id: VolumeLSB,
-        Balance._rust_id: Balance,
-        BalanceLSB._rust_id: BalanceLSB,
-        Pan._rust_id: Pan,
-        PanLSB._rust_id: PanLSB,
-        Expression._rust_id: Expression,
-        ExpressionLSB._rust_id: ExpressionLSB,
-        NonRegisteredParameterNumber._rust_id: NonRegisteredParameterNumber,
-        NonRegisteredParameterNumberLSB._rust_id: NonRegisteredParameterNumberLSB,
-        RegisteredParameterNumber._rust_id: RegisteredParameterNumber,
-        RegisteredParameterNumberLSB._rust_id: RegisteredParameterNumberLSB,
+        NoteOn.get_rust_id(): NoteOn,
+        NoteOff.get_rust_id(): NoteOff,
+        PolyphonicKeyPressure.get_rust_id(): PolyphonicKeyPressure,
+        ControlChange.get_rust_id(): ControlChange,
+        HoldPedal.get_rust_id(): HoldPedal,
+        Portamento.get_rust_id(): Portamento,
+        Sustenuto.get_rust_id(): Sustenuto,
+        SoftPedal.get_rust_id(): SoftPedal,
+        Legato.get_rust_id(): Legato,
+        Hold2Pedal.get_rust_id(): Hold2Pedal,
+        SoundVariation.get_rust_id(): SoundVariation,
+        SoundTimbre.get_rust_id(): SoundTimbre,
+        SoundReleaseTime.get_rust_id(): SoundReleaseTime,
+        SoundAttack.get_rust_id(): SoundAttack,
+        SoundBrightness.get_rust_id(): SoundBrightness,
+        SoundControl1.get_rust_id(): SoundControl1,
+        SoundControl2.get_rust_id(): SoundControl2,
+        SoundControl3.get_rust_id(): SoundControl3,
+        SoundControl4.get_rust_id(): SoundControl4,
+        SoundControl5.get_rust_id(): SoundControl5,
+        EffectsLevel.get_rust_id(): EffectsLevel,
+        TremuloLevel.get_rust_id(): TremuloLevel,
+        ChorusLevel.get_rust_id(): ChorusLevel,
+        CelesteLevel.get_rust_id(): CelesteLevel,
+        PhaserLevel.get_rust_id(): PhaserLevel,
+        MonophonicOperation.get_rust_id(): MonophonicOperation,
+        DataIncrement.get_rust_id(): DataIncrement,
+        DataDecrement.get_rust_id(): DataDecrement,
+        LocalControl.get_rust_id(): LocalControl,
+        AllControllersOff.get_rust_id(): AllControllersOff,
+        AllNotesOff.get_rust_id(): AllNotesOff,
+        AllSoundOff.get_rust_id(): AllSoundOff,
+        OmniOff.get_rust_id(): OmniOff,
+        OmniOn.get_rust_id(): OmniOn,
+        PolyphonicOperation.get_rust_id(): PolyphonicOperation,
+        BankSelect.get_rust_id(): BankSelect,
+        BankSelectLSB.get_rust_id(): BankSelectLSB,
+        ModulationWheel.get_rust_id(): ModulationWheel,
+        ModulationWheelLSB.get_rust_id(): ModulationWheelLSB,
+        BreathController.get_rust_id(): BreathController,
+        BreathControllerLSB.get_rust_id(): BreathControllerLSB,
+        FootPedal.get_rust_id(): FootPedal,
+        FootPedalLSB.get_rust_id(): FootPedalLSB,
+        PortamentoTime.get_rust_id(): PortamentoTime,
+        PortamentoTimeLSB.get_rust_id(): PortamentoTimeLSB,
+        DataEntry.get_rust_id(): DataEntry,
+        DataEntryLSB.get_rust_id(): DataEntryLSB,
+        Volume.get_rust_id(): Volume,
+        VolumeLSB.get_rust_id(): VolumeLSB,
+        Balance.get_rust_id(): Balance,
+        BalanceLSB.get_rust_id(): BalanceLSB,
+        Pan.get_rust_id(): Pan,
+        PanLSB.get_rust_id(): PanLSB,
+        Expression.get_rust_id(): Expression,
+        ExpressionLSB.get_rust_id(): ExpressionLSB,
+        NonRegisteredParameterNumber.get_rust_id(): NonRegisteredParameterNumber,
+        NonRegisteredParameterNumberLSB.get_rust_id(): NonRegisteredParameterNumberLSB,
+        RegisteredParameterNumber.get_rust_id(): RegisteredParameterNumber,
+        RegisteredParameterNumberLSB.get_rust_id(): RegisteredParameterNumberLSB,
 
-        EffectControl1._rust_id: EffectControl1,
-        EffectControl1LSB._rust_id: EffectControl1LSB,
-        EffectControl2._rust_id: EffectControl2,
-        EffectControl2LSB._rust_id: EffectControl2LSB,
-        GeneralPurpose1._rust_id: GeneralPurpose1,
-        GeneralPurpose1LSB._rust_id: GeneralPurpose1LSB,
-        GeneralPurpose2._rust_id: GeneralPurpose2,
-        GeneralPurpose2LSB._rust_id: GeneralPurpose2LSB,
-        GeneralPurpose3._rust_id: GeneralPurpose3,
-        GeneralPurpose3LSB._rust_id: GeneralPurpose3LSB,
-        GeneralPurpose4._rust_id: GeneralPurpose4,
-        GeneralPurpose4LSB._rust_id: GeneralPurpose4LSB,
-        GeneralPurpose5._rust_id: GeneralPurpose5,
-        GeneralPurpose6._rust_id: GeneralPurpose6,
-        GeneralPurpose7._rust_id: GeneralPurpose7,
-        GeneralPurpose8._rust_id: GeneralPurpose8,
+        EffectControl1.get_rust_id(): EffectControl1,
+        EffectControl1LSB.get_rust_id(): EffectControl1LSB,
+        EffectControl2.get_rust_id(): EffectControl2,
+        EffectControl2LSB.get_rust_id(): EffectControl2LSB,
+        GeneralPurpose1.get_rust_id(): GeneralPurpose1,
+        GeneralPurpose1LSB.get_rust_id(): GeneralPurpose1LSB,
+        GeneralPurpose2.get_rust_id(): GeneralPurpose2,
+        GeneralPurpose2LSB.get_rust_id(): GeneralPurpose2LSB,
+        GeneralPurpose3.get_rust_id(): GeneralPurpose3,
+        GeneralPurpose3LSB.get_rust_id(): GeneralPurpose3LSB,
+        GeneralPurpose4.get_rust_id(): GeneralPurpose4,
+        GeneralPurpose4LSB.get_rust_id(): GeneralPurpose4LSB,
+        GeneralPurpose5.get_rust_id(): GeneralPurpose5,
+        GeneralPurpose6.get_rust_id(): GeneralPurpose6,
+        GeneralPurpose7.get_rust_id(): GeneralPurpose7,
+        GeneralPurpose8.get_rust_id(): GeneralPurpose8,
 
 
 
-        ProgramChange._rust_id: ProgramChange,
-        ChannelPressure._rust_id: ChannelPressure,
-        PitchWheelChange._rust_id: PitchWheelChange,
-        SequenceNumber._rust_id: SequenceNumber
+        ProgramChange.get_rust_id(): ProgramChange,
+        ChannelPressure.get_rust_id(): ChannelPressure,
+        PitchWheelChange.get_rust_id(): PitchWheelChange,
+        SequenceNumber.get_rust_id(): SequenceNumber
     }
 
-    def _get_track_count(self) -> int:
+    def _get_track_count(self):
         return self.lib.get_track_count(self.pointer)
 
-    def __init__(self, path: str = ""):
+    def __init__(self, path):
         self.ffi = FFI()
         self.ffi.cdef("""
             typedef void* MIDI;
@@ -1392,7 +1613,8 @@ class MIDI:
             self.path = ''
             self.pointer = self.lib.new()
 
-    def get_all_events(self) -> list[tuple[int, MIDIEvent]]:
+    def get_all_events(self):
+        '''Get sorted list of events in midi events'''
         event_list = []
         for event_id, (_, tick) in self.event_positions.items():
             event_list.append((tick, event_id))
@@ -1404,7 +1626,8 @@ class MIDI:
 
         return output
 
-    def add_event(self, event: MIDIEvent, **kwargs) -> None:
+    def add_event(self, event, **kwargs):
+        ''' Add Midi Event to the Midi '''
         if event.uuid:
             raise AlreadyInMIDI()
 
@@ -1414,28 +1637,28 @@ class MIDI:
         if "tick" in kwargs.keys():
             active_tick = kwargs["tick"]
         elif "wait" in kwargs.keys():
-            active_tick = self._track_get_length(active_track) - 1 + kwargs['wait']
+            active_tick = self.track_get_length(active_track) - 1 + kwargs['wait']
         else:
-            active_tick = self._track_get_length(active_track) - 1
+            active_tick = self.track_get_length(active_track) - 1
 
         event_uuid = self._pushsync_event(event, active_track, active_tick)
 
         event.set_uuid(event_uuid)
-        event._midi = self
+        event.set_midi(self)
 
         self.events[event_uuid] = event
         self.event_positions[event_uuid] = (active_track, active_tick)
 
-    def _replace_event(self, event: MIDIEvent) -> None:
+    def replace_event(self, event):
         new_bytes = bytes(event)
         self.lib.replace_event(self.pointer, event.uuid, new_bytes, len(new_bytes))
 
-    def _pushsync_event(self, event: MIDIEvent, track: int, tick: int) -> int:
+    def _pushsync_event(self, event, track, tick):
         orig_bytes = bytes(event)
         event_id = self.lib.create_event(self.pointer, track, tick, orig_bytes, len(orig_bytes))
         return event_id
 
-    def _event_get_position(self, eid: int) -> tuple[int, int]:
+    def event_get_position(self, eid):
         tick = self.lib.get_event_tick(self.pointer, eid) - 1
         track = self.lib.get_event_track(self.pointer, eid) - 1
         if tick == -1 or track == -1:
@@ -1443,39 +1666,39 @@ class MIDI:
 
         return (track, tick)
 
-    def _track_get_length(self, track_number: int) -> int:
+    def track_get_length(self, track_number):
         return self.lib.get_track_length(self.pointer, track_number)
 
-    def _event_get_type(self, event_uuid: int) -> int:
+    def event_get_type(self, event_uuid):
         return self.lib.get_event_type(self.pointer, event_uuid)
 
-    def _event_get_property(self, event_uuid: int, event_property: int) -> bytearray:
+    def event_get_property(self, event_uuid, event_property):
         length = self.lib.get_event_property_length(self.pointer, event_uuid, event_property)
         bufferlist = bytearray(length)
         array_pointer = self.lib.get_event_property(self.pointer, event_uuid, event_property)
         self.ffi.memmove(bufferlist, array_pointer, length)
         return bufferlist
 
-    def _get_event(self, event_uuid: int) -> MIDIEvent:
-        type_num = self._event_get_type(event_uuid)
+    def _get_event(self, event_uuid):
+        type_num = self.event_get_type(event_uuid)
         if type_num == 0:
             raise EventNotFound()
         constructor = self.event_constructors[type_num]
 
         # passing uuid will cause it to sync on init
         event = constructor(uuid=event_uuid)
-        event._midi = self
+        event.set_midi(self)
         event.set_uuid(event_uuid)
         event.pullsync()
         event.get_position()
         return event
 
 
-    def save(self, path: str) -> None:
+    def save(self, path):
         fmt_path = bytes(path, 'utf-8')
         self.lib.save(self.pointer, fmt_path)
 
-    def _event_move(self, event_uuid: int, new_track: int, new_tick: int) -> None:
+    def event_move(self, event_uuid, new_track, new_tick):
         self.lib.move_event(self.pointer, event_uuid, new_track, new_tick)
 
 
@@ -1484,7 +1707,7 @@ class PipeClosed(Exception):
 
 class MIDIController:
     '''Read Input from Midi Device'''
-    def __init__(self, default_path: str =""):
+    def __init__(self, default_path=""):
         self.pipe = None
         self.listening = False
         self.midipath = None
@@ -1492,14 +1715,14 @@ class MIDIController:
         self.hook_map = {}
         self.event_queue = []
 
-    def set_hook(self, event_type: Type[MIDIEvent], hook: Callable[MIDIEvent, None]):
+    def set_hook(self, event_type, hook):
         self.hook_map[event_type] = hook
 
-    def is_connected(self) -> bool:
+    def is_connected(self):
         '''Check if pipe is open and ready to be read'''
         return bool(self.pipe)
 
-    def connect(self, path: str):
+    def connect(self, path):
         '''Attempt to open a pipe to the path specified'''
         if not self.pipe:
             self.pipe = open(path, 'rb')
@@ -1520,10 +1743,10 @@ class MIDIController:
         '''Tear down this midi controller'''
         self.disconnect()
 
-    def get_next_byte(self) -> int:
+    def get_next_byte(self):
         '''Attempt to read next byte from pipe'''
         output = None
-        while output == None:
+        while output is None:
             try:
                 ready, _, __ = select.select([self.pipe], [], [], 0)
             except TypeError:
@@ -1581,26 +1804,27 @@ class MIDIController:
         '''Read Midi Input Device until relevant event is found'''
         lead_byte = self.get_next_byte()
 
+        output = None
         if lead_byte & 0xF0 == 0x80:
-            channel = lead_byte & 0x0F;
+            channel = lead_byte & 0x0F
             note = self.get_next_byte()
             velocity = self.get_next_byte()
-            return NoteOff(channel=channel, note=note, velocity=velocity)
+            output = NoteOff(channel=channel, note=note, velocity=velocity)
 
         elif lead_byte & 0xF0 == 0x90:
-            channel = lead_byte & 0x0F;
+            channel = lead_byte & 0x0F
             note = self.get_next_byte()
             velocity = self.get_next_byte()
             if velocity == 0:
-                return NoteOff(channel=channel, note=note, velocity=0)
+                output = NoteOff(channel=channel, note=note, velocity=0)
             else:
-                return NoteOn(channel=channel, note=note, velocity=velocity)
+                output = NoteOn(channel=channel, note=note, velocity=velocity)
 
         elif lead_byte & 0xF0 == 0xA0:
             channel = lead_byte & 0x0F
             note = self.get_next_byte()
             velocity = self.get_next_byte()
-            return PolyphonicKeyPressure(channel=channel, note=note, velocity=velocity)
+            output = PolyphonicKeyPressure(channel=channel, note=note, velocity=velocity)
 
         elif lead_byte & 0xF0 == 0xB0:
             channel = lead_byte & 0x0F
@@ -1752,7 +1976,7 @@ class MIDIController:
                 constructor = ControlChange
 
             value = self.get_next_byte()
-            return constructor(
+            output = constructor(
                 channel=channel,
                 controller=controller,
                 value=value
@@ -1761,12 +1985,12 @@ class MIDIController:
         elif lead_byte & 0xF0 == 0xC0:
             channel = lead_byte & 0x0F
             new_program = self.get_next_byte()
-            return ProgramChange(channel=channel, program=new_program)
+            output = ProgramChange(channel=channel, program=new_program)
 
         elif lead_byte & 0xF0 == 0xD0:
             channel = lead_byte & 0x0F
             pressure = self.get_next_byte()
-            return ChannelPressure(channel=channel, pressure=pressure)
+            output = ChannelPressure(channel=channel, pressure=pressure)
 
         elif lead_byte & 0xF0 == 0xE0:
             channel = lead_byte & 0x0F
@@ -1777,19 +2001,18 @@ class MIDIController:
             unsigned = (msb << 7) + (lsb & 0x7F)
             value = ((0x3FFF * unsigned) - 2) / 2
 
-            return PitchWheelChange(channel=channel, value=value)
+            output = PitchWheelChange(channel=channel, value=value)
 
         elif lead_byte == 0xF0:
             # System Exclusive
             bytedump = []
-            while True:
-                byte = self.get_next_byte()
-                if byte == 0xF7:
-                    break
-                else:
-                    bytedump.append(byte)
 
-            return SystemExclusive(data=bytedump)
+            byte = self.get_next_byte()
+            while byte != 0xF7:
+                bytedump.append(byte)
+                byte = self.get_next_byte()
+
+            output = SystemExclusive(data=bytedump)
 
             # Time Code
         elif lead_byte == 0xF1:
@@ -1809,21 +2032,21 @@ class MIDIController:
             second = self.get_next_byte() & 0x3F
             frame = self.get_next_byte() & 0x1F
 
-            return TimeCode(rate=rate, hour=hour, minute=minute, second=second, frame=frame)
+            output = TimeCode(rate=rate, hour=hour, minute=minute, second=second, frame=frame)
 
         elif lead_byte == 0xF2:
             least_significant_byte = self.get_next_byte()
             most_significant_byte = self.get_next_byte()
 
             beat = (most_significant_byte << 7) + least_significant_byte
-            return SongPositionPointer(beat=beat)
+            output = SongPositionPointer(beat=beat)
 
         elif lead_byte == 0xF3:
             song = self.get_next_byte()
-            return SongSelect(song & 0x7F)
+            output = SongSelect(song & 0x7F)
 
         elif lead_byte == 0xF6:
-            return TuneRequest()
+            output = TuneRequest()
 
         elif lead_byte == 0xF7:
             # Real Time SysEx
@@ -1831,32 +2054,30 @@ class MIDIController:
                 byte = self.get_next_byte()
                 bytedump.push(byte)
 
-            return SystemExclusive(bytedump)
+            output = SystemExclusive(bytedump)
 
         # Clock
         elif lead_byte == 0xF8:
-            return MIDIClock()
+            output = MIDIClock()
         # Start
         elif lead_byte == 0xFA:
-            return MIDIStart()
+            output = MIDIStart()
         # Continue
         elif lead_byte == 0xFB:
-            return MIDIContinue()
+            output = MIDIContinue()
         #Stop
         elif lead_byte == 0xFC:
-            return MIDIStop()
+            output = MIDIStop()
         #Active Sensing
         elif lead_byte == 0xFE:
-            return ActiveSense()
+            output = ActiveSense()
         # System Reset
         elif lead_byte == 0xFF:
-            return Reset()
-        # Undefined Behaviour
-        else:
-            return None
+            output = Reset()
 
+        return output
 
-def to_variable_length(number: int) -> bytes:
+def to_variable_length(number):
     output = []
     is_first_pass = True
     working_number = number
@@ -1869,4 +2090,3 @@ def to_variable_length(number: int) -> bytes:
             is_first_pass = False
         output.append(tmp)
     return bytes(output[::-1])
-
