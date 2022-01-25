@@ -1561,7 +1561,7 @@ class MIDI:
     def _get_track_count(self):
         return self.lib.get_track_count(self.pointer)
 
-    def __init__(self, path):
+    def __init__(self, path=None):
         self.ffi = FFI()
         self.ffi.cdef("""
             typedef void* MIDI;
