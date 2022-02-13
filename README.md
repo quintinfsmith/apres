@@ -35,7 +35,7 @@ let mut midi = MIDI::new();
 midi.insert_event(0, 0, NoteOn(0, 64, 100));
 
 // Still on channel 0, release midi note 64 (Middle E) on the first track (0) one beat later (120 ticks)
-midi.push_event(0, 120, NoteOn(0, 64, 100));
+midi.push_event(0, 120, NoteOff(0, 64, 100));
 
 // Save it to a file
 midi.save("beep.mid");
