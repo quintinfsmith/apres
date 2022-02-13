@@ -652,7 +652,7 @@ impl MIDIBytes for MIDIEvent {
             MIDIEvent::PitchWheelChange(channel, value) => {
                 let unsigned_value = get_pitchwheel_value(*value);
                 let lsb: u8 = (unsigned_value & 0x007F) as u8;
-                let msb: u8 = ((unsigned_value >> 7) & 0x007F) as u8;
+                let msb: u8 = ((unsigned_value >> 8) & 0x007F) as u8;
                 vec![
                     0xE0 | *channel,
                     lsb,
@@ -692,7 +692,7 @@ impl MIDIBytes for MIDIEvent {
                 vec![
                     0xF2,
                     (*beat & 0x7F) as u8,
-                    ((*beat >> 7) & 0x7F) as u8
+                    ((*beat >> 8) & 0x7F) as u8
                 ]
             }
 
@@ -1049,7 +1049,7 @@ impl MIDIBytes for MIDIEvent {
                 let least_significant_byte = bytes.remove(0);
                 let most_significant_byte = bytes.remove(0);
 
-                let beat = ((most_significant_byte as u16) << 7) + (least_significant_byte as u16);
+                let beat = ((most_significant_byte as u16) << 8) + (least_significant_byte as u16);
                 let event = MIDIEvent::SongPositionPointer(beat);
                 output = Ok(event);
             }
@@ -1676,7 +1676,7 @@ fn build_key_signature(mut mi: u8, mut sf: u8) -> MIDIEvent {
 }
 
 fn build_pitch_wheel_change(channel: u8, lsb: u8, msb: u8) -> MIDIEvent {
-    let unsigned_value: f64 = (((msb as u16) << 7) + (lsb as u16)) as f64;
+    let unsigned_value: f64 = (((msb as u16) << 8) + (lsb as u16)) as f64;
     let new_value: f64 = ((unsigned_value * 2_f64) as f64 / 0x3FFF as f64) - 1_f64;
     MIDIEvent::PitchWheelChange(channel, new_value)
 }
