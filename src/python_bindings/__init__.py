@@ -1247,7 +1247,7 @@ class PitchWheelChange(MIDIEvent):
     def __bytes__(self):
         unsigned_value = self.get_unsigned_value()
         least = unsigned_value & 0x007F
-        most = (unsigned_value >> 7) & 0x007F
+        most = (unsigned_value >> 8) & 0x007F
         return bytes([(0xE0 | self.channel), least, most])
 
     def __init__(self, **kwargs):
@@ -1334,7 +1334,7 @@ class SongPositionPointer(MIDIEvent):
         return 25
     def __bytes__(self):
         least = self.beat & 0x7F
-        most = (self.beat >> 7) & 0x7F
+        most = (self.beat >> 8) & 0x7F
         return bytes([0xF2, least, most])
 
     def __init__(self, **kwargs):
@@ -1998,7 +1998,7 @@ class MIDIController:
             lsb = self.get_next_byte()
             msb = self.get_next_byte()
 
-            unsigned = (msb << 7) + (lsb & 0x7F)
+            unsigned = (msb << 8) + (lsb & 0x7F)
             value = ((0x3FFF * unsigned) - 2) / 2
 
             output = PitchWheelChange(channel=channel, value=value)
@@ -2038,7 +2038,7 @@ class MIDIController:
             least_significant_byte = self.get_next_byte()
             most_significant_byte = self.get_next_byte()
 
-            beat = (most_significant_byte << 7) + least_significant_byte
+                beat = (most_significant_byte << 8) + least_significant_byte
             output = SongPositionPointer(beat=beat)
 
         elif lead_byte == 0xF3:
