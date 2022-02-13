@@ -2037,8 +2037,7 @@ class MIDIController:
         elif lead_byte == 0xF2:
             least_significant_byte = self.get_next_byte()
             most_significant_byte = self.get_next_byte()
-
-                beat = (most_significant_byte << 8) + least_significant_byte
+            beat = (most_significant_byte << 8) + least_significant_byte
             output = SongPositionPointer(beat=beat)
 
         elif lead_byte == 0xF3:
