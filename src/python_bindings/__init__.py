@@ -1244,6 +1244,7 @@ class PitchWheelChange(MIDIEvent):
     @staticmethod
     def get_rust_id():
         return 21
+
     def __bytes__(self):
         unsigned_value = self.get_unsigned_value()
         least = unsigned_value & 0x007F
@@ -1332,9 +1333,10 @@ class SongPositionPointer(MIDIEvent):
     @staticmethod
     def get_rust_id():
         return 25
+
     def __bytes__(self):
-        least = self.beat & 0x7F
-        most = (self.beat >> 8) & 0x7F
+        least = self.beat & 0x007F
+        most = (self.beat >> 8) & 0x007F
         return bytes([0xF2, least, most])
 
     def __init__(self, **kwargs):
