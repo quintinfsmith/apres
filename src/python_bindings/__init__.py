@@ -1283,7 +1283,7 @@ class PitchWheelChange(MIDIEvent):
         if self.value == 0:
             output = 0x2000
         else:
-            output = ((self.value + 1) * 0x3FFF) / 2
+            output = int(((self.value + 1) * 0x3FFF) // 2)
         return output
 
 class SystemExclusive(MIDIEvent):
