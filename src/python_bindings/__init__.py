@@ -1280,7 +1280,7 @@ class PitchWheelChange(MIDIEvent):
 
     def get_unsigned_value(self):
         ''' get value as integer in range (0, 0x3FFF) '''
-        return int( (self.value + 1) * 0x2000 )
+        return int(min((self.value + 1) * 0x2000, 0x3FFF))
 
 class SystemExclusive(MIDIEvent):
     @staticmethod
