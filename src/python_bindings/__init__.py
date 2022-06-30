@@ -573,7 +573,13 @@ class KeySignature(MIDIEvent):
         super().__init__(**kwargs)
 
     def pullsync(self):
-        self.key = bytes(self.get_property(0)).decode("utf8")
+        mi = self.get_property(0)
+        sf = self.get_property(1)
+        self.key = "C"
+        for chordname, pair in self.misf_map.items():
+            if pair == (mi, sf):
+                self.key = chordname
+                break
 
     def get_key(self):
         return self.key

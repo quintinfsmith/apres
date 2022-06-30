@@ -569,6 +569,15 @@ fn get_midi_property(midievent: MIDIEvent, property_index: u8) -> Vec<u8> {
 
         }
 
+        KeySignature(key) => {
+            let (mi, sf) = get_mi_sf(&key);
+            match property_index {
+                0 => { vec![mi] }
+                1 => { vec![sf] }
+                _ => { vec![] }
+            }
+        }
+
         _ => {
             vec![]
         }
