@@ -56,6 +56,14 @@ pub extern fn get_ppqn(midi_ptr: *mut MIDI) -> u16 {
 }
 
 #[no_mangle]
+pub extern fn set_format(midi_ptr: *mut MIDI, format: u16) {
+    let mut midi = unsafe { mem::ManuallyDrop::new(Box::from_raw(midi_ptr)) };
+
+    midi.set_format(format);
+
+}
+
+#[no_mangle]
 pub extern fn set_ppqn(midi_ptr: *mut MIDI, ppqn: u16) {
     let mut midi = unsafe { mem::ManuallyDrop::new(Box::from_raw(midi_ptr)) };
 
@@ -159,6 +167,18 @@ pub extern "C" fn get_event_property(midi_ptr: *mut MIDI, event_id: u64, argumen
     array
 }
 
+#[no_mangle]
+pub extern fn get_event_property_count(midi_ptr: *mut MIDI, event_id: u64) -> u8 {
+    let midi = unsafe { mem::ManuallyDrop::new(Box::from_raw(midi_ptr)) };
+    match midi.get_event(event_id) {
+        Some(midievent) => {
+            get_midi_property_count(midievent)
+        }
+        None => {
+            0
+        }
+    }
+}
 
 #[no_mangle]
 pub extern fn get_event_property_length(midi_ptr: *mut MIDI, event_id: u64, argument: u8) -> u8 {
@@ -580,6 +600,170 @@ fn get_midi_property(midievent: MIDIEvent, property_index: u8) -> Vec<u8> {
 
         _ => {
             vec![]
+        }
+    }
+}
+
+fn get_midi_property_count(midievent: MIDIEvent) -> u8 {
+    match midievent {
+        SequenceNumber(sequence) => {
+            1
+        }
+
+        Text(text) |
+        CopyRightNotice(text) |
+        TrackName(text) |
+        InstrumentName(text) |
+        Lyric(text) |
+        Marker(text) |
+        CuePoint(text) => {
+            1
+        }
+
+        ChannelPrefix(channel) => {
+            1
+        }
+
+        SetTempo(uspqn) => {
+            1
+        }
+
+        SMPTEOffset(hour, minute, second, ff, fr) => {
+            5
+        }
+
+        TimeSignature(numerator, denominator, cpm, thirtysecondths_per_quarter) => {
+            4
+        }
+
+        //SequencerSpecific => 14,
+
+        NoteOn(channel, note, velocity) |
+        NoteOff(channel, note, velocity) |
+        AfterTouch(channel, note, velocity) => {
+            3
+        }
+
+
+        ControlChange(channel, controller, value) => {
+            3
+        }
+
+        ProgramChange(channel, program) => {
+            2
+        }
+
+        ChannelPressure(channel, pressure) => {
+            2
+        }
+
+        PitchWheelChange(channel, value) => {
+            2
+        }
+
+        SystemExclusive(data) => {
+            1
+        }
+
+        MTCQuarterFrame(message_type, value) => {
+            2
+        }
+
+        SongPositionPointer(beat) => {
+            1
+        }
+
+        SongSelect(song) => {
+            1
+        }
+
+        BankSelect(channel, value) |
+        BankSelectLSB(channel, value) |
+        ModulationWheel(channel, value) |
+        ModulationWheelLSB(channel, value) |
+        BreathController(channel, value) |
+        BreathControllerLSB(channel, value) |
+        FootPedal(channel, value) |
+        FootPedalLSB(channel, value) |
+        PortamentoTime(channel, value) |
+        PortamentoTimeLSB(channel, value) |
+        DataEntry(channel, value) |
+        DataEntryLSB(channel, value) |
+        Volume(channel, value) |
+        VolumeLSB(channel, value) |
+        Balance(channel, value) |
+        BalanceLSB(channel, value) |
+        Pan(channel, value) |
+        PanLSB(channel, value) |
+        Expression(channel, value) |
+        ExpressionLSB(channel, value) |
+        EffectControl1(channel, value) |
+        EffectControl1LSB(channel, value) |
+        EffectControl2(channel, value) |
+        EffectControl2LSB(channel, value) |
+        HoldPedal(channel, value) |
+        Portamento(channel, value) |
+        Sustenuto(channel, value) |
+        SoftPedal(channel, value) |
+        Legato(channel, value) |
+        Hold2Pedal(channel, value) |
+        SoundVariation(channel, value) |
+        SoundTimbre(channel, value) |
+        SoundReleaseTime(channel, value) |
+        SoundAttack(channel, value) |
+        SoundBrightness(channel, value) |
+        SoundControl1(channel, value) |
+        SoundControl2(channel, value) |
+        SoundControl3(channel, value) |
+        SoundControl4(channel, value) |
+        SoundControl5(channel, value) |
+        GeneralPurpose1(channel, value) |
+        GeneralPurpose1LSB(channel, value) |
+        GeneralPurpose2(channel, value) |
+        GeneralPurpose2LSB(channel, value) |
+        GeneralPurpose3(channel, value) |
+        GeneralPurpose3LSB(channel, value) |
+        GeneralPurpose4(channel, value) |
+        GeneralPurpose4LSB(channel, value) |
+        GeneralPurpose5(channel, value) |
+        GeneralPurpose6(channel, value) |
+        GeneralPurpose7(channel, value) |
+        GeneralPurpose8(channel, value) |
+        EffectsLevel(channel, value) |
+        TremuloLevel(channel, value) |
+        ChorusLevel(channel, value) |
+        CelesteLevel(channel, value) |
+        PhaserLevel(channel, value) |
+        RegisteredParameterNumber(channel, value) |
+        NonRegisteredParameterNumber(channel, value) |
+        RegisteredParameterNumberLSB(channel, value) |
+        NonRegisteredParameterNumberLSB(channel, value) |
+        LocalControl(channel, value) |
+        MonophonicOperation(channel, value) => {
+            2
+        }
+
+        DataIncrement(channel) |
+        DataDecrement(channel) |
+        AllControllersOff(channel) |
+        AllNotesOff(channel) |
+        AllSoundOff(channel) |
+        OmniOff(channel) |
+        OmniOn(channel) |
+        PolyphonicOperation(channel) => {
+            1
+        }
+
+        TimeCode(rate, hour, minute, second, frame) => {
+            5
+        }
+
+        KeySignature(key) => {
+            2
+        }
+
+        _ => {
+            0
         }
     }
 }
