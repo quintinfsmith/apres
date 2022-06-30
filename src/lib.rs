@@ -1681,7 +1681,7 @@ fn build_pitch_wheel_change(channel: u8, lsb: u8, msb: u8) -> MIDIEvent {
     MIDIEvent::PitchWheelChange(channel, new_value)
 }
 
-fn get_mi_sf(chord_name: &str) -> (u8, i8) {
+pub fn get_mi_sf(chord_name: &str) -> (u8, i8) {
     match chord_name {
         "A" => (0, 3),
         "A#" | "Bb" => (0, 8 | 2),
