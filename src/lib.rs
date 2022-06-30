@@ -256,7 +256,7 @@ impl MIDIBytes for MIDIEvent {
 
             MIDIEvent::KeySignature(string) => {
                 let (mi, sf) = get_mi_sf(string);
-                vec![0xFF, 0x59, 0x02, sf as u8, mi]
+                vec![0xFF, 0x59, 0x02, sf, mi]
             }
 
             MIDIEvent::SequencerSpecific(data) => {
@@ -1681,7 +1681,7 @@ fn build_pitch_wheel_change(channel: u8, lsb: u8, msb: u8) -> MIDIEvent {
     MIDIEvent::PitchWheelChange(channel, new_value)
 }
 
-pub fn get_mi_sf(chord_name: &str) -> (u8, i8) {
+pub fn get_mi_sf(chord_name: &str) -> (u8, u8) {
     match chord_name {
         "A" => (0, 3),
         "A#" | "Bb" => (0, 8 | 2),
