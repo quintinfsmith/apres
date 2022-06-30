@@ -1,4 +1,5 @@
 '''Mutable Midi Library'''
+from __future__ import annotations
 import sys
 import site
 import os
@@ -8,6 +9,8 @@ import select
 import threading
 from ctypes.util import find_library
 from cffi import FFI
+from typing import Tuple, Optional
+from abc import ABC, abstractmethod
 
 class NoTickException(Exception):
     pass
@@ -28,17 +31,19 @@ class InvalidMIDIFile(Exception):
     ''' Passed when reading an unrecognizeable file '''
     pass
 
-class MIDIEvent:
+class MIDIEvent(ABC):
     ''' Abstract representation of a MIDI event '''
     def __init__(self, **_kwargs):
         self.uuid = None
         self._midi = None
 
+    @abstractmethod
     def pullsync(self):
         '''update the python object with data from the rust layer'''
-        pass
+        return NotImplemented
 
     def set_uuid(self, uuid):
+        '''Apply the uuid given by the MIDI shared library'''
         self.uuid = uuid
 
     def update_event(self):
@@ -47,6 +52,7 @@ class MIDIEvent:
             midi.replace_event(self)
 
     def get_property(self, event_number):
+        '''Get some associated property from the MIDI shared library'''
         midi = self.get_midi()
         if not midi:
             raise NoMIDI()
@@ -54,25 +60,25 @@ class MIDIEvent:
         prop = midi.event_get_property(self.uuid, event_number)
         return prop
 
-    def get_position(self):
-        midi = self.get_midi()
+    def get_position(self) -> Tuple[int, int]:
+        """Get track and tick of the MIDIEvent (if there it's attached to a MIDI)"""
+        midi: MIDI = self.get_midi()
         if not midi:
             raise NoMIDI()
 
-        pos = midi.event_get_position(self.uuid)
+        pos: Tuple[int, int] = midi.event_get_position(self.uuid)
         midi.event_positions[self.uuid] = pos
         return pos
 
 
     def move(self, **kwargs):
-        active_track = 0
-        if "track" in kwargs.keys():
-            active_track = kwargs['track']
+        '''Move the MIDIEvent to a different tick or track'''
+        active_track = kwargs.get('track', 0)
 
         midi = self.get_midi()
-        if "tick" in kwargs.keys():
+        if "tick" in kwargs:
             active_tick = kwargs["tick"]
-        elif "wait" in kwargs.keys():
+        elif "wait" in kwargs:
             active_tick = midi.track_get_length(active_track) - 1 + kwargs['wait']
         else:
             active_tick = midi.track_get_length(active_track) - 1
@@ -80,9 +86,11 @@ class MIDIEvent:
         midi.event_move(self.uuid, active_track, active_tick)
 
     def get_midi(self):
+        '''Get the MIDI object associated with this MIDIEvent'''
         return self._midi
 
     def set_midi(self, midi):
+        ''' Associate MIDI object with this MIDIEvent'''
         self._midi = midi
 
 
@@ -102,7 +110,7 @@ class SequenceNumber(MIDIEvent):
         return bytes(output)
 
     def __init__(self, **kwargs):
-        if "uuid" not in kwargs.keys():
+        if "uuid" not in kwargs:
             self.sequence = kwargs['sequence']
         super().__init__(**kwargs)
 
@@ -132,7 +140,7 @@ class Text(MIDIEvent):
         return bytes(output) + text_bytes
 
     def __init__(self, **kwargs):
-        if "uuid" not in kwargs.keys():
+        if "uuid" not in kwargs:
             self.text = kwargs['text']
         super().__init__(**kwargs)
 
@@ -161,7 +169,7 @@ class CopyRightNotice(MIDIEvent):
         return bytes(output) + text_bytes
 
     def __init__(self, **kwargs):
-        if "uuid" not in kwargs.keys():
+        if "uuid" not in kwargs:
             self.text = kwargs["text"]
         super().__init__(**kwargs)
 
@@ -189,7 +197,7 @@ class TrackName(MIDIEvent):
         return bytes(output) + text_bytes
 
     def __init__(self, **kwargs):
-        if "uuid" not in kwargs.keys():
+        if "uuid" not in kwargs:
             self.name = kwargs["name"]
         super().__init__(**kwargs)
 
@@ -217,7 +225,7 @@ class InstrumentName(MIDIEvent):
         return bytes(output) + text_bytes
 
     def __init__(self, **kwargs):
-        if "uuid" not in kwargs.keys():
+        if "uuid" not in kwargs:
             self.name = kwargs["name"]
         super().__init__(**kwargs)
 
@@ -245,7 +253,7 @@ class Lyric(MIDIEvent):
         return bytes(output) + text_bytes
 
     def __init__(self, **kwargs):
-        if "uuid" not in kwargs.keys():
+        if "uuid" not in kwargs:
             self.lyric = kwargs["lyric"]
         super().__init__(**kwargs)
 
@@ -273,7 +281,7 @@ class Marker(MIDIEvent):
         return bytes(output) + text_bytes
 
     def __init__(self, **kwargs):
-        if "uuid" not in kwargs.keys():
+        if "uuid" not in kwargs:
             self.text = kwargs["text"]
         super().__init__(**kwargs)
 
@@ -301,7 +309,7 @@ class CuePoint(MIDIEvent):
         return bytes(output) + text_bytes
 
     def __init__(self, **kwargs):
-        if "uuid" not in kwargs.keys():
+        if "uuid" not in kwargs:
             self.text = kwargs["text"]
         super().__init__(**kwargs)
 
@@ -337,7 +345,7 @@ class ChannelPrefix(MIDIEvent):
         return bytes([0xFF, 0x20, 0x01, self.channel])
 
     def __init__(self, **kwargs):
-        if "uuid" not in kwargs.keys():
+        if "uuid" not in kwargs:
             self.channel = kwargs["channel"]
         super().__init__(**kwargs)
 
@@ -366,10 +374,10 @@ class SetTempo(MIDIEvent):
         ])
 
     def __init__(self, **kwargs):
-        if "uuid" not in kwargs.keys():
-            if "uspqn" in kwargs.keys():
+        if "uuid" not in kwargs:
+            if "uspqn" in kwargs:
                 self.us_per_quarter_note = kwargs['uspqn']
-            elif "bpm" in kwargs.keys():
+            elif "bpm" in kwargs:
                 bpm = kwargs["bpm"]
                 if not bpm:
                     self.us_per_quarter_note = 0
@@ -421,7 +429,7 @@ class SMPTEOffset(MIDIEvent):
         ])
 
     def __init__(self, **kwargs):
-        if "uuid" not in kwargs.keys():
+        if "uuid" not in kwargs:
             self.hour = kwargs["hour"]
             self.minute = kwargs["minute"]
             self.second = kwargs["second"]
@@ -485,7 +493,7 @@ class TimeSignature(MIDIEvent):
         ])
 
     def __init__(self, **kwargs):
-        if "uuid" not in kwargs.keys():
+        if "uuid" not in kwargs:
             self.numerator = kwargs["numerator"]
             self.denominator = kwargs["denominator"]
             self.clocks_per_metronome = kwargs["cpm"]
@@ -568,7 +576,7 @@ class KeySignature(MIDIEvent):
         return bytes([0xFF, 0x59, 0x02, sf, mi])
 
     def __init__(self, **kwargs):
-        if "uuid" not in kwargs.keys():
+        if "uuid" not in kwargs:
             self.key = kwargs["key"]
         super().__init__(**kwargs)
 
@@ -601,7 +609,7 @@ class Sequencer(MIDIEvent):
         return bytes(output) + self.data
 
     def __init__(self, **kwargs):
-        if "uuid" not in kwargs.keys():
+        if "uuid" not in kwargs:
             self.data = kwargs["data"]
         super().__init__(**kwargs)
 
@@ -627,7 +635,7 @@ class NoteOn(MIDIEvent):
             self.velocity
         ])
     def __init__(self, **kwargs):
-        if "uuid" not in kwargs.keys():
+        if "uuid" not in kwargs:
             self.channel = kwargs["channel"]
             self.note = kwargs["note"]
             self.velocity = kwargs["velocity"]
@@ -672,7 +680,7 @@ class NoteOff(MIDIEvent):
         ])
 
     def __init__(self, **kwargs):
-        if "uuid" not in kwargs.keys():
+        if "uuid" not in kwargs:
             self.channel = kwargs["channel"]
             self.note = kwargs["note"]
             self.velocity = kwargs["velocity"]
@@ -715,7 +723,7 @@ class PolyphonicKeyPressure(MIDIEvent):
             self.pressure
         ])
     def __init__(self, **kwargs):
-        if "uuid" not in kwargs.keys():
+        if "uuid" not in kwargs:
             self.channel = kwargs["channel"]
             self.note = kwargs["note"]
             self.pressure = kwargs["pressure"]
@@ -759,7 +767,7 @@ class ControlChange(MIDIEvent):
         ])
 
     def __init__(self, **kwargs):
-        if "uuid" not in kwargs.keys():
+        if "uuid" not in kwargs:
             self.channel = kwargs["channel"]
             self.controller = kwargs["controller"]
             self.value = kwargs["value"]
@@ -1183,7 +1191,7 @@ class ProgramChange(MIDIEvent):
         ])
 
     def __init__(self, **kwargs):
-        if "uuid" not in kwargs.keys():
+        if "uuid" not in kwargs:
             self.channel = kwargs["channel"]
             self.program = kwargs["program"]
         super().__init__(**kwargs)
@@ -1218,7 +1226,7 @@ class ChannelPressure(MIDIEvent):
         ])
 
     def __init__(self, **kwargs):
-        if "uuid" not in kwargs.keys():
+        if "uuid" not in kwargs:
             self.channel = kwargs["channel"]
             self.pressure = kwargs["pressure"]
         super().__init__(**kwargs)
@@ -1258,7 +1266,7 @@ class PitchWheelChange(MIDIEvent):
         return bytes([(0xE0 | self.channel), least, most])
 
     def __init__(self, **kwargs):
-        if "uuid" not in kwargs.keys():
+        if "uuid" not in kwargs:
             self.channel = kwargs["channel"]
             self.value = kwargs["value"]
         super().__init__(**kwargs)
@@ -1305,7 +1313,7 @@ class SystemExclusive(MIDIEvent):
         return bytes(output)
 
     def __init__(self, **kwargs):
-        if "uuid" not in kwargs.keys():
+        if "uuid" not in kwargs:
             self.data = kwargs["data"]
 
         super().__init__(**kwargs)
@@ -1329,7 +1337,7 @@ class MTCQuarterFrame(MIDIEvent):
         return bytes([0xF1, self.time_code])
 
     def __init__(self, **kwargs):
-        if "uuid" not in kwargs.keys():
+        if "uuid" not in kwargs:
             self.time_code = kwargs["time_code"] & 0xFF
         super().__init__(**kwargs)
 
@@ -1350,7 +1358,7 @@ class SongPositionPointer(MIDIEvent):
         return bytes([0xF2, least, most])
 
     def __init__(self, **kwargs):
-        if "uuid" not in kwargs.keys():
+        if "uuid" not in kwargs:
             self.beat = kwargs["beat"]
         super().__init__(**kwargs)
 
@@ -1373,7 +1381,7 @@ class SongSelect(MIDIEvent):
         return bytes([0xF3, self.song & 0xFF])
 
     def __init__(self, **kwargs):
-        if "uuid" not in kwargs.keys():
+        if "uuid" not in kwargs:
             self.song = kwargs["song"]
         super().__init__(**kwargs)
 
@@ -1441,7 +1449,7 @@ class TimeCode(MIDIEvent):
     def get_rust_id():
         return 105
     def __init__(self, **kwargs):
-        if "uuid" not in kwargs.keys():
+        if "uuid" not in kwargs:
             self.rate = kwargs["rate"]
             self.hour = kwargs["hour"]
             self.minute = kwargs["minute"]
@@ -1644,11 +1652,11 @@ class MIDI:
             raise AlreadyInMIDI()
 
         active_track = 0
-        if 'track' in kwargs.keys():
+        if 'track' in kwargs:
             active_track = kwargs['track']
-        if "tick" in kwargs.keys():
+        if "tick" in kwargs:
             active_tick = kwargs["tick"]
-        elif "wait" in kwargs.keys():
+        elif "wait" in kwargs:
             active_tick = self.track_get_length(active_track) - 1 + kwargs['wait']
         else:
             active_tick = self.track_get_length(active_track) - 1
