@@ -1,4 +1,4 @@
-'''Mutable Midi Library'''
+"""Mutable Midi Library"""
 from __future__ import annotations
 import sys
 import site
@@ -8,60 +8,57 @@ import time
 import select
 import threading
 from ctypes.util import find_library
-from typing import Tuple, Optional
+from typing import Tuple, Optional, List, Dict
 from abc import ABC, abstractmethod
 from cffi import FFI
 
 class EventNotFound(Exception):
-    '''Raised when an event id is given that doesn't belong to any known event'''
+    """Raised when an event id is given that doesn't belong to any known event"""
 
 class AlreadyInMIDI(Exception):
-    '''
+    """
         Raised when attempting to add an event
         to a midi that already has the associated id
-    '''
+    """
 
 class NoMIDI(Exception):
-    '''
+    """
         Raised when attempting to call a function that requires a
         MIDI object be associated with the event, but is not
-    '''
+    """
 
 class InvalidMIDIFile(Exception):
-    '''Raised when reading an unrecognizeable file'''
+    """Raised when reading an unrecognizeable file"""
 
 class MIDIEvent(ABC):
-    '''Abstract representation of a MIDI event'''
-    uuid_gen = 0
+    """Abstract representation of a MIDI event"""
+    uuid_gen: int = 0
 
     def __init__(self, **_kwargs):
         self.uuid = MIDIEvent.gen_uuid()
 
     @classmethod
-    def gen_uuid(self):
-        '''Create a unique id for an event'''
-        self.uuid_gen += 1
-        return self.uuid_gen
+    def gen_uuid(cls) -> int:
+        """Create a unique id for an event"""
+        cls.uuid_gen += 1
+        return cls.uuid_gen
 
-    def get_uuid(self):
-        '''Get the unique id of the midi event'''
+    def get_uuid(self) -> int:
+        """Get the unique id of the midi event"""
         return self.uuid
 
-    def set_uuid(self, new_uuid: int):
-        '''Apply an id to the event (as when it's generated from MIDIFactory'''
+    def set_uuid(self, new_uuid: int) -> None:
+        """Apply an id to the event (as when it's generated from MIDIFactory"""
         MIDIEvent.uuid_gen = max(MIDIEvent.uuid_gen, new_uuid)
         self.uuid = new_uuid
 
     @classmethod
-    def from_properties(cls, *_props):
-        '''Generate a MIDIEvent from its properties'''
+    def from_properties(cls, *_props) -> MIDIEvent:
+        """Generate a MIDIEvent from its properties"""
         return cls()
 
 class SequenceNumber(MIDIEvent):
-    @staticmethod
-    def get_rust_id():
-        """Get the event code defined in .rs"""
-        return 22
+    """Pythonic version of the SequenceNumber event found in MIDI spec."""
     sequence = 0
     def __bytes__(self):
         output = [
@@ -79,6 +76,7 @@ class SequenceNumber(MIDIEvent):
 
     @staticmethod
     def from_properties(cls, *props):
+        """Build the MIDIEvent from given list of properties"""
         sequence = 0
         for b in props[0]:
             sequence *= 256
@@ -93,10 +91,7 @@ class SequenceNumber(MIDIEvent):
         self.sequence = sequence
 
 class Text(MIDIEvent):
-    @staticmethod
-    def get_rust_id():
-        """Get the event code defined in .rs"""
-        return 1
+    """Pythonic version of the Text event found in MIDI spec."""
 
     text = ''
     def __bytes__(self):
@@ -111,6 +106,7 @@ class Text(MIDIEvent):
 
     @classmethod
     def from_properties(cls, *props):
+        """Build the MIDIEvent from given list of properties"""
         bytelist = bytes(props[0])
         return cls(bytelist.decode("utf8"))
 
@@ -122,10 +118,7 @@ class Text(MIDIEvent):
 
 
 class CopyRightNotice(MIDIEvent):
-    @staticmethod
-    def get_rust_id():
-        """Get the event code defined in .rs"""
-        return 2
+    """Pythonic version of the CopyRightNotice event found in MIDI spec."""
 
     text = ""
     def __bytes__(self):
@@ -140,6 +133,7 @@ class CopyRightNotice(MIDIEvent):
 
     @classmethod
     def from_properties(cls, *props):
+        """Build the MIDIEvent from given list of properties"""
         bytelist = bytes(props[0])
         return cls(bytelist.decode("utf8"))
 
@@ -150,11 +144,7 @@ class CopyRightNotice(MIDIEvent):
         self.text = text
 
 class TrackName(MIDIEvent):
-    @staticmethod
-    def get_rust_id():
-        """Get the event code defined in .rs"""
-        return 3
-
+    """Pythonic version of the TrackName event found in MIDI spec."""
     name = ""
     def __bytes__(self):
         output = [0xFF, 0x03]
@@ -168,6 +158,7 @@ class TrackName(MIDIEvent):
 
     @classmethod
     def from_properties(cls, *props):
+        """Build the MIDIEvent from given list of properties"""
         bytelist = bytes(props[0])
         return cls(bytelist.decode("utf8"))
 
@@ -178,10 +169,7 @@ class TrackName(MIDIEvent):
         self.name = name
 
 class InstrumentName(MIDIEvent):
-    @staticmethod
-    def get_rust_id():
-        """Get the event code defined in .rs"""
-        return 4
+    """Pythonic version of the InstrumentName event found in MIDI spec."""
     name = ""
     def __bytes__(self):
         output = [0xFF, 0x04]
@@ -195,6 +183,7 @@ class InstrumentName(MIDIEvent):
 
     @classmethod
     def from_properties(cls, *props):
+        """Build the MIDIEvent from given list of properties"""
         bytelist = bytes(props[0])
         return cls(bytelist.decode("utf8"))
 
@@ -205,10 +194,7 @@ class InstrumentName(MIDIEvent):
         self.name = name
 
 class Lyric(MIDIEvent):
-    @staticmethod
-    def get_rust_id():
-        """Get the event code defined in .rs"""
-        return 5
+    """Pythonic version of the Lyric event found in MIDI spec."""
     lyric = ""
     def __bytes__(self):
         output = [0xFF, 0x05]
@@ -222,6 +208,7 @@ class Lyric(MIDIEvent):
 
     @classmethod
     def from_properties(cls, *props):
+        """Build the MIDIEvent from given list of properties"""
         bytelist = bytes(props[0])
         return cls(bytelist.decode("utf8"))
 
@@ -232,10 +219,7 @@ class Lyric(MIDIEvent):
         self.lyric = lyric
 
 class Marker(MIDIEvent):
-    @staticmethod
-    def get_rust_id():
-        """Get the event code defined in .rs"""
-        return 6
+    """Pythonic version of the Marker event found in MIDI spec."""
     text = ""
     def __bytes__(self):
         output = [0xFF, 0x06]
@@ -249,6 +233,7 @@ class Marker(MIDIEvent):
 
     @classmethod
     def from_properties(cls, *props):
+        """Build the MIDIEvent from given list of properties"""
         bytelist = bytes(props[0])
         return cls(bytelist.decode("utf8"))
 
@@ -259,10 +244,7 @@ class Marker(MIDIEvent):
         self.text = text
 
 class CuePoint(MIDIEvent):
-    @staticmethod
-    def get_rust_id():
-        """Get the event code defined in .rs"""
-        return 7
+    """Pythonic version of the CuePoint event found in MIDI spec."""
     text = ""
     def __bytes__(self):
         output = [0xFF, 0x07]
@@ -276,6 +258,7 @@ class CuePoint(MIDIEvent):
 
     @classmethod
     def from_properties(cls, *props):
+        """Build the MIDIEvent from given list of properties"""
         bytelist = bytes(props[0])
         return cls(bytelist.decode("utf8"))
 
@@ -286,18 +269,12 @@ class CuePoint(MIDIEvent):
         self.text = text
 
 class EndOfTrack(MIDIEvent):
-    @staticmethod
-    def get_rust_id():
-        """Get the event code defined in .rs"""
-        return 8
+    """Pythonic version of the EndOfTrack event found in MIDI spec."""
     def __bytes__(self):
         return bytes([0xFF, 0x2F, 0x00])
 
 class ChannelPrefix(MIDIEvent):
-    @staticmethod
-    def get_rust_id():
-        """Get the event code defined in .rs"""
-        return 9
+    """Pythonic version of the ChannelPrefix event found in MIDI spec."""
 
     channel = 0
     def __bytes__(self):
@@ -309,6 +286,7 @@ class ChannelPrefix(MIDIEvent):
 
     @classmethod
     def from_properties(cls, *props):
+        """Build the MIDIEvent from given list of properties"""
         return cls(channel=props[0][0])
 
     def get_channel(self):
@@ -318,10 +296,7 @@ class ChannelPrefix(MIDIEvent):
         self.channel = channel
 
 class SetTempo(MIDIEvent):
-    @staticmethod
-    def get_rust_id():
-        """Get the event code defined in .rs"""
-        return 10
+    """Pythonic version of the SetTempo event found in MIDI spec."""
     us_per_quarter_note = 500000
     def __bytes__(self):
         return bytes([
@@ -332,7 +307,7 @@ class SetTempo(MIDIEvent):
         ])
 
     def __init__(self, value):
-        '''Assume low values actually denote a bpm rather than microseconds per quarter note'''
+        """Assume low values actually denote a bpm rather than microseconds per quarter note"""
         self.us_per_quarter_note = value
 
         super().__init__()
@@ -343,6 +318,7 @@ class SetTempo(MIDIEvent):
 
     @classmethod
     def from_properties(cls, *props):
+        """Build the MIDIEvent from given list of properties"""
         us_per_quarter_note = 0
         for n in props[0]:
             us_per_quarter_note *= 256
@@ -375,10 +351,7 @@ class SetTempo(MIDIEvent):
         self.us_per_quarter_note = uspqn
 
 class SMPTEOffset(MIDIEvent):
-    @staticmethod
-    def get_rust_id():
-        """Get the event code defined in .rs"""
-        return 11
+    """Pythonic version of the SMPTEOffset event found in MIDI spec."""
     def __bytes__(self):
         return bytes([
             0xFF, 0x54, 0x05,
@@ -396,6 +369,7 @@ class SMPTEOffset(MIDIEvent):
 
     @classmethod
     def from_properties(cls, *props):
+        """Build the MIDIEvent from given list of properties"""
         return cls(
             hour = props[0][0],
             minute = props[1][0],
@@ -436,10 +410,7 @@ class SMPTEOffset(MIDIEvent):
 
 
 class TimeSignature(MIDIEvent):
-    @staticmethod
-    def get_rust_id():
-        """Get the event code defined in .rs"""
-        return 12
+    """Pythonic version of the TimeSignature event found in MIDI spec."""
     def __bytes__(self):
         return bytes([
             0xFF, 0x58, 0x04,
@@ -457,6 +428,7 @@ class TimeSignature(MIDIEvent):
 
     @classmethod
     def from_properties(cls, *props):
+        """Build the MIDIEvent from given list of properties"""
         return cls(
             numerator = props[0][0],
             denominator = props[1][0],
@@ -490,10 +462,7 @@ class TimeSignature(MIDIEvent):
 
 
 class KeySignature(MIDIEvent):
-    @staticmethod
-    def get_rust_id():
-        """Get the event code defined in .rs"""
-        return 13
+    """Pythonic version of the KeySignature event found in MIDI spec."""
     misf_map = {
         "A": (0, 3),
         "A#": (0, 8 | 2),
@@ -545,6 +514,7 @@ class KeySignature(MIDIEvent):
 
     @classmethod
     def from_properties(cls, *props):
+        """Build the MIDIEvent from given list of properties"""
         return cls.from_mi_sf(props[0], props[1])
 
     def get_key(self):
@@ -555,10 +525,7 @@ class KeySignature(MIDIEvent):
 
 
 class Sequencer(MIDIEvent):
-    @staticmethod
-    def get_rust_id():
-        """Get the event code defined in .rs"""
-        return 14
+    """Pythonic version of the Sequencer event found in MIDI spec."""
     data = b''
     def __bytes__(self):
         output = [0xFF, 0x7F]
@@ -572,6 +539,7 @@ class Sequencer(MIDIEvent):
 
     @classmethod
     def from_properties(cls, *props):
+        """Build the MIDIEvent from given list of properties"""
         return cls(bytes(props[0]))
 
     def get_data(self):
@@ -582,10 +550,7 @@ class Sequencer(MIDIEvent):
 
 
 class NoteOn(MIDIEvent):
-    @staticmethod
-    def get_rust_id():
-        """Get the event code defined in .rs"""
-        return 15
+    """Pythonic version of the NoteOn event found in MIDI spec."""
     def __bytes__(self):
         return bytes([
             0x90 | self.channel,
@@ -600,6 +565,7 @@ class NoteOn(MIDIEvent):
 
     @classmethod
     def from_properties(cls, *props):
+        """Build the MIDIEvent from given list of properties"""
         return cls(
             channel = props[0][0],
             note = props[1][0],
@@ -625,10 +591,7 @@ class NoteOn(MIDIEvent):
         self.velocity = velocity
 
 class NoteOff(MIDIEvent):
-    @staticmethod
-    def get_rust_id():
-        """Get the event code defined in .rs"""
-        return 16
+    """Pythonic version of the NoteOff event found in MIDI spec."""
     def __bytes__(self):
         return bytes([
             0x80 | self.channel,
@@ -644,6 +607,7 @@ class NoteOff(MIDIEvent):
 
     @classmethod
     def from_properties(cls, *props):
+        """Build the MIDIEvent from given list of properties"""
         return cls(
             channel = props[0][0],
             note = props[1][0],
@@ -669,10 +633,7 @@ class NoteOff(MIDIEvent):
         self.velocity = velocity
 
 class PolyphonicKeyPressure(MIDIEvent):
-    @staticmethod
-    def get_rust_id():
-        """Get the event code defined in .rs"""
-        return 17
+    """Pythonic version of the PolyphonicKeyPressure event found in MIDI spec."""
 
     def __bytes__(self):
         return bytes([
@@ -689,6 +650,7 @@ class PolyphonicKeyPressure(MIDIEvent):
 
     @classmethod
     def from_properties(cls, *props):
+        """Build the MIDIEvent from given list of properties"""
         return cls(
             channel = props[0][0],
             note = props[1][0],
@@ -714,10 +676,7 @@ class PolyphonicKeyPressure(MIDIEvent):
         self.pressure = pressure
 
 class ControlChange(MIDIEvent):
-    @staticmethod
-    def get_rust_id():
-        """Get the event code defined in .rs"""
-        return 18
+    """Pythonic version of the ControlChange event found in MIDI spec."""
 
     def __bytes__(self):
         return bytes([
@@ -734,6 +693,7 @@ class ControlChange(MIDIEvent):
 
     @classmethod
     def from_properties(cls, *props):
+        """Build the MIDIEvent from given list of properties"""
         return cls(
             value = props[2][0],
             channel = props[0][0],
@@ -761,14 +721,17 @@ class ControlChange(MIDIEvent):
 
 class VariableControlChange(ControlChange):
     CONTROL_BYTE = 0
+
     def get_controller(self):
-        return self.CONTROL_BYTE
+        '''Get *constant* control byte value'''
+        return self.__class__.CONTROL_BYTE
 
     def __init__(self, value, **kwargs):
         super().__init__(self.get_controller(), value, **kwargs)
 
     @classmethod
     def from_properties(cls, *props):
+        """Build the MIDIEvent from given list of properties"""
         return cls(
             props[1][0],
             channel = props[0][0]
@@ -776,6 +739,10 @@ class VariableControlChange(ControlChange):
 
 class InvariableControlChange(VariableControlChange):
     def get_value(self):
+        '''
+            Get 0. Invariable ControlChanges are invariable
+            and have a constant value of 0
+        '''
         return 0
 
     def __init__(self, **kwargs):
@@ -783,449 +750,234 @@ class InvariableControlChange(VariableControlChange):
 
     @classmethod
     def from_properties(cls, *props):
+        """Build the MIDIEvent from given list of properties"""
         return cls(
             channel = props[0][0]
         )
 
 class HoldPedal(VariableControlChange):
-    @staticmethod
-    def get_rust_id():
-        """Get the event code defined in .rs"""
-        return 58
+    """Pythonic version of the HoldPedal event found in MIDI spec."""
     CONTROL_BYTE = 0x40
 class Portamento(VariableControlChange):
-    @staticmethod
-    def get_rust_id():
-        """Get the event code defined in .rs"""
-        return 59
+    """Pythonic version of the Portamento event found in MIDI spec."""
     CONTROL_BYTE = 0x41
 class Sustenuto(VariableControlChange):
-    @staticmethod
-    def get_rust_id():
-        """Get the event code defined in .rs"""
-        return 60
+    """Pythonic version of the Sustenuto event found in MIDI spec."""
     CONTROL_BYTE = 0x42
 class SoftPedal(VariableControlChange):
-    @staticmethod
-    def get_rust_id():
-        """Get the event code defined in .rs"""
-        return 61
+    """Pythonic version of the SoftPedal event found in MIDI spec."""
     CONTROL_BYTE = 0x43
 class Legato(VariableControlChange):
-    @staticmethod
-    def get_rust_id():
-        """Get the event code defined in .rs"""
-        return 62
+    """Pythonic version of the Legato event found in MIDI spec."""
     CONTROL_BYTE = 0x44
 class Hold2Pedal(VariableControlChange):
-    @staticmethod
-    def get_rust_id():
-        """Get the event code defined in .rs"""
-        return 63
+    """Pythonic version of the Hold2Pedal event found in MIDI spec."""
     CONTROL_BYTE = 0x45
 class SoundVariation(VariableControlChange):
-    @staticmethod
-    def get_rust_id():
-        """Get the event code defined in .rs"""
-        return 64
+    """Pythonic version of the SoundVariation event found in MIDI spec."""
     CONTROL_BYTE = 0x46
 class SoundTimbre(VariableControlChange):
-    @staticmethod
-    def get_rust_id():
-        """Get the event code defined in .rs"""
-        return 65
+    """Pythonic version of the SoundTimbre event found in MIDI spec."""
     CONTROL_BYTE = 0x47
 class SoundReleaseTime(VariableControlChange):
-    @staticmethod
-    def get_rust_id():
-        """Get the event code defined in .rs"""
-        return 66
+    """Pythonic version of the SoundReleaseTime event found in MIDI spec."""
     CONTROL_BYTE = 0x48
 class SoundAttack(VariableControlChange):
-    @staticmethod
-    def get_rust_id():
-        """Get the event code defined in .rs"""
-        return 67
+    """Pythonic version of the SoundAttack event found in MIDI spec."""
     CONTROL_BYTE = 0x49
 class SoundBrightness(VariableControlChange):
-    @staticmethod
-    def get_rust_id():
-        """Get the event code defined in .rs"""
-        return 68
+    """Pythonic version of the SoundBrightness event found in MIDI spec."""
     CONTROL_BYTE = 0x4A
 class SoundControl1(VariableControlChange):
-    @staticmethod
-    def get_rust_id():
-        """Get the event code defined in .rs"""
-        return 69
+    """Pythonic version of the SoundControl1 event found in MIDI spec."""
     CONTROL_BYTE = 0x4B
 class SoundControl2(VariableControlChange):
-    @staticmethod
-    def get_rust_id():
-        """Get the event code defined in .rs"""
-        return 70
+    """Pythonic version of the SoundControl2 event found in MIDI spec."""
     CONTROL_BYTE = 0x4C
 class SoundControl3(VariableControlChange):
-    @staticmethod
-    def get_rust_id():
-        """Get the event code defined in .rs"""
-        return 71
+    """Pythonic version of the SoundControl3 event found in MIDI spec."""
     CONTROL_BYTE = 0x4D
 class SoundControl4(VariableControlChange):
-    @staticmethod
-    def get_rust_id():
-        """Get the event code defined in .rs"""
-        return 72
+    """Pythonic version of the SoundControl4 event found in MIDI spec."""
     CONTROL_BYTE = 0x4E
 class SoundControl5(VariableControlChange):
-    @staticmethod
-    def get_rust_id():
-        """Get the event code defined in .rs"""
-        return 73
+    """Pythonic version of the SoundControl5 event found in MIDI spec."""
     CONTROL_BYTE = 0x4F
 
 
 class EffectsLevel(VariableControlChange):
-    @staticmethod
-    def get_rust_id():
-        """Get the event code defined in .rs"""
-        return 86
+    """Pythonic version of the EffectsLevel event found in MIDI spec."""
     CONTROL_BYTE = 0x5B
 class TremuloLevel(VariableControlChange):
-    @staticmethod
-    def get_rust_id():
-        """Get the event code defined in .rs"""
-        return 87
+    """Pythonic version of the TremuloLevel event found in MIDI spec."""
     CONTROL_BYTE = 0x5C
 class ChorusLevel(VariableControlChange):
-    @staticmethod
-    def get_rust_id():
-        """Get the event code defined in .rs"""
-        return 88
+    """Pythonic version of the ChorusLevel event found in MIDI spec."""
     CONTROL_BYTE = 0x5D
 class CelesteLevel(VariableControlChange):
-    @staticmethod
-    def get_rust_id():
-        """Get the event code defined in .rs"""
-        return 89
+    """Pythonic version of the CelesteLevel event found in MIDI spec."""
     CONTROL_BYTE = 0x5E
 class PhaserLevel(VariableControlChange):
-    @staticmethod
-    def get_rust_id():
-        """Get the event code defined in .rs"""
-        return 90
+    """Pythonic version of the PhaserLevel event found in MIDI spec."""
     CONTROL_BYTE = 0x5F
 class LocalControl(VariableControlChange):
-    @staticmethod
-    def get_rust_id():
-        """Get the event code defined in .rs"""
-        return 98
+    """Pythonic version of the LocalControl event found in MIDI spec."""
     CONTROL_BYTE = 0x7A
 class MonophonicOperation(VariableControlChange):
-    @staticmethod
-    def get_rust_id():
-        """Get the event code defined in .rs"""
-        return 103
+    """Pythonic version of the MonophonicOperation event found in MIDI spec."""
     CONTROL_BYTE = 0xFE
 
 class DataIncrement(InvariableControlChange):
-    @staticmethod
-    def get_rust_id():
-        """Get the event code defined in .rs"""
-        return 91
+    """Pythonic version of the DataIncrement event found in MIDI spec."""
     CONTROL_BYTE = 0x60
 class DataDecrement(InvariableControlChange):
-    @staticmethod
-    def get_rust_id():
-        """Get the event code defined in .rs"""
-        return 92
+    """Pythonic version of the DataDecrement event found in MIDI spec."""
     CONTROL_BYTE = 0x61
 class AllControllersOff(InvariableControlChange):
-    @staticmethod
-    def get_rust_id():
-        """Get the event code defined in .rs"""
-        return 97
+    """Pythonic version of the AllControllersOff event found in MIDI spec."""
     CONTROL_BYTE = 0x79
 
 class AllNotesOff(InvariableControlChange):
-    @staticmethod
-    def get_rust_id():
-        """Get the event code defined in .rs"""
-        return 99
+    """Pythonic version of the AllNotesOff event found in MIDI spec."""
     CONTROL_BYTE = 0x7B
 class AllSoundOff(InvariableControlChange):
-    @staticmethod
-    def get_rust_id():
-        """Get the event code defined in .rs"""
-        return 100
+    """Pythonic version of the AllSoundOff event found in MIDI spec."""
     CONTROL_BYTE = 0x78
 class OmniOff(InvariableControlChange):
-    @staticmethod
-    def get_rust_id():
-        """Get the event code defined in .rs"""
-        return 101
+    """Pythonic version of the OmniOff event found in MIDI spec."""
     CONTROL_BYTE = 0x7C
 class OmniOn(InvariableControlChange):
-    @staticmethod
-    def get_rust_id():
-        """Get the event code defined in .rs"""
-        return 102
+    """Pythonic version of the OmniOn event found in MIDI spec."""
     CONTROL_BYTE = 0x7D
 class PolyphonicOperation(InvariableControlChange):
-    @staticmethod
-    def get_rust_id():
-        """Get the event code defined in .rs"""
-        return 104
+    """Pythonic version of the PolyphonicOperation event found in MIDI spec."""
     CONTROL_BYTE = 0xFF
 
 class BankSelect(VariableControlChange):
-    @staticmethod
-    def get_rust_id():
-        """Get the event code defined in .rs"""
-        return 34
+    """Pythonic version of the BankSelect event found in MIDI spec."""
     CONTROL_BYTE = 0x00
 class BankSelectLSB(VariableControlChange):
-    @staticmethod
-    def get_rust_id():
-        """Get the event code defined in .rs"""
-        return 35
+    """Pythonic version of the BankSelectLSB event found in MIDI spec."""
     CONTROL_BYTE = 0x20
 class ModulationWheel(VariableControlChange):
-    @staticmethod
-    def get_rust_id():
-        """Get the event code defined in .rs"""
-        return 36
+    """Pythonic version of the ModulationWheel event found in MIDI spec."""
     CONTROL_BYTE = 0x01
 class ModulationWheelLSB(VariableControlChange):
-    @staticmethod
-    def get_rust_id():
-        """Get the event code defined in .rs"""
-        return 37
+    """Pythonic version of the ModulationWheelLSB event found in MIDI spec."""
     CONTROL_BYTE = 0x21
 class BreathController(VariableControlChange):
-    @staticmethod
-    def get_rust_id():
-        """Get the event code defined in .rs"""
-        return 38
+    """Pythonic version of the BreathController event found in MIDI spec."""
     CONTROL_BYTE = 0x02
 class BreathControllerLSB(VariableControlChange):
-    @staticmethod
-    def get_rust_id():
-        """Get the event code defined in .rs"""
-        return 39
+    """Pythonic version of the BreathControllerLSB event found in MIDI spec."""
     CONTROL_BYTE = 0x22
 class FootPedal(VariableControlChange):
-    @staticmethod
-    def get_rust_id():
-        """Get the event code defined in .rs"""
-        return 40
+    """Pythonic version of the FootPedal event found in MIDI spec."""
     CONTROL_BYTE = 0x04
 class FootPedalLSB(VariableControlChange):
-    @staticmethod
-    def get_rust_id():
-        """Get the event code defined in .rs"""
-        return 41
+    """Pythonic version of the FootPedalLSB event found in MIDI spec."""
     CONTROL_BYTE = 0x24
 class PortamentoTime(VariableControlChange):
-    @staticmethod
-    def get_rust_id():
-        """Get the event code defined in .rs"""
-        return 42
+    """Pythonic version of the PortamentoTime event found in MIDI spec."""
     CONTROL_BYTE = 0x05
 class PortamentoTimeLSB(VariableControlChange):
-    @staticmethod
-    def get_rust_id():
-        """Get the event code defined in .rs"""
-        return 43
+    """Pythonic version of the PortamentoTimeLSB event found in MIDI spec."""
     CONTROL_BYTE = 0x25
 class DataEntry(VariableControlChange):
-    @staticmethod
-    def get_rust_id():
-        """Get the event code defined in .rs"""
-        return 44
+    """Pythonic version of the DataEntry event found in MIDI spec."""
     CONTROL_BYTE = 0x06
 class DataEntryLSB(VariableControlChange):
-    @staticmethod
-    def get_rust_id():
-        """Get the event code defined in .rs"""
-        return 45
+    """Pythonic version of the DataEntryLSB event found in MIDI spec."""
     CONTROL_BYTE = 0x26
 class Volume(VariableControlChange):
-    @staticmethod
-    def get_rust_id():
-        """Get the event code defined in .rs"""
-        return 46
+    """Pythonic version of the Volume event found in MIDI spec."""
     CONTROL_BYTE = 0x07
 class VolumeLSB(VariableControlChange):
-    @staticmethod
-    def get_rust_id():
-        """Get the event code defined in .rs"""
-        return 47
+    """Pythonic version of the VolumeLSB event found in MIDI spec."""
     CONTROL_BYTE = 0x27
 class Balance(VariableControlChange):
-    @staticmethod
-    def get_rust_id():
-        """Get the event code defined in .rs"""
-        return 48
+    """Pythonic version of the Balance event found in MIDI spec."""
     CONTROL_BYTE = 0x08
 class BalanceLSB(VariableControlChange):
-    @staticmethod
-    def get_rust_id():
-        """Get the event code defined in .rs"""
-        return 49
+    """Pythonic version of the BalanceLSB event found in MIDI spec."""
     CONTROL_BYTE = 0x28
 class Pan(VariableControlChange):
-    @staticmethod
-    def get_rust_id():
-        """Get the event code defined in .rs"""
-        return 50
+    """Pythonic version of the Pan event found in MIDI spec."""
     CONTROL_BYTE = 0x0A
 class PanLSB(VariableControlChange):
-    @staticmethod
-    def get_rust_id():
-        """Get the event code defined in .rs"""
-        return 51
+    """Pythonic version of the PanLSB event found in MIDI spec."""
     CONTROL_BYTE = 0x2A
 class Expression(VariableControlChange):
-    @staticmethod
-    def get_rust_id():
-        """Get the event code defined in .rs"""
-        return 52
+    """Pythonic version of the Expression event found in MIDI spec."""
     CONTROL_BYTE = 0x0B
 class ExpressionLSB(VariableControlChange):
-    @staticmethod
-    def get_rust_id():
-        """Get the event code defined in .rs"""
-        return 53
+    """Pythonic version of the ExpressionLSB event found in MIDI spec."""
     CONTROL_BYTE = 0x2B
 
 class NonRegisteredParameterNumber(VariableControlChange):
-    @staticmethod
-    def get_rust_id():
-        """Get the event code defined in .rs"""
-        return 95
+    """Pythonic version of the NonRegisteredParameterNumber event found in MIDI spec."""
     CONTROL_BYTE = 0x63
 class NonRegisteredParameterNumberLSB(VariableControlChange):
-    @staticmethod
-    def get_rust_id():
-        """Get the event code defined in .rs"""
-        return 96
+    """Pythonic version of the NonRegisteredParameterNumberLSB event found in MIDI spec."""
     CONTROL_BYTE = 0x62
 class RegisteredParameterNumber(VariableControlChange):
-    @staticmethod
-    def get_rust_id():
-        """Get the event code defined in .rs"""
-        return 93
+    """Pythonic version of the RegisteredParameterNumber event found in MIDI spec."""
     CONTROL_BYTE = 0x65
 class RegisteredParameterNumberLSB(VariableControlChange):
-    @staticmethod
-    def get_rust_id():
-        """Get the event code defined in .rs"""
-        return 94
+    """Pythonic version of the RegisteredParameterNumberLSB event found in MIDI spec."""
     CONTROL_BYTE = 0x64
 
 class EffectControl1(VariableControlChange):
-    @staticmethod
-    def get_rust_id():
-        """Get the event code defined in .rs"""
-        return 54
+    """Pythonic version of the EffectControl1 event found in MIDI spec."""
     CONTROL_BYTE = 0x0C
 class EffectControl1LSB(VariableControlChange):
-    @staticmethod
-    def get_rust_id():
-        """Get the event code defined in .rs"""
-        return 55
+    """Pythonic version of the EffectControl1LSB event found in MIDI spec."""
     CONTROL_BYTE = 0x2C
 class EffectControl2(VariableControlChange):
-    @staticmethod
-    def get_rust_id():
-        """Get the event code defined in .rs"""
-        return 56
+    """Pythonic version of the EffectControl2 event found in MIDI spec."""
     CONTROL_BYTE = 0x0D
 class EffectControl2LSB(VariableControlChange):
-    @staticmethod
-    def get_rust_id():
-        """Get the event code defined in .rs"""
-        return 57
+    """Pythonic version of the EffectControl2LSB event found in MIDI spec."""
     CONTROL_BYTE = 0x2D
 class GeneralPurpose1(VariableControlChange):
-    @staticmethod
-    def get_rust_id():
-        """Get the event code defined in .rs"""
-        return 74
+    """Pythonic version of the GeneralPurpose1 event found in MIDI spec."""
     CONTROL_BYTE = 0x10
 class GeneralPurpose1LSB(VariableControlChange):
-    @staticmethod
-    def get_rust_id():
-        """Get the event code defined in .rs"""
-        return 75
+    """Pythonic version of the GeneralPurpose1LSB event found in MIDI spec."""
     CONTROL_BYTE = 0x30
 class GeneralPurpose2(VariableControlChange):
-    @staticmethod
-    def get_rust_id():
-        """Get the event code defined in .rs"""
-        return 76
+    """Pythonic version of the GeneralPurpose2 event found in MIDI spec."""
     CONTROL_BYTE = 0x11
 class GeneralPurpose2LSB(VariableControlChange):
-    @staticmethod
-    def get_rust_id():
-        """Get the event code defined in .rs"""
-        return 77
+    """Pythonic version of the GeneralPurpose2LSB event found in MIDI spec."""
     CONTROL_BYTE = 0x31
 class GeneralPurpose3(VariableControlChange):
-    @staticmethod
-    def get_rust_id():
-        """Get the event code defined in .rs"""
-        return 78
+    """Pythonic version of the GeneralPurpose3 event found in MIDI spec."""
     CONTROL_BYTE = 0x12
 class GeneralPurpose3LSB(VariableControlChange):
-    @staticmethod
-    def get_rust_id():
-        """Get the event code defined in .rs"""
-        return 79
+    """Pythonic version of the GeneralPurpose3LSB event found in MIDI spec."""
     CONTROL_BYTE = 0x32
 class GeneralPurpose4(VariableControlChange):
-    @staticmethod
-    def get_rust_id():
-        """Get the event code defined in .rs"""
-        return 80
+    """Pythonic version of the GeneralPurpose4 event found in MIDI spec."""
     CONTROL_BYTE = 0x13
 class GeneralPurpose4LSB(VariableControlChange):
-    @staticmethod
-    def get_rust_id():
-        """Get the event code defined in .rs"""
-        return 81
+    """Pythonic version of the GeneralPurpose4LSB event found in MIDI spec."""
     CONTROL_BYTE = 0x33
 class GeneralPurpose5(VariableControlChange):
-    @staticmethod
-    def get_rust_id():
-        """Get the event code defined in .rs"""
-        return 82
+    """Pythonic version of the GeneralPurpose5 event found in MIDI spec."""
     CONTROL_BYTE = 0x50
 class GeneralPurpose6(VariableControlChange):
-    @staticmethod
-    def get_rust_id():
-        """Get the event code defined in .rs"""
-        return 83
+    """Pythonic version of the GeneralPurpose6 event found in MIDI spec."""
     CONTROL_BYTE = 0x51
 class GeneralPurpose7(VariableControlChange):
-    @staticmethod
-    def get_rust_id():
-        """Get the event code defined in .rs"""
-        return 84
+    """Pythonic version of the GeneralPurpose7 event found in MIDI spec."""
     CONTROL_BYTE = 0x52
 class GeneralPurpose8(VariableControlChange):
-    @staticmethod
-    def get_rust_id():
-        """Get the event code defined in .rs"""
-        return 85
+    """Pythonic version of the GeneralPurpose8 event found in MIDI spec."""
     CONTROL_BYTE = 0x53
 
 class ProgramChange(MIDIEvent):
-    @staticmethod
-    def get_rust_id():
-        """Get the event code defined in .rs"""
-        return 19
+    """Pythonic version of the ProgramChange event found in MIDI spec."""
     def __bytes__(self):
         return bytes([
             0xC0 | self.channel,
@@ -1239,6 +991,7 @@ class ProgramChange(MIDIEvent):
 
     @classmethod
     def from_properties(cls, *props):
+        """Build the MIDIEvent from given list of properties"""
         return cls(
             props[1][0],
             channel = props[0][0]
@@ -1258,10 +1011,7 @@ class ProgramChange(MIDIEvent):
 
 
 class ChannelPressure(MIDIEvent):
-    @staticmethod
-    def get_rust_id():
-        """Get the event code defined in .rs"""
-        return 20
+    """Pythonic version of the ChannelPressure event found in MIDI spec."""
     def __bytes__(self):
         return bytes([
             0xD0 | self.channel,
@@ -1275,6 +1025,7 @@ class ChannelPressure(MIDIEvent):
 
     @classmethod
     def from_properties(cls, *props):
+        """Build the MIDIEvent from given list of properties"""
         return cls(
             props[1][0],
             channel = props[0][0]
@@ -1294,14 +1045,11 @@ class ChannelPressure(MIDIEvent):
 
 # TODO: Store as signed integer, set 0x2000 to == 0
 class PitchWheelChange(MIDIEvent):
-    '''
+    """Pythonic version of the PitchWheelChange event found in MIDI spec."""
+    """
         NOTE: value is stored as float from [-1, 1]
-    '''
+    """
 
-    @staticmethod
-    def get_rust_id():
-        """Get the event code defined in .rs"""
-        return 21
 
     def __bytes__(self):
         unsigned_value = self.get_unsigned_value()
@@ -1316,6 +1064,7 @@ class PitchWheelChange(MIDIEvent):
 
     @classmethod
     def from_properties(cls, *props):
+        """Build the MIDIEvent from given list of properties"""
         cls.channel = props[0][0]
 
         prop = props[1]
@@ -1340,7 +1089,7 @@ class PitchWheelChange(MIDIEvent):
         self.value = value
 
     def get_unsigned_value(self):
-        ''' get value as integer in range (0, 0x3FFF) '''
+        """ get value as integer in range (0, 0x3FFF) """
         if self.value == 0:
             output = 0x2000
         else:
@@ -1348,10 +1097,7 @@ class PitchWheelChange(MIDIEvent):
         return output
 
 class SystemExclusive(MIDIEvent):
-    @staticmethod
-    def get_rust_id():
-        """Get the event code defined in .rs"""
-        return 23
+    """Pythonic version of the SystemExclusive event found in MIDI spec."""
     data = b''
     def __bytes__(self):
         output = [0xF0]
@@ -1366,6 +1112,7 @@ class SystemExclusive(MIDIEvent):
 
     @classmethod
     def from_properties(cls, *props):
+        """Build the MIDIEvent from given list of properties"""
         return cls(bytes(props[0]))
 
     def get_data(self):
@@ -1375,10 +1122,7 @@ class SystemExclusive(MIDIEvent):
         self.data = new_data
 
 class MTCQuarterFrame(MIDIEvent):
-    @staticmethod
-    def get_rust_id():
-        """Get the event code defined in .rs"""
-        return 24
+    """Pythonic version of the MTCQuarterFrame event found in MIDI spec."""
     time_code = 0
     def __bytes__(self):
         return bytes([0xF1, self.time_code])
@@ -1389,16 +1133,14 @@ class MTCQuarterFrame(MIDIEvent):
 
     @classmethod
     def from_properties(cls, *props):
+        """Build the MIDIEvent from given list of properties"""
         return cls(props[0][0] & 0xFF)
 
     def get_time_code(self):
         return self.time_code
 
 class SongPositionPointer(MIDIEvent):
-    @staticmethod
-    def get_rust_id():
-        """Get the event code defined in .rs"""
-        return 25
+    """Pythonic version of the SongPositionPointer event found in MIDI spec."""
 
     def __bytes__(self):
         least = self.beat & 0x007F
@@ -1411,6 +1153,7 @@ class SongPositionPointer(MIDIEvent):
 
     @classmethod
     def from_properties(cls, *props):
+        """Build the MIDIEvent from given list of properties"""
         prop = props[0]
         return cls((prop[0] * 256) + prop[1])
 
@@ -1421,10 +1164,7 @@ class SongPositionPointer(MIDIEvent):
         self.beat = beat
 
 class SongSelect(MIDIEvent):
-    @staticmethod
-    def get_rust_id():
-        """Get the event code defined in .rs"""
-        return 26
+    """Pythonic version of the SongSelect event found in MIDI spec."""
     def __bytes__(self):
         return bytes([0xF3, self.song & 0xFF])
 
@@ -1434,6 +1174,7 @@ class SongSelect(MIDIEvent):
 
     @classmethod
     def from_properties(cls, *props):
+        """Build the MIDIEvent from given list of properties"""
         return cls(props[0][0])
 
     def get_song(self):
@@ -1443,66 +1184,42 @@ class SongSelect(MIDIEvent):
         self.song = song
 
 class TuneRequest(MIDIEvent):
-    @staticmethod
-    def get_rust_id():
-        """Get the event code defined in .rs"""
-        return 27
+    """Pythonic version of the TuneRequest event found in MIDI spec."""
     def __bytes__(self):
         return bytes([0xF6])
 
 class MIDIClock(MIDIEvent):
-    @staticmethod
-    def get_rust_id():
-        """Get the event code defined in .rs"""
-        return 28
+    """Pythonic version of the MIDIClock event found in MIDI spec."""
     def __bytes__(self):
         return bytes([0xF8])
 
 class MIDIStart(MIDIEvent):
-    @staticmethod
-    def get_rust_id():
-        """Get the event code defined in .rs"""
-        return 29
+    """Pythonic version of the MIDIStart event found in MIDI spec."""
     def __bytes__(self):
         return bytes([0xFA])
 
 class MIDIContinue(MIDIEvent):
-    @staticmethod
-    def get_rust_id():
-        """Get the event code defined in .rs"""
-        return 30
+    """Pythonic version of the MIDIContinue event found in MIDI spec."""
     def __bytes__(self):
         return bytes([0xFB])
 
 class MIDIStop(MIDIEvent):
-    @staticmethod
-    def get_rust_id():
-        """Get the event code defined in .rs"""
-        return 31
+    """Pythonic version of the MIDIStop event found in MIDI spec."""
     def __bytes__(self):
         return bytes([0xFC])
 
 class ActiveSense(MIDIEvent):
-    @staticmethod
-    def get_rust_id():
-        """Get the event code defined in .rs"""
-        return 32
+    """Pythonic version of the ActiveSense event found in MIDI spec."""
     def __bytes__(self):
         return bytes([0xFE])
 
 class Reset(MIDIEvent):
-    @staticmethod
-    def get_rust_id():
-        """Get the event code defined in .rs"""
-        return 33
+    """Pythonic version of the Reset event found in MIDI spec."""
     def __bytes__(self):
         return bytes([0xFF])
 
 class TimeCode(MIDIEvent):
-    @staticmethod
-    def get_rust_id():
-        """Get the event code defined in .rs"""
-        return 105
+    """Pythonic version of the TimeCode event found in MIDI spec."""
     def __init__(self, **kwargs):
         self.rate = kwargs["rate"]
         self.hour = kwargs["hour"]
@@ -1513,6 +1230,7 @@ class TimeCode(MIDIEvent):
 
     @classmethod
     def from_properties(cls, *props):
+        """Build the MIDIEvent from given list of properties"""
         return cls(
             rate = props[0][0],
             hour = props[1][0],
@@ -1534,9 +1252,11 @@ class MIDI:
 
     @staticmethod
     def load(path) -> MIDI:
+        """Load a MIDI file"""
         return MIDIFactory.load(path)
 
     def save(self, path):
+        """Save a MIDI file"""
         return MIDIFactory.save(path, self)
 
     def __init__(self, **kwargs):
@@ -1545,8 +1265,8 @@ class MIDI:
         self.ppqn = kwargs.get('ppqn', 120)
         self.format = kwargs.get('format', 1)
 
-    def get_all_events(self):
-        '''Get sorted list of events in midi events'''
+    def get_all_events(self) -> List[Tuple[int, MIDIEvent]]:
+        """Get sorted list of events in midi events"""
         event_list = []
         for event_id, (_, tick) in self.event_positions.items():
             event_list.append((tick, event_id))
@@ -1558,7 +1278,8 @@ class MIDI:
 
         return output
 
-    def get_track_events(self):
+    def get_track_events(self) -> Dict[int, List[Tuple[int, MIDIEvent]]]:
+        """Get all events in midi, grouped by track"""
         event_list = []
         for event_id, (track, tick) in self.event_positions.items():
             event_list.append((track, tick, event_id))
@@ -1573,7 +1294,7 @@ class MIDI:
         return output
 
     def add_event(self, event, **kwargs):
-        ''' Add Midi Event to the Midi '''
+        """ Add Midi Event to the Midi """
 
         active_track = kwargs.get('track', 0)
         if "tick" in kwargs:
@@ -1586,7 +1307,8 @@ class MIDI:
         self.events[event.get_uuid()] = event
         self.place_event(event, active_track, active_tick)
 
-    def track_get_length(self, track_number):
+    def track_get_length(self, track_number: int) -> int:
+        """Get number of ticks in a track"""
         max_tick = 0
         for track, tick in self.event_positions:
             if track != track_number:
@@ -1596,11 +1318,15 @@ class MIDI:
         return max_tick
 
 
-    def place_event(self, event, track, tick):
+    def place_event(self, event: MIDIEvent, track: int, tick: int) -> None:
+        """Put a MIDIEvent at a specific position in the piece"""
+        self.events[event.get_uuid()] = event
         self.event_positions[event.get_uuid()] = (track, tick)
 
 
 class MIDIFactory:
+    """Acts as a wrapper for the cffi bridge. Used to load and save midi files"""
+
     ffi = FFI()
     ffi.cdef("""
         typedef void* MIDI;
@@ -1629,112 +1355,113 @@ class MIDIFactory:
         uint16_t get_ppqn(MIDI);
     """)
 
-    lib_path = __file__[0:__file__.rfind("/") + 1] + "libapres_manylinux2014_" + platform.machine() + ".so"
+    file_directory =  __file__[0:__file__.rfind("/") + 1]
+    lib_path = f"{file_directory}libapres_manylinux2014_{platform.machine()}.so"
     lib = ffi.dlopen(lib_path)
 
     event_constructors = {
-        Text.get_rust_id(): Text,
-        CopyRightNotice.get_rust_id(): CopyRightNotice,
-        TrackName.get_rust_id(): TrackName,
-        InstrumentName.get_rust_id(): InstrumentName,
-        Lyric.get_rust_id(): Lyric,
-        Marker.get_rust_id(): Marker,
-        CuePoint.get_rust_id(): CuePoint,
-        EndOfTrack.get_rust_id(): EndOfTrack,
-        ChannelPrefix.get_rust_id(): ChannelPrefix,
-        SetTempo.get_rust_id(): SetTempo,
-        SMPTEOffset.get_rust_id(): SMPTEOffset,
-        TimeSignature.get_rust_id(): TimeSignature,
-        KeySignature.get_rust_id(): KeySignature,
-        Sequencer.get_rust_id(): Sequencer,
-        SystemExclusive.get_rust_id(): SystemExclusive,
+        1: Text,
+        2: CopyRightNotice,
+        3: TrackName,
+        4: InstrumentName,
+        5: Lyric,
+        6: Marker,
+        7: CuePoint,
+        8: EndOfTrack,
+        9: ChannelPrefix,
+        10: SetTempo,
+        11: SMPTEOffset,
+        12: TimeSignature,
+        13: KeySignature,
+        14: Sequencer,
+        23: SystemExclusive,
 
-        NoteOn.get_rust_id(): NoteOn,
-        NoteOff.get_rust_id(): NoteOff,
-        PolyphonicKeyPressure.get_rust_id(): PolyphonicKeyPressure,
-        ControlChange.get_rust_id(): ControlChange,
-        HoldPedal.get_rust_id(): HoldPedal,
-        Portamento.get_rust_id(): Portamento,
-        Sustenuto.get_rust_id(): Sustenuto,
-        SoftPedal.get_rust_id(): SoftPedal,
-        Legato.get_rust_id(): Legato,
-        Hold2Pedal.get_rust_id(): Hold2Pedal,
-        SoundVariation.get_rust_id(): SoundVariation,
-        SoundTimbre.get_rust_id(): SoundTimbre,
-        SoundReleaseTime.get_rust_id(): SoundReleaseTime,
-        SoundAttack.get_rust_id(): SoundAttack,
-        SoundBrightness.get_rust_id(): SoundBrightness,
-        SoundControl1.get_rust_id(): SoundControl1,
-        SoundControl2.get_rust_id(): SoundControl2,
-        SoundControl3.get_rust_id(): SoundControl3,
-        SoundControl4.get_rust_id(): SoundControl4,
-        SoundControl5.get_rust_id(): SoundControl5,
-        EffectsLevel.get_rust_id(): EffectsLevel,
-        TremuloLevel.get_rust_id(): TremuloLevel,
-        ChorusLevel.get_rust_id(): ChorusLevel,
-        CelesteLevel.get_rust_id(): CelesteLevel,
-        PhaserLevel.get_rust_id(): PhaserLevel,
-        MonophonicOperation.get_rust_id(): MonophonicOperation,
-        DataIncrement.get_rust_id(): DataIncrement,
-        DataDecrement.get_rust_id(): DataDecrement,
-        LocalControl.get_rust_id(): LocalControl,
-        AllControllersOff.get_rust_id(): AllControllersOff,
-        AllNotesOff.get_rust_id(): AllNotesOff,
-        AllSoundOff.get_rust_id(): AllSoundOff,
-        OmniOff.get_rust_id(): OmniOff,
-        OmniOn.get_rust_id(): OmniOn,
-        PolyphonicOperation.get_rust_id(): PolyphonicOperation,
-        BankSelect.get_rust_id(): BankSelect,
-        BankSelectLSB.get_rust_id(): BankSelectLSB,
-        ModulationWheel.get_rust_id(): ModulationWheel,
-        ModulationWheelLSB.get_rust_id(): ModulationWheelLSB,
-        BreathController.get_rust_id(): BreathController,
-        BreathControllerLSB.get_rust_id(): BreathControllerLSB,
-        FootPedal.get_rust_id(): FootPedal,
-        FootPedalLSB.get_rust_id(): FootPedalLSB,
-        PortamentoTime.get_rust_id(): PortamentoTime,
-        PortamentoTimeLSB.get_rust_id(): PortamentoTimeLSB,
-        DataEntry.get_rust_id(): DataEntry,
-        DataEntryLSB.get_rust_id(): DataEntryLSB,
-        Volume.get_rust_id(): Volume,
-        VolumeLSB.get_rust_id(): VolumeLSB,
-        Balance.get_rust_id(): Balance,
-        BalanceLSB.get_rust_id(): BalanceLSB,
-        Pan.get_rust_id(): Pan,
-        PanLSB.get_rust_id(): PanLSB,
-        Expression.get_rust_id(): Expression,
-        ExpressionLSB.get_rust_id(): ExpressionLSB,
-        NonRegisteredParameterNumber.get_rust_id(): NonRegisteredParameterNumber,
-        NonRegisteredParameterNumberLSB.get_rust_id(): NonRegisteredParameterNumberLSB,
-        RegisteredParameterNumber.get_rust_id(): RegisteredParameterNumber,
-        RegisteredParameterNumberLSB.get_rust_id(): RegisteredParameterNumberLSB,
+        15: NoteOn,
+        16: NoteOff,
+        17: PolyphonicKeyPressure,
+        18: ControlChange,
+        58: HoldPedal,
+        59: Portamento,
+        60: Sustenuto,
+        61: SoftPedal,
+        62: Legato,
+        63: Hold2Pedal,
+        64: SoundVariation,
+        65: SoundTimbre,
+        66: SoundReleaseTime,
+        67: SoundAttack,
+        68: SoundBrightness,
+        69: SoundControl1,
+        70: SoundControl2,
+        71: SoundControl3,
+        72: SoundControl4,
+        73: SoundControl5,
+        86: EffectsLevel,
+        87: TremuloLevel,
+        88: ChorusLevel,
+        89: CelesteLevel,
+        90: PhaserLevel,
+        103: MonophonicOperation,
+        91: DataIncrement,
+        92: DataDecrement,
+        98: LocalControl,
+        97: AllControllersOff,
+        99: AllNotesOff,
+        100: AllSoundOff,
+        101: OmniOff,
+        102: OmniOn,
+        104: PolyphonicOperation,
+        34: BankSelect,
+        35: BankSelectLSB,
+        36: ModulationWheel,
+        37: ModulationWheelLSB,
+        38: BreathController,
+        39: BreathControllerLSB,
+        40: FootPedal,
+        41: FootPedalLSB,
+        42: PortamentoTime,
+        43: PortamentoTimeLSB,
+        44: DataEntry,
+        45: DataEntryLSB,
+        46: Volume,
+        47: VolumeLSB,
+        48: Balance,
+        49: BalanceLSB,
+        50: Pan,
+        51: PanLSB,
+        52: Expression,
+        53: ExpressionLSB,
+        95: NonRegisteredParameterNumber,
+        96: NonRegisteredParameterNumberLSB,
+        93: RegisteredParameterNumber,
+        94: RegisteredParameterNumberLSB,
 
-        EffectControl1.get_rust_id(): EffectControl1,
-        EffectControl1LSB.get_rust_id(): EffectControl1LSB,
-        EffectControl2.get_rust_id(): EffectControl2,
-        EffectControl2LSB.get_rust_id(): EffectControl2LSB,
-        GeneralPurpose1.get_rust_id(): GeneralPurpose1,
-        GeneralPurpose1LSB.get_rust_id(): GeneralPurpose1LSB,
-        GeneralPurpose2.get_rust_id(): GeneralPurpose2,
-        GeneralPurpose2LSB.get_rust_id(): GeneralPurpose2LSB,
-        GeneralPurpose3.get_rust_id(): GeneralPurpose3,
-        GeneralPurpose3LSB.get_rust_id(): GeneralPurpose3LSB,
-        GeneralPurpose4.get_rust_id(): GeneralPurpose4,
-        GeneralPurpose4LSB.get_rust_id(): GeneralPurpose4LSB,
-        GeneralPurpose5.get_rust_id(): GeneralPurpose5,
-        GeneralPurpose6.get_rust_id(): GeneralPurpose6,
-        GeneralPurpose7.get_rust_id(): GeneralPurpose7,
-        GeneralPurpose8.get_rust_id(): GeneralPurpose8,
+        54: EffectControl1,
+        55: EffectControl1LSB,
+        56: EffectControl2,
+        57: EffectControl2LSB,
+        74: GeneralPurpose1,
+        75: GeneralPurpose1LSB,
+        76: GeneralPurpose2,
+        77: GeneralPurpose2LSB,
+        78: GeneralPurpose3,
+        79: GeneralPurpose3LSB,
+        80: GeneralPurpose4,
+        81: GeneralPurpose4LSB,
+        82: GeneralPurpose5,
+        83: GeneralPurpose6,
+        84: GeneralPurpose7,
+        85: GeneralPurpose8,
 
-        ProgramChange.get_rust_id(): ProgramChange,
-        ChannelPressure.get_rust_id(): ChannelPressure,
-        PitchWheelChange.get_rust_id(): PitchWheelChange,
-        SequenceNumber.get_rust_id(): SequenceNumber
+        19: ProgramChange,
+        20: ChannelPressure,
+        21: PitchWheelChange,
+        22: SequenceNumber
     }
 
     @classmethod
-    def save(cls, midi, path):
-        '''Save the midi to a file'''
+    def save(cls, midi: MIDI, path: str) -> None:
+        """Save the midi to a file"""
         pointer = cls.lib.new()
         cls.lib.set_ppqn(pointer, midi.get_ppqn())
         cls.lib.set_format(pointer, midi.get_format())
@@ -1749,6 +1476,7 @@ class MIDIFactory:
 
     @classmethod
     def event_get_properties(cls, pointer, event_uuid):
+        """ Get an event's properties via the CFFI bridge"""
         count = cls.lib.get_event_property_count(pointer, event_uuid)
         props = []
         for i in range(count):
@@ -1758,6 +1486,7 @@ class MIDIFactory:
 
     @classmethod
     def event_get_property(cls, pointer, event_uuid, event_property):
+        """ Get an event's property via the CFFI bridge"""
         length = cls.lib.get_event_property_length(pointer, event_uuid, event_property)
         bufferlist = bytearray(length)
         array_pointer = cls.lib.get_event_property(pointer, event_uuid, event_property)
@@ -1765,8 +1494,8 @@ class MIDIFactory:
         return bufferlist
 
     @classmethod
-    def load(cls, path):
-        '''Load a MIDI from a path'''
+    def load(cls, path: str):
+        """Load a MIDI from a path"""
         midi = MIDI()
 
         fmt_path = bytes(path, 'utf-8')
@@ -1798,10 +1527,84 @@ class MIDIFactory:
 
 
 class PipeClosed(Exception):
-    '''Error Thrown when the midi device pipe is closed or disconnected'''
+    """Error Thrown when the midi device pipe is closed or disconnected"""
 
 class MIDIController:
-    '''Read Input from Midi Device'''
+    """Read Input from Midi Device"""
+    CONTROL_EVENT_MAP = {
+        HoldPedal.CONTROL_BYTE: HoldPedal,
+        Portamento.CONTROL_BYTE: Portamento,
+        Sustenuto.CONTROL_BYTE: Sustenuto,
+        SoftPedal.CONTROL_BYTE: SoftPedal,
+        Legato.CONTROL_BYTE: Legato,
+        Hold2Pedal.CONTROL_BYTE: Hold2Pedal,
+        SoundVariation.CONTROL_BYTE: SoundVariation,
+        SoundTimbre.CONTROL_BYTE: SoundTimbre,
+        SoundReleaseTime.CONTROL_BYTE: SoundReleaseTime,
+        SoundAttack.CONTROL_BYTE: SoundAttack,
+        SoundBrightness.CONTROL_BYTE: SoundBrightness,
+        SoundControl1.CONTROL_BYTE: SoundControl1,
+        SoundControl2.CONTROL_BYTE: SoundControl2,
+        SoundControl3.CONTROL_BYTE: SoundControl3,
+        SoundControl4.CONTROL_BYTE: SoundControl4,
+        SoundControl5.CONTROL_BYTE: SoundControl5,
+        EffectsLevel.CONTROL_BYTE: EffectsLevel,
+        TremuloLevel.CONTROL_BYTE: TremuloLevel,
+        ChorusLevel.CONTROL_BYTE: ChorusLevel,
+        CelesteLevel.CONTROL_BYTE: CelesteLevel,
+        PhaserLevel.CONTROL_BYTE: PhaserLevel,
+        LocalControl.CONTROL_BYTE: LocalControl,
+        MonophonicOperation.CONTROL_BYTE: MonophonicOperation,
+        BankSelect.CONTROL_BYTE: BankSelect,
+        BankSelectLSB.CONTROL_BYTE: BankSelectLSB,
+        ModulationWheel.CONTROL_BYTE: ModulationWheel,
+        ModulationWheelLSB.CONTROL_BYTE: ModulationWheelLSB,
+        BreathController.CONTROL_BYTE: BreathController,
+        BreathControllerLSB.CONTROL_BYTE: BreathControllerLSB,
+        FootPedal.CONTROL_BYTE: FootPedal,
+        FootPedalLSB.CONTROL_BYTE: FootPedalLSB,
+        PortamentoTime.CONTROL_BYTE: PortamentoTime,
+        PortamentoTimeLSB.CONTROL_BYTE: PortamentoTimeLSB,
+        DataEntry.CONTROL_BYTE: DataEntry,
+        DataEntryLSB.CONTROL_BYTE: DataEntryLSB,
+        Volume.CONTROL_BYTE: Volume,
+        VolumeLSB.CONTROL_BYTE: VolumeLSB,
+        Balance.CONTROL_BYTE: Balance,
+        BalanceLSB.CONTROL_BYTE: BalanceLSB,
+        Pan.CONTROL_BYTE: Pan,
+        PanLSB.CONTROL_BYTE: PanLSB,
+        Expression.CONTROL_BYTE: Expression,
+        ExpressionLSB.CONTROL_BYTE: ExpressionLSB,
+        NonRegisteredParameterNumber.CONTROL_BYTE: NonRegisteredParameterNumber,
+        NonRegisteredParameterNumberLSB.CONTROL_BYTE: NonRegisteredParameterNumberLSB,
+        RegisteredParameterNumber.CONTROL_BYTE: RegisteredParameterNumber,
+        RegisteredParameterNumberLSB.CONTROL_BYTE: RegisteredParameterNumberLSB,
+        EffectControl1.CONTROL_BYTE: EffectControl1,
+        EffectControl1LSB.CONTROL_BYTE: EffectControl1LSB,
+        EffectControl2.CONTROL_BYTE: EffectControl2,
+        EffectControl2LSB.CONTROL_BYTE: EffectControl2LSB,
+        GeneralPurpose1.CONTROL_BYTE: GeneralPurpose1,
+        GeneralPurpose1LSB.CONTROL_BYTE: GeneralPurpose1LSB,
+        GeneralPurpose2.CONTROL_BYTE: GeneralPurpose2,
+        GeneralPurpose2LSB.CONTROL_BYTE: GeneralPurpose2LSB,
+        GeneralPurpose3.CONTROL_BYTE: GeneralPurpose3,
+        GeneralPurpose3LSB.CONTROL_BYTE: GeneralPurpose3LSB,
+        GeneralPurpose4.CONTROL_BYTE: GeneralPurpose4,
+        GeneralPurpose4LSB.CONTROL_BYTE: GeneralPurpose4LSB,
+        GeneralPurpose5.CONTROL_BYTE: GeneralPurpose5,
+        GeneralPurpose6.CONTROL_BYTE: GeneralPurpose6,
+        GeneralPurpose7.CONTROL_BYTE: GeneralPurpose7,
+        GeneralPurpose8.CONTROL_BYTE: GeneralPurpose8,
+        # Invariable ControlChanges
+        DataIncrement.CONTROL_BYTE: DataIncrement,
+        DataDecrement.CONTROL_BYTE: DataDecrement,
+        AllControllersOff.CONTROL_BYTE: AllControllersOff,
+        AllNotesOff.CONTROL_BYTE: AllNotesOff,
+        AllSoundOff.CONTROL_BYTE: AllSoundOff,
+        OmniOff.CONTROL_BYTE: OmniOff,
+        OmniOn.CONTROL_BYTE: OmniOn,
+        PolyphonicOperation.CONTROL_BYTE: PolyphonicOperation
+    }
     def __init__(self, default_path=""):
         self.pipe = None
         self.listening = False
@@ -1814,17 +1617,17 @@ class MIDIController:
         self.hook_map[event_type] = hook
 
     def is_connected(self):
-        '''Check if pipe is open and ready to be read'''
+        """Check if pipe is open and ready to be read"""
         return bool(self.pipe)
 
     def connect(self, path):
-        '''Attempt to open a pipe to the path specified'''
+        """Attempt to open a pipe to the path specified"""
         if not self.pipe:
             self.pipe = open(path, 'rb')
             self.midipath = path
 
     def disconnect(self):
-        '''Close the pipe.'''
+        """Close the pipe."""
         try:
             if self.pipe is not None:
                 self.pipe.close()
@@ -1835,11 +1638,11 @@ class MIDIController:
         self.midipath = ''
 
     def close(self):
-        '''Tear down this midi controller'''
+        """Tear down this midi controller"""
         self.disconnect()
 
     def get_next_byte(self):
-        '''Attempt to read next byte from pipe'''
+        """Attempt to read next byte from pipe"""
         output = None
         while output is None:
             try:
@@ -1861,7 +1664,7 @@ class MIDIController:
                         continue
 
                 else:
-                # wait for input
+                    # wait for input
                     time.sleep(.01)
             else:
                 raise PipeClosed()
@@ -1869,6 +1672,7 @@ class MIDIController:
         return output
 
     def listen(self):
+        """Listen to the midi device for incoming bits. Process them and call their hooks."""
         self.listening = True
         pq_thread = threading.Thread(target=self._process_queue)
         pq_thread.start()
@@ -1892,11 +1696,11 @@ class MIDIController:
             try:
                 hook, event = self.event_queue.pop(0)
                 hook(event)
-            except:
+            except IndexError:
                 time.sleep(.01)
 
     def get_next_event(self):
-        '''Read Midi Input Device until relevant event is found'''
+        """Read Midi Input Device until relevant event is found"""
         lead_byte = self.get_next_byte()
 
         output = None
@@ -1924,151 +1728,7 @@ class MIDIController:
         elif lead_byte & 0xF0 == 0xB0:
             channel = lead_byte & 0x0F
             controller = self.get_next_byte()
-            if controller == HoldPedal.CONTROL_BYTE:
-                constructor = HoldPedal
-            elif controller == Portamento.CONTROL_BYTE:
-                constructor = Portamento
-            elif controller == Sustenuto.CONTROL_BYTE:
-                constructor = Sustenuto
-            elif controller == SoftPedal.CONTROL_BYTE:
-                constructor = SoftPedal
-            elif controller == Legato.CONTROL_BYTE:
-                constructor = Legato
-            elif controller == Hold2Pedal.CONTROL_BYTE:
-                constructor = Hold2Pedal
-            elif controller == SoundVariation.CONTROL_BYTE:
-                constructor = SoundVariation
-            elif controller == SoundTimbre.CONTROL_BYTE:
-                constructor = SoundTimbre
-            elif controller == SoundReleaseTime.CONTROL_BYTE:
-                constructor = SoundReleaseTime
-            elif controller == SoundAttack.CONTROL_BYTE:
-                constructor = SoundAttack
-            elif controller == SoundBrightness.CONTROL_BYTE:
-                constructor = SoundBrightness
-            elif controller == SoundControl1.CONTROL_BYTE:
-                constructor = SoundControl1
-            elif controller == SoundControl2.CONTROL_BYTE:
-                constructor = SoundControl2
-            elif controller == SoundControl3.CONTROL_BYTE:
-                constructor = SoundControl3
-            elif controller == SoundControl4.CONTROL_BYTE:
-                constructor = SoundControl4
-            elif controller == SoundControl5.CONTROL_BYTE:
-                constructor = SoundControl5
-            elif controller == EffectsLevel.CONTROL_BYTE:
-                constructor = EffectsLevel
-            elif controller == TremuloLevel.CONTROL_BYTE:
-                constructor = TremuloLevel
-            elif controller == ChorusLevel.CONTROL_BYTE:
-                constructor = ChorusLevel
-            elif controller == CelesteLevel.CONTROL_BYTE:
-                constructor = CelesteLevel
-            elif controller == PhaserLevel.CONTROL_BYTE:
-                constructor = PhaserLevel
-            elif controller == LocalControl.CONTROL_BYTE:
-                constructor = LocalControl
-            elif controller == MonophonicOperation.CONTROL_BYTE:
-                constructor = MonophonicOperation
-            elif controller == BankSelect.CONTROL_BYTE:
-                constructor = BankSelect
-            elif controller == BankSelectLSB.CONTROL_BYTE:
-                constructor = BankSelectLSB
-            elif controller == ModulationWheel.CONTROL_BYTE:
-                constructor = ModulationWheel
-            elif controller == ModulationWheelLSB.CONTROL_BYTE:
-                constructor = ModulationWheelLSB
-            elif controller == BreathController.CONTROL_BYTE:
-                constructor = BreathController
-            elif controller == BreathControllerLSB.CONTROL_BYTE:
-                constructor = BreathControllerLSB
-            elif controller == FootPedal.CONTROL_BYTE:
-                constructor = FootPedal
-            elif controller == FootPedalLSB.CONTROL_BYTE:
-                constructor = FootPedalLSB
-            elif controller == PortamentoTime.CONTROL_BYTE:
-                constructor = PortamentoTime
-            elif controller == PortamentoTimeLSB.CONTROL_BYTE:
-                constructor = PortamentoTimeLSB
-            elif controller == DataEntry.CONTROL_BYTE:
-                constructor = DataEntry
-            elif controller == DataEntryLSB.CONTROL_BYTE:
-                constructor = DataEntryLSB
-            elif controller == Volume.CONTROL_BYTE:
-                constructor = Volume
-            elif controller == VolumeLSB.CONTROL_BYTE:
-                constructor = VolumeLSB
-            elif controller == Balance.CONTROL_BYTE:
-                constructor = Balance
-            elif controller == BalanceLSB.CONTROL_BYTE:
-                constructor = BalanceLSB
-            elif controller == Pan.CONTROL_BYTE:
-                constructor = Pan
-            elif controller == PanLSB.CONTROL_BYTE:
-                constructor = PanLSB
-            elif controller == Expression.CONTROL_BYTE:
-                constructor = Expression
-            elif controller == ExpressionLSB.CONTROL_BYTE:
-                constructor = ExpressionLSB
-            elif controller == NonRegisteredParameterNumber.CONTROL_BYTE:
-                constructor = NonRegisteredParameterNumber
-            elif controller == NonRegisteredParameterNumberLSB.CONTROL_BYTE:
-                constructor = NonRegisteredParameterNumberLSB
-            elif controller == RegisteredParameterNumber.CONTROL_BYTE:
-                constructor = RegisteredParameterNumber
-            elif controller == RegisteredParameterNumberLSB.CONTROL_BYTE:
-                constructor = RegisteredParameterNumberLSB
-            elif controller == EffectControl1.CONTROL_BYTE:
-                constructor = EffectControl1
-            elif controller == EffectControl1LSB.CONTROL_BYTE:
-                constructor = EffectControl1LSB
-            elif controller == EffectControl2.CONTROL_BYTE:
-                constructor = EffectControl2
-            elif controller == EffectControl2LSB.CONTROL_BYTE:
-                constructor = EffectControl2LSB
-            elif controller == GeneralPurpose1.CONTROL_BYTE:
-                constructor = GeneralPurpose1
-            elif controller == GeneralPurpose1LSB.CONTROL_BYTE:
-                constructor = GeneralPurpose1LSB
-            elif controller == GeneralPurpose2.CONTROL_BYTE:
-                constructor = GeneralPurpose2
-            elif controller == GeneralPurpose2LSB.CONTROL_BYTE:
-                constructor = GeneralPurpose2LSB
-            elif controller == GeneralPurpose3.CONTROL_BYTE:
-                constructor = GeneralPurpose3
-            elif controller == GeneralPurpose3LSB.CONTROL_BYTE:
-                constructor = GeneralPurpose3LSB
-            elif controller == GeneralPurpose4.CONTROL_BYTE:
-                constructor = GeneralPurpose4
-            elif controller == GeneralPurpose4LSB.CONTROL_BYTE:
-                constructor = GeneralPurpose4LSB
-            elif controller == GeneralPurpose5.CONTROL_BYTE:
-                constructor = GeneralPurpose5
-            elif controller == GeneralPurpose6.CONTROL_BYTE:
-                constructor = GeneralPurpose6
-            elif controller == GeneralPurpose7.CONTROL_BYTE:
-                constructor = GeneralPurpose7
-            elif controller == GeneralPurpose8.CONTROL_BYTE:
-                constructor = GeneralPurpose8
-            # Invariable ControlChanges
-            elif controller == DataIncrement.CONTROL_BYTE:
-                constructor = DataIncrement
-            elif controller == DataDecrement.CONTROL_BYTE:
-                constructor = DataDecrement
-            elif controller == AllControllersOff.CONTROL_BYTE:
-                constructor = AllControllersOff
-            elif controller == AllNotesOff.CONTROL_BYTE:
-                constructor = AllNotesOff
-            elif controller == AllSoundOff.CONTROL_BYTE:
-                constructor = AllSoundOff
-            elif controller == OmniOff.CONTROL_BYTE:
-                constructor = OmniOff
-            elif controller == OmniOn.CONTROL_BYTE:
-                constructor = OmniOn
-            elif controller == PolyphonicOperation.CONTROL_BYTE:
-                constructor = PolyphonicOperation
-            else:
-                constructor = ControlChange
+            constructor = MIDIController.CONTROL_EVENT_MAP.get(controller, ControlChange)
 
             value = self.get_next_byte()
             output = constructor(
@@ -2172,6 +1832,7 @@ class MIDIController:
         return output
 
 def to_variable_length(number):
+    """Convert a number to midi's variable-length format"""
     output = []
     is_first_pass = True
     working_number = number
