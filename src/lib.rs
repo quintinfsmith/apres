@@ -409,7 +409,6 @@ fn get_midi_property(midievent: MIDIEvent, property_index: u8) -> Vec<u8> {
             vec![output]
         }
 
-        //SequencerSpecific => 14,
 
         NoteOn(channel, note, velocity) |
         NoteOff(channel, note, velocity) |
@@ -462,6 +461,7 @@ fn get_midi_property(midievent: MIDIEvent, property_index: u8) -> Vec<u8> {
             }
         }
 
+        SequencerSpecific(data) |
         SystemExclusive(data) => {
             data.clone()
         }
@@ -636,7 +636,6 @@ fn get_midi_property_count(midievent: MIDIEvent) -> u8 {
             4
         }
 
-        //SequencerSpecific => 14,
 
         NoteOn(channel, note, velocity) |
         NoteOff(channel, note, velocity) |
@@ -661,6 +660,7 @@ fn get_midi_property_count(midievent: MIDIEvent) -> u8 {
             2
         }
 
+        SequencerSpecific(data) | 
         SystemExclusive(data) => {
             1
         }
