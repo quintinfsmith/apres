@@ -1257,7 +1257,7 @@ class MIDI:
 
     def save(self, path):
         """Save a MIDI file"""
-        return MIDIFactory.save(path, self)
+        return MIDIFactory.save(self, path)
 
     def __init__(self, **kwargs):
         self.events = {}
@@ -1275,7 +1275,6 @@ class MIDI:
         output = []
         for tick, event_id in event_list:
             output.append((tick, self.events[event_id]))
-
         return output
 
     def get_track_events(self) -> Dict[int, List[Tuple[int, MIDIEvent]]]:
@@ -1299,29 +1298,35 @@ class MIDI:
         active_track = kwargs.get('track', 0)
         if "tick" in kwargs:
             active_tick = kwargs["tick"]
-        elif "wait" in kwargs:
-            active_tick = self.track_get_length(active_track) - 1 + kwargs['wait']
         else:
-            active_tick = self.track_get_length(active_track) - 1
+            track_length = self.track_get_length(active_track)
+            active_tick = kwargs.get('wait', 0) + track_length
+            if track_length > 0:
+                active_tick -= 1
 
         self.events[event.get_uuid()] = event
         self.place_event(event, active_track, active_tick)
 
     def track_get_length(self, track_number: int) -> int:
         """Get number of ticks in a track"""
-        max_tick = 0
-        for track, tick in self.event_positions:
+        max_tick = -1
+        for track, tick in self.event_positions.values():
             if track != track_number:
                 continue
             max_tick = max(tick, max_tick)
-
-        return max_tick
+        return max_tick + 1
 
 
     def place_event(self, event: MIDIEvent, track: int, tick: int) -> None:
         """Put a MIDIEvent at a specific position in the piece"""
         self.events[event.get_uuid()] = event
         self.event_positions[event.get_uuid()] = (track, tick)
+
+    def get_ppqn(self):
+        return self.ppqn
+
+    def get_format(self):
+        return self.format
 
 
 class MIDIFactory:
@@ -1466,10 +1471,10 @@ class MIDIFactory:
         cls.lib.set_ppqn(pointer, midi.get_ppqn())
         cls.lib.set_format(pointer, midi.get_format())
 
-        for track, ticks in midi.get_track_events():
+        for track, ticks in midi.get_track_events().items():
             for tick, event in ticks:
                 byte_rep = bytes(event)
-                cls.lib.create_event(track, tick, byte_rep, len(byte_rep))
+                cls.lib.create_event(pointer, track, tick, byte_rep, len(byte_rep))
 
         fmt_path = bytes(path, 'utf-8')
         cls.lib.save(pointer, fmt_path)
