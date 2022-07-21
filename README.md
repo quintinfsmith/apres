@@ -2,7 +2,7 @@
 Python bindings for the Apres MIDI library<br/>
 [![PyPI - Downloads](https://img.shields.io/pypi/dw/apres?style=flat-square)](https://pypi.org/project/apres/)
 [![PyPI](https://img.shields.io/pypi/v/apres?style=flat-square)](https://pypi.org/project/apres/)
-[![GitHub](https://img.shields.io/github/license/quintinfsmith/apres_bindings?style=flat-square)](https://github.com/quintinfsmith/apres_bindings/blob/master/LICENSE)
+[![License](https://img.shields.io/pypi/l/apres?style=flat-square)](https://burnsomni.net/project/apres_bindings/?branch=master&path=LICENSE)
 
 ## Installation
 Can be installed through pip
