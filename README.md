@@ -3,7 +3,7 @@ A MIDI library<br/>
 [![Travis (.com)](https://img.shields.io/travis/com/quintinfsmith/apres?style=flat-square)](https://travis-ci.com/github/quintinfsmith/apres)
 [![Crates.io](https://img.shields.io/crates/d/apres?style=flat-square)](https://crates.io/crates/apres)
 [![Crates.io](https://img.shields.io/crates/v/apres?style=flat-square)](https://crates.io/crates/apres)
-[![GitHub](https://img.shields.io/github/license/quintinfsmith/apres?style=flat-square)](https://github.com/quintinfsmith/apres/blob/master/LICENSE)
+[![GitHub](https://img.shields.io/crates/l/apres?style=flat-square)](https://burnsomni.net/project/apres/?branch=master&path=LICENSE)
 
 ## Installation
 In Cargo.toml
