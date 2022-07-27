@@ -1316,6 +1316,11 @@ class MIDI:
             max_tick = max(tick, max_tick)
         return max_tick + 1
 
+    def detach_event(self, event_id: int) -> MIDIEvent:
+        del self.event_positions[event_id]
+        event = self.events[event_id]
+        del self.events[event_id]
+        return event
 
     def place_event(self, event: MIDIEvent, track: int, tick: int) -> None:
         """Put a MIDIEvent at a specific position in the piece"""
