@@ -76,8 +76,8 @@ fn test_add_event() {
     let on_event = midi.push_event(0, 0, NoteOn(0, 64, 100));
     let off_event = midi.push_event(0, 119, NoteOff(0, 64, 0));
 
-    assert_eq!(on_event, 1);
-    assert_eq!(off_event, 2);
+    assert_eq!(on_event.ok().unwrap(), 1);
+    assert_eq!(off_event.ok().unwrap(), 2);
     assert_eq!(midi.events.len(), 2);
     assert_eq!(midi.event_positions.len(), 2);
     assert_eq!(midi.count_tracks(), 1);
@@ -357,10 +357,10 @@ fn test_channel_pressure_event() {
 fn test_pitchwheel_change_event() {
     let test_cases: Vec<(f64, (u8, u8))> = vec![
         (-1.0, (0, 0)),
-        (-0.5, (0x20, 0x00)),
-        (0.0, (0x40, 0x00)),
-        (0.5, (0x5f, 0x7F)),
-        (1.0, (0x7F, 0x7F))
+        (-0.5, (0x10, 0x00)),
+        (0.0, (0x20, 0x00)),
+        (0.5, (0x2F, 0x7F)),
+        (1.0, (0x3F, 0x7F))
     ];
     for (input_value, (msb, lsb)) in test_cases.iter() {
         let event = PitchWheelChange(14, *input_value);
