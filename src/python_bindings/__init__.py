@@ -15,6 +15,9 @@ from cffi import FFI
 class EventNotFound(Exception):
     """Raised when an event id is given that doesn't belong to any known event"""
 
+class TrackOutOfBounds(Exception):
+    """Raised when trying to add event to track > 15"""
+
 class AlreadyInMIDI(Exception):
     """
         Raised when attempting to add an event
@@ -1296,6 +1299,7 @@ class MIDI:
         """ Add Midi Event to the Midi """
 
         active_track = kwargs.get('track', 0)
+
         if "tick" in kwargs:
             active_tick = kwargs["tick"]
         else:
@@ -1304,7 +1308,6 @@ class MIDI:
             if track_length > 0:
                 active_tick -= 1
 
-        self.events[event.get_uuid()] = event
         self.place_event(event, active_track, active_tick)
 
     def track_get_length(self, track_number: int) -> int:
@@ -1324,6 +1327,9 @@ class MIDI:
 
     def place_event(self, event: MIDIEvent, track: int, tick: int) -> None:
         """Put a MIDIEvent at a specific position in the piece"""
+        if track > 15:
+            raise TrackOutOfBounds()
+
         self.events[event.get_uuid()] = event
         self.event_positions[event.get_uuid()] = (track, tick)
 
