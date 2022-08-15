@@ -17,6 +17,7 @@ pub enum ApresError {
     IllegibleString(Vec<u8>),
     PathNotFound(String),
     PipeBroken,
+    TrackOutOfBounds,
     Killed
 }
 
@@ -1399,7 +1400,7 @@ impl MIDI {
 
         let event = MIDIEvent::from_bytes(bytes, self._active_byte)?;
 
-        Ok(self.insert_event(track, *current_deltatime, event))
+        self.insert_event(track, *current_deltatime, event)
     }
 
 
@@ -1556,28 +1557,42 @@ impl MIDI {
     }
 
     /// Insert an event into the track
-    pub fn insert_event(&mut self, track: usize, tick: usize, event: MIDIEvent) -> u64 {
-        let new_event_id = self.event_id_gen;
-        self.event_id_gen += 1;
+    pub fn insert_event(&mut self, track: usize, tick: usize, event: MIDIEvent) -> Result<u64, ApresError> {
+        let result;
+        if track > 15 {
+            result = Err(ApresError::TrackOutOfBounds);
+        } else {
+            let new_event_id = self.event_id_gen;
+            self.event_id_gen += 1;
 
-        self.events.insert(new_event_id, event);
+            self.events.insert(new_event_id, event);
 
-        self.move_event(track, tick, new_event_id);
+            self.move_event(track, tick, new_event_id);
 
-        new_event_id
+            result = Ok(new_event_id);
+        }
+
+        result
     }
 
     /// Insert an event after the latest event in the track
-    pub fn push_event(&mut self, track: usize, wait: usize, event: MIDIEvent) -> u64 {
-        let new_event_id = self.event_id_gen;
+    pub fn push_event(&mut self, track: usize, wait: usize, event: MIDIEvent) -> Result<u64, ApresError> {
+        let result;
+        if track > 15 {
+            result = Err(ApresError::TrackOutOfBounds);
+        } else {
+            let new_event_id = self.event_id_gen;
 
-        self.events.insert(new_event_id, event);
-        self.event_id_gen += 1;
+            self.events.insert(new_event_id, event);
+            self.event_id_gen += 1;
 
-        let last_tick_in_track = self.get_track_length(track) - 1;
-        self.move_event(track, last_tick_in_track + wait, new_event_id);
+            let last_tick_in_track = self.get_track_length(track) - 1;
+            self.move_event(track, last_tick_in_track + wait, new_event_id);
 
-        new_event_id
+            result = Ok(new_event_id);
+        }
+
+        result
     }
 
     pub fn get_event(&self, event_id: u64) -> Option<MIDIEvent> {
