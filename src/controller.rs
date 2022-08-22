@@ -7,11 +7,13 @@ pub struct Controller {
     pipe: File,
     listening: bool
 }
+
 type Callback<T> = fn(&mut Controller, &mut T, &MIDIEvent);
 
 impl Controller {
-    pub fn new(path: &str) -> Result<Controller, ApresError> {
-        match File::open(path) {
+    pub fn new(dev_id: u8) -> Result<Controller, ApresError> {
+        let path = format!("/dev/midi{}", dev_id);
+        match File::open(&path) {
             Ok(pipe) => {
                 Ok(Controller {
                     pipe,
