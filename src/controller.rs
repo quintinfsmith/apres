@@ -25,6 +25,9 @@ impl Controller {
             }
         }
     }
+    pub fn is_listening(&mut self) -> bool {
+        self.listening
+    }
 
     pub fn listen<T>(&mut self, context: &mut T, callback: Callback<T>) -> Result<(), ApresError> {
         self.listening = true;
@@ -69,7 +72,7 @@ impl Controller {
         Ok(buffer[0])
     }
 
-    fn get_next(&mut self) -> Result<MIDIEvent, ApresError> {
+    pub fn get_next(&mut self) -> Result<MIDIEvent, ApresError> {
         let n: u32;
         let varlength: u64;
 
