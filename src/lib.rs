@@ -1,9 +1,12 @@
 use std::ffi::CStr;
 use std::os::raw::c_char;
 use std::mem;
+use std::sync::{Mutex, Arc};
+use std::{thread};
 
 use apres::*;
 use apres::MIDIEvent::*;
+use apres::controller::Controller;
 
 #[no_mangle]
 pub extern fn save(midi_ptr: *mut MIDI, path: *const c_char) {
@@ -220,7 +223,7 @@ pub extern fn create_event(midi_ptr: *mut MIDI, track: u8, tick: u64, bytes_ptr:
 
     let new_event_id = match MIDIEvent::from_bytes(&mut sub_bytes, 0) {
         Ok(new_event) => {
-            midi.insert_event(track as usize, tick as usize, new_event)
+            midi.insert_event(track as usize, tick as usize, new_event).ok().unwrap()
         }
         Err(_e) => {
             0 // 0 is reserved to denote 'no event'
@@ -239,6 +242,48 @@ pub extern fn set_event_position(midi_ptr: *mut MIDI, event_id: u64, track: u8, 
 }
 
 
+#[no_mangle]
+pub extern fn new_controller(device_id: u8) -> *mut Controller {
+    // TODO: device verification
+    let mut controller = Controller::new(device_id).ok().unwrap();
+
+    Box::into_raw(Box::new( controller ))
+}
+
+#[no_mangle]
+pub extern fn controller_get_next_event(controller_ptr: *mut Controller) -> *mut u8 {
+    let mut controller = unsafe { mem::ManuallyDrop::new(Box::from_raw(controller_ptr)) };
+    let mut byte_list = vec![];
+    match controller.get_next() {
+        Ok(event) => {
+            let event_bytes = event.as_bytes();
+            let event_length = event_bytes.len();
+            byte_list.push(event_length as u8);
+            for b in event_bytes.iter() {
+                byte_list.push(*b);
+            }
+        }
+        Err(_e) => {
+            byte_list.push(0);
+        }
+    }
+
+    let boxed_slice: Box<[u8]> = byte_list.clone().into_boxed_slice();
+
+    let output: *mut u8 = byte_list.as_mut_ptr();
+
+    // Prevent the slice from being destroyed (Leak the memory).
+    mem::forget(boxed_slice);
+
+    output
+}
+
+#[no_mangle]
+pub extern fn controller_kill(controller_ptr: *mut Controller) {
+    let mut controller = unsafe { mem::ManuallyDrop::new(Box::from_raw(controller_ptr)) };
+    controller.kill();
+}
+
 fn get_midi_type_code(midievent: MIDIEvent) -> u8 {
     match midievent {
         SequenceNumber(_) => 22,
@@ -249,6 +294,7 @@ fn get_midi_type_code(midievent: MIDIEvent) -> u8 {
         Lyric(_) => 5,
         Marker(_) => 6,
         CuePoint(_) => 7,
+
         ChannelPrefix(_) => 9,
         SetTempo(_) => 10,
         SMPTEOffset(_, _, _, _, _) => 11,
