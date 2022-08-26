@@ -730,6 +730,8 @@ class VariableControlChange(ControlChange):
         return self.__class__.CONTROL_BYTE
 
     def __init__(self, value, **kwargs):
+        if 'controller' in kwargs:
+            del kwargs['controller']
         super().__init__(self.get_controller(), value, **kwargs)
 
     @classmethod
@@ -1346,6 +1348,10 @@ class MIDIFactory:
     ffi = FFI()
     ffi.cdef("""
         typedef void* MIDI;
+        typedef void* Controller;
+
+        Controller new_controller(uint8_t);
+        uint8_t* controller_get_next_event(Controller);
 
         MIDI interpret(const char*);
         MIDI new();
@@ -1541,6 +1547,18 @@ class MIDIFactory:
             midi.add_event(event, track=track, tick=tick)
         return midi
 
+    @classmethod
+    def controller_new_pointer(cls, device_id=1):
+        return cls.lib.new_controller(device_id)
+
+    @classmethod
+    def controller_get_next_event_bytes(cls, pointer):
+        event_buffer = cls.lib.controller_get_next_event(pointer)
+        length = event_buffer[0]
+        event_bytes = bytearray(length)
+        cls.ffi.memmove(event_bytes, event_buffer[1:1 + length], length)
+        return event_bytes
+
 
 class PipeClosed(Exception):
     """Error Thrown when the midi device pipe is closed or disconnected"""
@@ -1621,11 +1639,12 @@ class MIDIController:
         OmniOn.CONTROL_BYTE: OmniOn,
         PolyphonicOperation.CONTROL_BYTE: PolyphonicOperation
     }
-    def __init__(self, default_path=""):
-        self.pipe = None
+
+    def __init__(self, device_id=1):
+        self.pointer = MIDIFactory.controller_new_pointer(device_id)
         self.listening = False
         self.midipath = None
-        self.connect(default_path)
+        self.connect(device_id)
         self.hook_map = {}
         self.event_queue = []
 
@@ -1634,58 +1653,18 @@ class MIDIController:
 
     def is_connected(self):
         """Check if pipe is open and ready to be read"""
-        return bool(self.pipe)
+        pass
 
     def connect(self, path):
-        """Attempt to open a pipe to the path specified"""
-        if not self.pipe:
-            self.pipe = open(path, 'rb')
-            self.midipath = path
+        pass
 
     def disconnect(self):
-        """Close the pipe."""
-        try:
-            if self.pipe is not None:
-                self.pipe.close()
-        except Exception as e:
-            raise e
-
-        self.pipe = None
-        self.midipath = ''
+        pass
 
     def close(self):
         """Tear down this midi controller"""
         self.disconnect()
 
-    def get_next_byte(self):
-        """Attempt to read next byte from pipe"""
-        output = None
-        while output is None:
-            try:
-                ready, _, __ = select.select([self.pipe], [], [], 0)
-            except TypeError:
-                ready = []
-            except ValueError:
-                ready = []
-
-            if self.is_connected():
-                if self.pipe in ready:
-                    try:
-                        output = os.read(self.pipe.fileno(), 1)
-                        if output:
-                            output = output[0]
-                        else:
-                            continue
-                    except ValueError:
-                        continue
-
-                else:
-                    # wait for input
-                    time.sleep(.01)
-            else:
-                raise PipeClosed()
-
-        return output
 
     def listen(self):
         """Listen to the midi device for incoming bits. Process them and call their hooks."""
@@ -1717,19 +1696,20 @@ class MIDIController:
 
     def get_next_event(self):
         """Read Midi Input Device until relevant event is found"""
-        lead_byte = self.get_next_byte()
+        event_bytes = MIDIFactory.controller_get_next_event_bytes(self.pointer)
+        lead_byte = event_bytes.pop(0)
 
         output = None
         if lead_byte & 0xF0 == 0x80:
             channel = lead_byte & 0x0F
-            note = self.get_next_byte()
-            velocity = self.get_next_byte()
+            note = event_bytes.pop(0)
+            velocity = event_bytes.pop(0)
             output = NoteOff(channel=channel, note=note, velocity=velocity)
 
         elif lead_byte & 0xF0 == 0x90:
             channel = lead_byte & 0x0F
-            note = self.get_next_byte()
-            velocity = self.get_next_byte()
+            note = event_bytes.pop(0)
+            velocity = event_bytes.pop(0)
             if velocity == 0:
                 output = NoteOff(channel=channel, note=note, velocity=0)
             else:
@@ -1737,16 +1717,16 @@ class MIDIController:
 
         elif lead_byte & 0xF0 == 0xA0:
             channel = lead_byte & 0x0F
-            note = self.get_next_byte()
-            velocity = self.get_next_byte()
+            note = event_bytes.pop(0)
+            velocity = event_bytes.pop(0)
             output = PolyphonicKeyPressure(channel=channel, note=note, velocity=velocity)
 
         elif lead_byte & 0xF0 == 0xB0:
             channel = lead_byte & 0x0F
-            controller = self.get_next_byte()
+            controller = event_bytes.pop(0)
             constructor = MIDIController.CONTROL_EVENT_MAP.get(controller, ControlChange)
 
-            value = self.get_next_byte()
+            value = event_bytes.pop(0)
             output = constructor(
                 channel=channel,
                 controller=controller,
@@ -1755,19 +1735,19 @@ class MIDIController:
 
         elif lead_byte & 0xF0 == 0xC0:
             channel = lead_byte & 0x0F
-            new_program = self.get_next_byte()
+            new_program = event_bytes.pop(0)
             output = ProgramChange(channel=channel, program=new_program)
 
         elif lead_byte & 0xF0 == 0xD0:
             channel = lead_byte & 0x0F
-            pressure = self.get_next_byte()
+            pressure = event_bytes.pop(0)
             output = ChannelPressure(channel=channel, pressure=pressure)
 
         elif lead_byte & 0xF0 == 0xE0:
             channel = lead_byte & 0x0F
 
-            lsb = self.get_next_byte()
-            msb = self.get_next_byte()
+            lsb = event_bytes.pop(0)
+            msb = event_bytes.pop(0)
 
             unsigned = (msb << 8) + (lsb & 0x7F)
             value = ((0x3FFF * unsigned) - 2) / 2
@@ -1778,16 +1758,16 @@ class MIDIController:
             # System Exclusive
             bytedump = []
 
-            byte = self.get_next_byte()
+            byte = event_bytes.pop(0)
             while byte != 0xF7:
                 bytedump.append(byte)
-                byte = self.get_next_byte()
+                byte = event_bytes.pop(0)
 
             output = SystemExclusive(bytedump)
 
             # Time Code
         elif lead_byte == 0xF1:
-            byte_a = self.get_next_byte()
+            byte_a = event_bytes.pop(0)
             coded_rate = byte_a >> 5
             if coded_rate == 0:
                 rate = 24
@@ -1799,20 +1779,20 @@ class MIDIController:
                 rate = 30
 
             hour = byte_a & 0x1F
-            minute = self.get_next_byte() & 0x3F
-            second = self.get_next_byte() & 0x3F
-            frame = self.get_next_byte() & 0x1F
+            minute = event_bytes.pop(0) & 0x3F
+            second = event_bytes.pop(0) & 0x3F
+            frame = event_bytes.pop(0) & 0x1F
 
             output = TimeCode(rate=rate, hour=hour, minute=minute, second=second, frame=frame)
 
         elif lead_byte == 0xF2:
-            least_significant_byte = self.get_next_byte()
-            most_significant_byte = self.get_next_byte()
+            least_significant_byte = event_bytes.pop(0)
+            most_significant_byte = event_bytes.pop(0)
             beat = (most_significant_byte << 8) + least_significant_byte
             output = SongPositionPointer(beat=beat)
 
         elif lead_byte == 0xF3:
-            song = self.get_next_byte()
+            song = event_bytes.pop(0)
             output = SongSelect(song & 0x7F)
 
         elif lead_byte == 0xF6:
@@ -1820,8 +1800,8 @@ class MIDIController:
 
         elif lead_byte == 0xF7:
             # Real Time SysEx
-            for _ in range(self.get_next_byte()):
-                byte = self.get_next_byte()
+            for _ in range(event_bytes.pop(0)):
+                byte = event_bytes.pop(0)
                 bytedump.push(byte)
 
             output = SystemExclusive(bytedump)
