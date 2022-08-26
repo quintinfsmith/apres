@@ -1,7 +1,6 @@
 use super::*;
-use std::fs::{File, OpenOptions};
-use std::ffi::{CString, CStr};
-use std::mem;
+use std::fs::File;
+use std::ffi::CString;
 use libc;
 
 pub struct Controller {
@@ -32,7 +31,7 @@ impl Controller {
                     listening: false
                 })
             }
-            Err(e) => {
+            Err(_e) => {
                Err(ApresError::PathNotFound(path.to_string()))
             }
         }
@@ -76,7 +75,7 @@ impl Controller {
         while self.listening {
             if self.cached_buffer.len() == 0 {
                 unsafe {
-                    let mut fds: *mut libc::pollfd = &mut libc::pollfd {
+                    let fds: *mut libc::pollfd = &mut libc::pollfd {
                         fd: self.file_descriptor,
                         events: 0 as libc::c_short,
                         revents: 0 as libc::c_short
@@ -87,7 +86,7 @@ impl Controller {
                         self.file_descriptor as u64,
                         0 as libc::c_int
                     );
-                    println!("{}",self.file_descriptor);
+
                     if ready == self.file_descriptor {
                         let mut buffer = [0u8; 1];
                         match self.pipe.read_exact(&mut buffer) {
@@ -95,7 +94,7 @@ impl Controller {
                                 self.cached_buffer.push(buffer[0]);
                                 break;
                             }
-                            Err(e) => {
+                            Err(_e) => {
                             }
                         }
                     }

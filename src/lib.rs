@@ -1,9 +1,8 @@
 use std::fs::File;
 use std::io::prelude::*;
-use std::cmp::{max, min};
+use std::cmp::max;
 use std::collections::{HashMap, HashSet};
 
-pub mod tests;
 pub mod controller;
 
 use controller::Controller;
@@ -18,7 +17,8 @@ pub enum ApresError {
     PathNotFound(String),
     PipeBroken,
     TrackOutOfBounds,
-    Killed
+    Killed,
+    MissingHeader
 }
 
 
@@ -678,13 +678,20 @@ impl MIDIBytes for MIDIEvent {
             }
 
             MIDIEvent::TimeCode(rate, hour, minute, second, frame) => {
-                let coded_rate = match rate {
-                    24.0 => { 0 }
-                    25.0 => { 1 }
-                    27.97 => { 2 }
-                    30.0 => { 3 }
-                    _ => { 3 } // Error
+                let coded_rate = {
+                    if *rate == 24.0 {
+                        0
+                    } else if *rate == 25.0 {
+                        1
+                    } else if *rate == 27.97 {
+                        2
+                    } else if *rate == 30.0 {
+                        3
+                    } else {
+                        3
+                    }
                 };
+
                 let first_byte: u8 = (coded_rate << 5) + hour;
                 vec![0xF1, first_byte, *minute, *second, *frame]
             }
@@ -731,7 +738,6 @@ impl MIDIBytes for MIDIEvent {
     fn from_bytes(bytes: &mut Vec<u8>, default_byte: u8) -> Result<MIDIEvent, ApresError> {
         let mut output = Err(ApresError::InvalidBytes(bytes.clone()));
 
-        let n: u32;
         let varlength: u64;
         let leadbyte = bytes.remove(0);
 
@@ -1284,7 +1290,7 @@ impl MIDI {
                     midibytes.push(*byte);
                 }
             }
-            Err(e) => {
+            Err(_e) => {
                 Err(ApresError::InvalidMIDIFile(file_path.to_string()))?;
             }
         }
@@ -1313,8 +1319,8 @@ impl MIDI {
 
         // TODO: These Probably don't need to be 32
         let mut divword: u32;
-        let mut smpte: u32;
-        let mut tpf: u32;
+        //let mut smpte: u32;
+        //let mut tpf: u32;
         let mut midi_format: u16;
 
         let mut track_length: u32;
@@ -1338,9 +1344,11 @@ impl MIDI {
                 midi_format = dequeue_n(bytes, 2) as u16; // Midi Format
                 dequeue_n(bytes, 2); // Get Number of tracks
                 divword = dequeue_n(bytes, 2);
+
+                // TODO: handle divword > 0x8000
                 if divword & 0x8000 > 0 {
-                    smpte = (((divword & 0x7F00) >> 8) as i8) as u32;
-                    tpf = divword & 0x00FF;
+                    //smpte = (((divword & 0x7F00) >> 8) as i8) as u32;
+                    //tpf = divword & 0x00FF;
 
                 } else {
                     ppqn = (divword & 0x7FFF) as u16;
@@ -1349,6 +1357,9 @@ impl MIDI {
                 mlo.set_format(midi_format);
                 found_header = true;
             } else if chunk_type == ('M' as u8, 'T' as u8, 'r' as u8, 'k' as u8) {
+                if ! found_header {
+                    Err(ApresError::MissingHeader)?;
+                }
                 current_deltatime = 0;
                 track_length = dequeue_n(bytes, 4);
                 sub_bytes = Vec::new();
@@ -1362,10 +1373,10 @@ impl MIDI {
                         Ok(_) => {
                             Ok(())
                         }
-                        Err(ApresError::UnknownMetaEvent(bytes)) => {
+                        Err(ApresError::UnknownMetaEvent(_bytes)) => {
                             Ok(())
                         }
-                        Err(ApresError::IllegibleString(bytes)) => {
+                        Err(ApresError::IllegibleString(_bytes)) => {
                             Ok(())
                         }
                         Err(e) => {
@@ -1383,9 +1394,6 @@ impl MIDI {
     }
 
     fn process_mtrk_event(&mut self, bytes: &mut Vec<u8>, current_deltatime: &mut usize, track: usize) -> Result<u64, ApresError> {
-        let n: u32;
-        let varlength: u64;
-
         match bytes.first() {
             Some(status_byte) => {
                 match status_byte {
@@ -1466,7 +1474,7 @@ impl MIDI {
             Ok(mut file) => {
                 file.write_all(bytes.as_slice());
             }
-            Err(e) => {
+            Err(_e) => {
             }
         }
     }
@@ -1525,7 +1533,9 @@ impl MIDI {
     pub fn get_track_length(&self, track: usize) -> usize {
         let mut highest_tick = 0;
         for (_, (_current_track, test_tick)) in self.event_positions.iter() {
-            highest_tick = max(highest_tick, *test_tick);
+            if track == *_current_track {
+                highest_tick = max(highest_tick, *test_tick);
+            }
         }
 
         highest_tick + 1
@@ -1684,7 +1694,7 @@ pub fn get_pitchwheel_value(n: f64) -> u16 {
     }
 }
 
-fn build_key_signature(mut mi: u8, mut sf: u8) -> MIDIEvent {
+fn build_key_signature(mi: u8, sf: u8) -> MIDIEvent {
     let chord_name = get_chord_name_from_mi_sf(mi, sf);
 
     MIDIEvent::KeySignature(chord_name.to_string())
