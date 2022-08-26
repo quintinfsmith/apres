@@ -1,10 +1,13 @@
 use super::*;
-use std::fs::File;
-use super::{MIDIEvent, ApresError};
-use std::time::{Duration, Instant};
+use std::fs::{File, OpenOptions};
+use std::ffi::{CString, CStr};
+use std::mem;
+use libc;
 
 pub struct Controller {
     pipe: File,
+    file_descriptor: libc::c_int,
+    cached_buffer: Vec<u8>,
     listening: bool
 }
 
@@ -12,11 +15,20 @@ type Callback<T> = fn(&mut Controller, &mut T, &MIDIEvent);
 
 impl Controller {
     pub fn new(dev_id: u8) -> Result<Controller, ApresError> {
-        let path = format!("/dev/midi{}", dev_id);
-        match File::open(&path) {
+        let path = &format!("/dev/midi{}", dev_id);
+        let path_cstring = CString::new(path.as_str()).unwrap();
+        let cpath: *const libc::c_char = path_cstring.as_ptr();
+        let file_descriptor = unsafe { libc::open(cpath, 0) };
+        if file_descriptor == -1 {
+            Err(ApresError::PathNotFound(path.to_string()))?
+        }
+
+        match File::open(path) {
             Ok(pipe) => {
                 Ok(Controller {
+                    file_descriptor,
                     pipe,
+                    cached_buffer: Vec::new(),
                     listening: false
                 })
             }
@@ -25,6 +37,7 @@ impl Controller {
             }
         }
     }
+
     pub fn is_listening(&mut self) -> bool {
         self.listening
     }
@@ -34,7 +47,6 @@ impl Controller {
 
         //let start_time = Instant::now();
         //let ignore_time = Duration::new(0, 100_000_000);
-
         while self.listening {
             match self.get_next() {
                 Ok(event) => {
@@ -53,29 +65,55 @@ impl Controller {
         Ok(())
     }
 
+    pub fn force_listening(&mut self) {
+        self.listening = true;
+    }
     pub fn kill(&mut self) {
         self.listening = false;
     }
 
     fn get_next_byte(&mut self) -> Result<u8, ApresError> {
-        let mut buffer = [0;1];
-        loop {
-            match self.pipe.read_exact(&mut buffer) {
-                Ok(_success) => {
-                    break;
-                }
-                Err(_e) => {
-                    Err(ApresError::PipeBroken)?;
+        while self.listening {
+            if self.cached_buffer.len() == 0 {
+                unsafe {
+                    let mut fds: *mut libc::pollfd = &mut libc::pollfd {
+                        fd: self.file_descriptor,
+                        events: 0 as libc::c_short,
+                        revents: 0 as libc::c_short
+                    };
+
+                    let ready = libc::poll(
+                        fds,
+                        self.file_descriptor as u64,
+                        0 as libc::c_int
+                    );
+                    println!("{}",self.file_descriptor);
+                    if ready == self.file_descriptor {
+                        let mut buffer = [0u8; 1];
+                        match self.pipe.read_exact(&mut buffer) {
+                            Ok(_success) => {
+                                self.cached_buffer.push(buffer[0]);
+                                break;
+                            }
+                            Err(e) => {
+                            }
+                        }
+                    }
                 }
             }
         }
-        Ok(buffer[0])
+
+        if self.listening {
+            let output = self.cached_buffer[0];
+            self.cached_buffer.drain(0..1);
+
+            Ok(output)
+        } else {
+            Err(ApresError::Killed)
+        }
     }
 
     pub fn get_next(&mut self) -> Result<MIDIEvent, ApresError> {
-        let n: u32;
-        let varlength: u64;
-
         let lead_byte = self.get_next_byte()?;
         match lead_byte {
             0..=0x7F => {

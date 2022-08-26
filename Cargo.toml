@@ -14,3 +14,5 @@ keywords = ["midi", "audio", "music"]
 name = "apres"
 crate-type = ["rlib"]
 
+[dependencies]
+libc = "0.2"
