@@ -1,10 +1,12 @@
 use super::*;
 use std::fs::File;
-use std::ffi::CString;
+use std::ffi::{CString, CStr};
 use libc;
+use std::mem;
+use std::ptr;
+use std::boxed::Box;
 
 pub struct Controller {
-    pipe: File,
     file_descriptor: libc::c_int,
     cached_buffer: Vec<u8>,
     listening: bool
@@ -22,19 +24,11 @@ impl Controller {
             Err(ApresError::PathNotFound(path.to_string()))?
         }
 
-        match File::open(path) {
-            Ok(pipe) => {
-                Ok(Controller {
-                    file_descriptor,
-                    pipe,
-                    cached_buffer: Vec::new(),
-                    listening: false
-                })
-            }
-            Err(_e) => {
-               Err(ApresError::PathNotFound(path.to_string()))
-            }
-        }
+        Ok(Controller {
+            file_descriptor,
+            cached_buffer: Vec::new(),
+            listening: false
+        })
     }
 
     pub fn is_listening(&mut self) -> bool {
@@ -75,28 +69,30 @@ impl Controller {
         while self.listening {
             if self.cached_buffer.len() == 0 {
                 unsafe {
-                    let fds: *mut libc::pollfd = &mut libc::pollfd {
+                    let mut fds = [libc::pollfd {
                         fd: self.file_descriptor,
-                        events: 0 as libc::c_short,
+                        events: 1 as libc::c_short,
                         revents: 0 as libc::c_short
-                    };
+                    };1];
 
                     let ready = libc::poll(
-                        fds,
-                        self.file_descriptor as u64,
-                        0 as libc::c_int
+                        fds.as_mut_ptr(),
+                        1,
+                        0
                     );
 
-                    if ready == self.file_descriptor {
-                        let mut buffer = [0u8; 1];
-                        match self.pipe.read_exact(&mut buffer) {
-                            Ok(_success) => {
-                                self.cached_buffer.push(buffer[0]);
-                                break;
-                            }
-                            Err(_e) => {
-                            }
-                        }
+
+                    if ready > 0 {
+                        //let mut buffer: *mut libc::c_void = &mut CString::new("").unwrap();
+                        let mut buffer = 0 as *mut libc::c_void;
+
+                        let mut count = 1;
+                        let bytes_read = libc::read(
+                            self.file_descriptor,
+                            &mut *buffer,
+                            count
+                        );
+
                     }
                 }
             }
