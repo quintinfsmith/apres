@@ -1352,6 +1352,7 @@ class MIDIFactory:
 
         Controller new_controller(uint8_t);
         uint8_t* controller_get_next_event(Controller);
+        void controller_kill(Controller);
 
         MIDI interpret(const char*);
         MIDI new();
@@ -1559,6 +1560,10 @@ class MIDIFactory:
         cls.ffi.memmove(event_bytes, event_buffer[1:1 + length], length)
         return event_bytes
 
+    @classmethod
+    def controller_kill(cls, pointer):
+        cls.lib.controller_kill(pointer)
+
 
 class PipeClosed(Exception):
     """Error Thrown when the midi device pipe is closed or disconnected"""
@@ -1641,9 +1646,7 @@ class MIDIController:
     }
 
     def __init__(self, device_id=1):
-        self.pointer = MIDIFactory.controller_new_pointer(device_id)
-        self.listening = False
-        self.midipath = None
+        self.pointer = None
         self.connect(device_id)
         self.hook_map = {}
         self.event_queue = []
@@ -1655,19 +1658,20 @@ class MIDIController:
         """Check if pipe is open and ready to be read"""
         pass
 
-    def connect(self, path):
-        pass
-
-    def disconnect(self):
-        pass
+    def connect(self, device_id):
+        self.pointer = MIDIFactory.controller_new_pointer(device_id)
 
     def close(self):
         """Tear down this midi controller"""
-        self.disconnect()
+        print("!!!")
+        MIDIFactory.controller_kill(self.pointer)
 
 
     def listen(self):
         """Listen to the midi device for incoming bits. Process them and call their hooks."""
+        if self.pointer is None:
+            return
+
         self.listening = True
         pq_thread = threading.Thread(target=self._process_queue)
         pq_thread.start()

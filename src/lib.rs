@@ -246,6 +246,7 @@ pub extern fn set_event_position(midi_ptr: *mut MIDI, event_id: u64, track: u8, 
 pub extern fn new_controller(device_id: u8) -> *mut Controller {
     // TODO: device verification
     let mut controller = Controller::new(device_id).ok().unwrap();
+    controller.force_listening();
 
     Box::into_raw(Box::new( controller ))
 }

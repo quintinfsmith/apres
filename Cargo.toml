@@ -7,7 +7,7 @@ description = "External bindings for apres MIDI library"
 license-file = "LICENSE"
 
 [dependencies]
-apres = { path = "../apres" }
+apres = "0.3.4"
 
 [lib]
 name = "apres_bindings"
