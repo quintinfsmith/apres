@@ -255,23 +255,20 @@ pub extern fn new_controller(device_id: u8) -> *mut Controller {
 pub extern fn controller_get_next_event(controller_ptr: *mut Controller) -> *mut u8 {
     let mut controller = unsafe { mem::ManuallyDrop::new(Box::from_raw(controller_ptr)) };
     let mut byte_list = vec![];
-    match controller.get_next() {
-        Ok(event) => {
-            let event_bytes = event.as_bytes();
-            let event_length = event_bytes.len();
-            byte_list.push(event_length as u8);
-            for b in event_bytes.iter() {
-                byte_list.push(*b);
-            }
+    match controller.get_next_byte() {
+        Ok(byte) => {
+            byte_list.push(byte);
+            byte_list.push(1); // 1 indicates OK
         }
         Err(_e) => {
             byte_list.push(0);
+            byte_list.push(0); // 0 indicates error
         }
     }
 
-    let boxed_slice: Box<[u8]> = byte_list.clone().into_boxed_slice();
+    let mut boxed_slice: Box<[u8]> = byte_list.clone().into_boxed_slice();
 
-    let output: *mut u8 = byte_list.as_mut_ptr();
+    let output: *mut u8 = boxed_slice.as_mut_ptr();
 
     // Prevent the slice from being destroyed (Leak the memory).
     mem::forget(boxed_slice);
