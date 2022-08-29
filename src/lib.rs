@@ -1627,8 +1627,8 @@ impl MIDI {
     }
 }
 
-pub fn listen<T>(device_id: u8, context: &mut T, callback: fn(&mut Controller, &mut T, &MIDIEvent) -> ()) -> Result<(), ApresError> {
-    match Controller::new(device_id) {
+pub fn listen<T>(channel: u8, device_id: u8, context: &mut T, callback: fn(&mut Controller, &mut T, &MIDIEvent) -> ()) -> Result<(), ApresError> {
+    match Controller::new(channel, device_id) {
         Ok(mut controller) => {
             controller.listen(context, callback)
         }

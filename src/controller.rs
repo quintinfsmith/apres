@@ -15,8 +15,8 @@ pub struct Controller {
 type Callback<T> = fn(&mut Controller, &mut T, &MIDIEvent);
 
 impl Controller {
-    pub fn new(dev_id: u8) -> Result<Controller, ApresError> {
-        let path = &format!("/dev/midi{}", dev_id);
+    pub fn new(channel:u8, dev_id: u8) -> Result<Controller, ApresError> {
+        let path = &format!("/dev/snd/midiC{}D{}", channel, dev_id);
         let path_cstring = CString::new(path.as_str()).unwrap();
         let cpath: *const libc::c_char = path_cstring.as_ptr();
         let file_descriptor = unsafe { libc::open(cpath, 0) };
@@ -65,7 +65,7 @@ impl Controller {
         self.listening = false;
     }
 
-    fn get_next_byte(&mut self) -> Result<u8, ApresError> {
+    pub fn get_next_byte(&mut self) -> Result<u8, ApresError> {
         while self.listening {
             if self.cached_buffer.len() == 0 {
                 unsafe {
@@ -81,27 +81,29 @@ impl Controller {
                         0
                     );
 
-
                     if ready > 0 {
-                        //let mut buffer: *mut libc::c_void = &mut CString::new("").unwrap();
-                        let mut buffer = 0 as *mut libc::c_void;
+                        let mut buffer = std::mem::transmute::<&mut u8, &mut libc::c_void>(&mut 0u8);
 
-                        let mut count = 1;
+                        let count = 1;
                         let bytes_read = libc::read(
                             self.file_descriptor,
-                            &mut *buffer,
+                            buffer,
                             count
                         );
 
+                        let value = std::mem::transmute::<&mut libc::c_void, &u8>(buffer);
+                        if bytes_read > -1 {
+                            self.cached_buffer.push(*value);
+                            break;
+                        }
                     }
                 }
             }
         }
 
-        if self.listening {
+        if self.listening && self.cached_buffer.len() > 0 {
             let output = self.cached_buffer[0];
             self.cached_buffer.drain(0..1);
-
             Ok(output)
         } else {
             Err(ApresError::Killed)
