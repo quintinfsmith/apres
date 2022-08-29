@@ -1351,7 +1351,7 @@ class MIDIFactory:
         typedef void* Controller;
 
         Controller new_controller(uint8_t);
-        uint8_t* controller_get_next_event(Controller);
+        uint8_t* controller_get_next_byte(Controller);
         void controller_kill(Controller);
 
         MIDI interpret(const char*);
@@ -1553,12 +1553,13 @@ class MIDIFactory:
         return cls.lib.new_controller(device_id)
 
     @classmethod
-    def controller_get_next_event_bytes(cls, pointer):
-        event_buffer = cls.lib.controller_get_next_event(pointer)
-        length = event_buffer[0]
-        event_bytes = bytearray(length)
-        cls.ffi.memmove(event_bytes, event_buffer[1:1 + length], length)
-        return event_bytes
+    def controller_get_next_byte(cls, pointer):
+        event_pointer = cls.lib.controller_get_next_byte(pointer)
+        event_bytes = bytearray(2)
+        cls.ffi.memmove(event_bytes, event_pointer, 2)
+
+
+        return event_bytes[0]
 
     @classmethod
     def controller_kill(cls, pointer):
@@ -1663,7 +1664,7 @@ class MIDIController:
 
     def close(self):
         """Tear down this midi controller"""
-        print("!!!")
+        self.listening = False
         MIDIFactory.controller_kill(self.pointer)
 
 
@@ -1698,22 +1699,24 @@ class MIDIController:
             except IndexError:
                 time.sleep(.01)
 
+    def get_next_byte(self):
+        return MIDIFactory.controller_get_next_byte(self.pointer)
+
     def get_next_event(self):
         """Read Midi Input Device until relevant event is found"""
-        event_bytes = MIDIFactory.controller_get_next_event_bytes(self.pointer)
-        lead_byte = event_bytes.pop(0)
+        lead_byte = self.get_next_byte()
 
         output = None
         if lead_byte & 0xF0 == 0x80:
             channel = lead_byte & 0x0F
-            note = event_bytes.pop(0)
-            velocity = event_bytes.pop(0)
+            note = self.get_next_byte()
+            velocity = self.get_next_byte()
             output = NoteOff(channel=channel, note=note, velocity=velocity)
 
         elif lead_byte & 0xF0 == 0x90:
             channel = lead_byte & 0x0F
-            note = event_bytes.pop(0)
-            velocity = event_bytes.pop(0)
+            note = self.get_next_byte()
+            velocity = self.get_next_byte()
             if velocity == 0:
                 output = NoteOff(channel=channel, note=note, velocity=0)
             else:
@@ -1721,16 +1724,16 @@ class MIDIController:
 
         elif lead_byte & 0xF0 == 0xA0:
             channel = lead_byte & 0x0F
-            note = event_bytes.pop(0)
-            velocity = event_bytes.pop(0)
+            note = self.get_next_byte()
+            velocity = self.get_next_byte()
             output = PolyphonicKeyPressure(channel=channel, note=note, velocity=velocity)
 
         elif lead_byte & 0xF0 == 0xB0:
             channel = lead_byte & 0x0F
-            controller = event_bytes.pop(0)
+            controller = self.get_next_byte()
             constructor = MIDIController.CONTROL_EVENT_MAP.get(controller, ControlChange)
 
-            value = event_bytes.pop(0)
+            value = self.get_next_byte()
             output = constructor(
                 channel=channel,
                 controller=controller,
@@ -1739,19 +1742,19 @@ class MIDIController:
 
         elif lead_byte & 0xF0 == 0xC0:
             channel = lead_byte & 0x0F
-            new_program = event_bytes.pop(0)
+            new_program = self.get_next_byte()
             output = ProgramChange(channel=channel, program=new_program)
 
         elif lead_byte & 0xF0 == 0xD0:
             channel = lead_byte & 0x0F
-            pressure = event_bytes.pop(0)
+            pressure = self.get_next_byte()
             output = ChannelPressure(channel=channel, pressure=pressure)
 
         elif lead_byte & 0xF0 == 0xE0:
             channel = lead_byte & 0x0F
 
-            lsb = event_bytes.pop(0)
-            msb = event_bytes.pop(0)
+            lsb = self.get_next_byte()
+            msb = self.get_next_byte()
 
             unsigned = (msb << 8) + (lsb & 0x7F)
             value = ((0x3FFF * unsigned) - 2) / 2
@@ -1762,16 +1765,16 @@ class MIDIController:
             # System Exclusive
             bytedump = []
 
-            byte = event_bytes.pop(0)
+            byte = self.get_next_byte()
             while byte != 0xF7:
                 bytedump.append(byte)
-                byte = event_bytes.pop(0)
+                byte = self.get_next_byte()
 
             output = SystemExclusive(bytedump)
 
             # Time Code
         elif lead_byte == 0xF1:
-            byte_a = event_bytes.pop(0)
+            byte_a = self.get_next_byte()
             coded_rate = byte_a >> 5
             if coded_rate == 0:
                 rate = 24
@@ -1783,20 +1786,20 @@ class MIDIController:
                 rate = 30
 
             hour = byte_a & 0x1F
-            minute = event_bytes.pop(0) & 0x3F
-            second = event_bytes.pop(0) & 0x3F
-            frame = event_bytes.pop(0) & 0x1F
+            minute = self.get_next_byte() & 0x3F
+            second = self.get_next_byte() & 0x3F
+            frame = self.get_next_byte() & 0x1F
 
             output = TimeCode(rate=rate, hour=hour, minute=minute, second=second, frame=frame)
 
         elif lead_byte == 0xF2:
-            least_significant_byte = event_bytes.pop(0)
-            most_significant_byte = event_bytes.pop(0)
+            least_significant_byte = self.get_next_byte()
+            most_significant_byte = self.get_next_byte()
             beat = (most_significant_byte << 8) + least_significant_byte
             output = SongPositionPointer(beat=beat)
 
         elif lead_byte == 0xF3:
-            song = event_bytes.pop(0)
+            song = self.get_next_byte()
             output = SongSelect(song & 0x7F)
 
         elif lead_byte == 0xF6:
@@ -1804,8 +1807,8 @@ class MIDIController:
 
         elif lead_byte == 0xF7:
             # Real Time SysEx
-            for _ in range(event_bytes.pop(0)):
-                byte = event_bytes.pop(0)
+            for _ in range(self.get_next_byte()):
+                byte = self.get_next_byte()
                 bytedump.push(byte)
 
             output = SystemExclusive(bytedump)

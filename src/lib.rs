@@ -252,7 +252,7 @@ pub extern fn new_controller(device_id: u8) -> *mut Controller {
 }
 
 #[no_mangle]
-pub extern fn controller_get_next_event(controller_ptr: *mut Controller) -> *mut u8 {
+pub extern fn controller_get_next_byte(controller_ptr: *mut Controller) -> *mut u8 {
     let mut controller = unsafe { mem::ManuallyDrop::new(Box::from_raw(controller_ptr)) };
     let mut byte_list = vec![];
     match controller.get_next_byte() {
