@@ -8,6 +8,12 @@ use apres::*;
 use apres::MIDIEvent::*;
 use apres::controller::Controller;
 
+pub struct ControllerWrapper {
+    controller: Arc<Mutex<Controller>>,
+    byte_cache: Arc<Mutex<Vec<u8>>>
+}
+
+
 #[no_mangle]
 pub extern fn save(midi_ptr: *mut MIDI, path: *const c_char) {
     let midi = unsafe { mem::ManuallyDrop::new(Box::from_raw(midi_ptr)) };
@@ -241,33 +247,105 @@ pub extern fn set_event_position(midi_ptr: *mut MIDI, event_id: u64, track: u8, 
     midi.move_event(track as usize, tick as usize, event_id);
 }
 
-
 #[no_mangle]
-pub extern fn new_controller(device_id: u8) -> *mut Controller {
+pub extern fn new_controller(channel: u8, device_id: u8) -> *mut ControllerWrapper {
     // TODO: device verification
-    let mut controller = Controller::new(device_id).ok().unwrap();
-    controller.force_listening();
+    let controller = Controller::new(channel, device_id).ok().unwrap();
 
-    Box::into_raw(Box::new( controller ))
+    Box::into_raw(
+        Box::new(
+            ControllerWrapper {
+                controller: Arc::new(Mutex::new(controller)),
+                byte_cache: Arc::new(Mutex::new(Vec::new()))
+            }
+        )
+    )
 }
 
 #[no_mangle]
-pub extern fn controller_get_next_byte(controller_ptr: *mut Controller) -> *mut u8 {
-    let mut controller = unsafe { mem::ManuallyDrop::new(Box::from_raw(controller_ptr)) };
-    let mut byte_list = vec![];
-    match controller.get_next_byte() {
-        Ok(byte) => {
-            byte_list.push(byte);
-            byte_list.push(1); // 1 indicates OK
+pub extern fn controller_listen(controller_ptr: *mut ControllerWrapper) {
+    let cw = unsafe {
+        mem::ManuallyDrop::new(Box::from_raw(controller_ptr))
+    };
+
+    let controller_arc = Arc::clone(&cw.controller);
+    let cache_arc = Arc::clone(&cw.byte_cache);
+    loop {
+        match cw.controller.try_lock() {
+            Ok(ref mut mutex) => {
+                mutex.force_listening();
+                break;
+            }
+            Err(_e) => { }
         }
-        Err(_e) => {
-            byte_list.push(0);
-            byte_list.push(0); // 0 indicates error
+    }
+
+    thread::spawn(move || {
+        let mut alive = true;
+        while alive {
+            let mut next_byte: Option<u8> = None;
+            // Get the neext byte
+            loop {
+                match controller_arc.try_lock() {
+                    Ok(ref mut mutex) => {
+                        if mutex.is_listening() {
+                            next_byte = mutex.poll_next_byte();
+                            break;
+                        } else {
+                            alive = false;
+                            break;
+                        }
+                    }
+                    Err(_e) => { }
+                }
+            }
+
+            // If there is a next byte, cache it
+            match next_byte {
+                Some(byte) => {
+                    loop {
+                        match cache_arc.try_lock() {
+                            Ok(ref mut mutex) => {
+                                mutex.push(byte);
+                                break;
+                            }
+                            Err(_e) => {}
+                        }
+                    }
+                }
+                None => { }
+            }
+        }
+    });
+}
+
+#[no_mangle]
+pub extern fn controller_poll_next_byte(controller_ptr: *mut ControllerWrapper) -> *mut u8 {
+    let cw = unsafe {
+        mem::ManuallyDrop::new(Box::from_raw(controller_ptr))
+    };
+
+    let cache_arc = Arc::clone(&cw.byte_cache);
+
+    let mut byte_list = vec![];
+    loop {
+        match cache_arc.try_lock() {
+            Ok(ref mut mutex) => {
+                if mutex.len() > 0 {
+                    byte_list.push(1);
+                    byte_list.push(mutex[0]);
+                    mutex.drain(0..1);
+                } else {
+                    byte_list.push(0);
+                    byte_list.push(0);
+                }
+                break;
+            }
+            Err(_e) => {}
         }
     }
 
     let mut boxed_slice: Box<[u8]> = byte_list.clone().into_boxed_slice();
-
     let output: *mut u8 = boxed_slice.as_mut_ptr();
 
     // Prevent the slice from being destroyed (Leak the memory).
@@ -277,9 +355,21 @@ pub extern fn controller_get_next_byte(controller_ptr: *mut Controller) -> *mut 
 }
 
 #[no_mangle]
-pub extern fn controller_kill(controller_ptr: *mut Controller) {
-    let mut controller = unsafe { mem::ManuallyDrop::new(Box::from_raw(controller_ptr)) };
-    controller.kill();
+pub extern fn controller_kill(controller_ptr: *mut ControllerWrapper) {
+    let cw = unsafe {
+        mem::ManuallyDrop::new(Box::from_raw(controller_ptr))
+    };
+
+    loop {
+        match cw.controller.try_lock() {
+            Ok(ref mut mutex) => {
+                mutex.kill();
+                break;
+            }
+            Err(_e) => {
+            }
+        }
+    }
 }
 
 fn get_midi_type_code(midievent: MIDIEvent) -> u8 {
@@ -615,13 +705,18 @@ fn get_midi_property(midievent: MIDIEvent, property_index: u8) -> Vec<u8> {
         TimeCode(rate, hour, minute, second, frame) => {
             match property_index {
                 0 => {
-                    let coded = match rate {
-                        24.0 => { 0 }
-                        25.0 => { 1 }
-                        29.97 => { 2 }
-                        30.0 => { 3 }
-                        _ => { 3 }
+                    let coded = if rate == 24.0 {
+                        0
+                    } else if rate == 25.0 {
+                        1
+                    } else if rate == 29.97 {
+                        2
+                    } else if rate == 30.0 {
+                        3
+                    } else {
+                        3
                     };
+
                     vec![coded]
                 }
                 1 => { vec![hour] }
@@ -630,7 +725,6 @@ fn get_midi_property(midievent: MIDIEvent, property_index: u8) -> Vec<u8> {
                 4 => { vec![frame] }
                 _ => { vec![] }
             }
-
         }
 
         KeySignature(key) => {
@@ -650,159 +744,159 @@ fn get_midi_property(midievent: MIDIEvent, property_index: u8) -> Vec<u8> {
 
 fn get_midi_property_count(midievent: MIDIEvent) -> u8 {
     match midievent {
-        SequenceNumber(sequence) => {
+        SequenceNumber(_sequence) => {
             1
         }
 
-        Text(text) |
-        CopyRightNotice(text) |
-        TrackName(text) |
-        InstrumentName(text) |
-        Lyric(text) |
-        Marker(text) |
-        CuePoint(text) => {
+        Text(_text) |
+        CopyRightNotice(_text) |
+        TrackName(_text) |
+        InstrumentName(_text) |
+        Lyric(_text) |
+        Marker(_text) |
+        CuePoint(_text) => {
             1
         }
 
-        ChannelPrefix(channel) => {
+        ChannelPrefix(_channel) => {
             1
         }
 
-        SetTempo(uspqn) => {
+        SetTempo(_uspqn) => {
             1
         }
 
-        SMPTEOffset(hour, minute, second, ff, fr) => {
+        SMPTEOffset(_hour, _minute, _second, _ff, _fr) => {
             5
         }
 
-        TimeSignature(numerator, denominator, cpm, thirtysecondths_per_quarter) => {
+        TimeSignature(_numerator, _denominator, _cpm, _thirtysecondths_per_quarter) => {
             4
         }
 
 
-        NoteOn(channel, note, velocity) |
-        NoteOff(channel, note, velocity) |
-        AfterTouch(channel, note, velocity) => {
+        NoteOn(_channel, _note, _velocity) |
+        NoteOff(_channel, _note, _velocity) |
+        AfterTouch(_channel, _note, _velocity) => {
             3
         }
 
 
-        ControlChange(channel, controller, value) => {
+        ControlChange(_channel, _controller, _value) => {
             3
         }
 
-        ProgramChange(channel, program) => {
+        ProgramChange(_channel, _program) => {
             2
         }
 
-        ChannelPressure(channel, pressure) => {
+        ChannelPressure(_channel, _pressure) => {
             2
         }
 
-        PitchWheelChange(channel, value) => {
+        PitchWheelChange(_channel, _value) => {
             2
         }
 
-        SequencerSpecific(data) | 
-        SystemExclusive(data) => {
+        SequencerSpecific(_data) |
+        SystemExclusive(_data) => {
             1
         }
 
-        MTCQuarterFrame(message_type, value) => {
+        MTCQuarterFrame(_message_type, _value) => {
             2
         }
 
-        SongPositionPointer(beat) => {
+        SongPositionPointer(_beat) => {
             1
         }
 
-        SongSelect(song) => {
+        SongSelect(_song) => {
             1
         }
 
-        BankSelect(channel, value) |
-        BankSelectLSB(channel, value) |
-        ModulationWheel(channel, value) |
-        ModulationWheelLSB(channel, value) |
-        BreathController(channel, value) |
-        BreathControllerLSB(channel, value) |
-        FootPedal(channel, value) |
-        FootPedalLSB(channel, value) |
-        PortamentoTime(channel, value) |
-        PortamentoTimeLSB(channel, value) |
-        DataEntry(channel, value) |
-        DataEntryLSB(channel, value) |
-        Volume(channel, value) |
-        VolumeLSB(channel, value) |
-        Balance(channel, value) |
-        BalanceLSB(channel, value) |
-        Pan(channel, value) |
-        PanLSB(channel, value) |
-        Expression(channel, value) |
-        ExpressionLSB(channel, value) |
-        EffectControl1(channel, value) |
-        EffectControl1LSB(channel, value) |
-        EffectControl2(channel, value) |
-        EffectControl2LSB(channel, value) |
-        HoldPedal(channel, value) |
-        Portamento(channel, value) |
-        Sustenuto(channel, value) |
-        SoftPedal(channel, value) |
-        Legato(channel, value) |
-        Hold2Pedal(channel, value) |
-        SoundVariation(channel, value) |
-        SoundTimbre(channel, value) |
-        SoundReleaseTime(channel, value) |
-        SoundAttack(channel, value) |
-        SoundBrightness(channel, value) |
-        SoundControl1(channel, value) |
-        SoundControl2(channel, value) |
-        SoundControl3(channel, value) |
-        SoundControl4(channel, value) |
-        SoundControl5(channel, value) |
-        GeneralPurpose1(channel, value) |
-        GeneralPurpose1LSB(channel, value) |
-        GeneralPurpose2(channel, value) |
-        GeneralPurpose2LSB(channel, value) |
-        GeneralPurpose3(channel, value) |
-        GeneralPurpose3LSB(channel, value) |
-        GeneralPurpose4(channel, value) |
-        GeneralPurpose4LSB(channel, value) |
-        GeneralPurpose5(channel, value) |
-        GeneralPurpose6(channel, value) |
-        GeneralPurpose7(channel, value) |
-        GeneralPurpose8(channel, value) |
-        EffectsLevel(channel, value) |
-        TremuloLevel(channel, value) |
-        ChorusLevel(channel, value) |
-        CelesteLevel(channel, value) |
-        PhaserLevel(channel, value) |
-        RegisteredParameterNumber(channel, value) |
-        NonRegisteredParameterNumber(channel, value) |
-        RegisteredParameterNumberLSB(channel, value) |
-        NonRegisteredParameterNumberLSB(channel, value) |
-        LocalControl(channel, value) |
-        MonophonicOperation(channel, value) => {
+        BankSelect(_channel, _value) |
+        BankSelectLSB(_channel, _value) |
+        ModulationWheel(_channel, _value) |
+        ModulationWheelLSB(_channel, _value) |
+        BreathController(_channel, _value) |
+        BreathControllerLSB(_channel, _value) |
+        FootPedal(_channel, _value) |
+        FootPedalLSB(_channel, _value) |
+        PortamentoTime(_channel, _value) |
+        PortamentoTimeLSB(_channel, _value) |
+        DataEntry(_channel, _value) |
+        DataEntryLSB(_channel, _value) |
+        Volume(_channel, _value) |
+        VolumeLSB(_channel, _value) |
+        Balance(_channel, _value) |
+        BalanceLSB(_channel, _value) |
+        Pan(_channel, _value) |
+        PanLSB(_channel, _value) |
+        Expression(_channel, _value) |
+        ExpressionLSB(_channel, _value) |
+        EffectControl1(_channel, _value) |
+        EffectControl1LSB(_channel, _value) |
+        EffectControl2(_channel, _value) |
+        EffectControl2LSB(_channel, _value) |
+        HoldPedal(_channel, _value) |
+        Portamento(_channel, _value) |
+        Sustenuto(_channel, _value) |
+        SoftPedal(_channel, _value) |
+        Legato(_channel, _value) |
+        Hold2Pedal(_channel, _value) |
+        SoundVariation(_channel, _value) |
+        SoundTimbre(_channel, _value) |
+        SoundReleaseTime(_channel, _value) |
+        SoundAttack(_channel, _value) |
+        SoundBrightness(_channel, _value) |
+        SoundControl1(_channel, _value) |
+        SoundControl2(_channel, _value) |
+        SoundControl3(_channel, _value) |
+        SoundControl4(_channel, _value) |
+        SoundControl5(_channel, _value) |
+        GeneralPurpose1(_channel, _value) |
+        GeneralPurpose1LSB(_channel, _value) |
+        GeneralPurpose2(_channel, _value) |
+        GeneralPurpose2LSB(_channel, _value) |
+        GeneralPurpose3(_channel, _value) |
+        GeneralPurpose3LSB(_channel, _value) |
+        GeneralPurpose4(_channel, _value) |
+        GeneralPurpose4LSB(_channel, _value) |
+        GeneralPurpose5(_channel, _value) |
+        GeneralPurpose6(_channel, _value) |
+        GeneralPurpose7(_channel, _value) |
+        GeneralPurpose8(_channel, _value) |
+        EffectsLevel(_channel, _value) |
+        TremuloLevel(_channel, _value) |
+        ChorusLevel(_channel, _value) |
+        CelesteLevel(_channel, _value) |
+        PhaserLevel(_channel, _value) |
+        RegisteredParameterNumber(_channel, _value) |
+        NonRegisteredParameterNumber(_channel, _value) |
+        RegisteredParameterNumberLSB(_channel, _value) |
+        NonRegisteredParameterNumberLSB(_channel, _value) |
+        LocalControl(_channel, _value) |
+        MonophonicOperation(_channel, _value) => {
             2
         }
 
-        DataIncrement(channel) |
-        DataDecrement(channel) |
-        AllControllersOff(channel) |
-        AllNotesOff(channel) |
-        AllSoundOff(channel) |
-        OmniOff(channel) |
-        OmniOn(channel) |
-        PolyphonicOperation(channel) => {
+        DataIncrement(_channel) |
+        DataDecrement(_channel) |
+        AllControllersOff(_channel) |
+        AllNotesOff(_channel) |
+        AllSoundOff(_channel) |
+        OmniOff(_channel) |
+        OmniOn(_channel) |
+        PolyphonicOperation(_channel) => {
             1
         }
 
-        TimeCode(rate, hour, minute, second, frame) => {
+        TimeCode(_rate, _hour, _minute, _second, _frame) => {
             5
         }
 
-        KeySignature(key) => {
+        KeySignature(_key) => {
             2
         }
 

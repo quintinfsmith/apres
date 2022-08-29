@@ -1350,8 +1350,9 @@ class MIDIFactory:
         typedef void* MIDI;
         typedef void* Controller;
 
-        Controller new_controller(uint8_t);
-        uint8_t* controller_get_next_byte(Controller);
+        Controller new_controller(uint8_t, uint8_t);
+        void controller_listen(Controller);
+        uint8_t* controller_poll_next_byte(Controller);
         void controller_kill(Controller);
 
         MIDI interpret(const char*);
@@ -1549,21 +1550,28 @@ class MIDIFactory:
         return midi
 
     @classmethod
-    def controller_new_pointer(cls, device_id=1):
-        return cls.lib.new_controller(device_id)
+    def controller_new_pointer(cls, channel=0, device_id=0):
+        return cls.lib.new_controller(channel, device_id)
 
     @classmethod
-    def controller_get_next_byte(cls, pointer):
-        event_pointer = cls.lib.controller_get_next_byte(pointer)
+    def controller_poll_next_byte(cls, pointer):
+        event_pointer = cls.lib.controller_poll_next_byte(pointer)
         event_bytes = bytearray(2)
         cls.ffi.memmove(event_bytes, event_pointer, 2)
 
+        output = None
+        if event_bytes[0] == 1:
+            output = event_bytes[1]
 
-        return event_bytes[0]
+        return output
 
     @classmethod
     def controller_kill(cls, pointer):
         cls.lib.controller_kill(pointer)
+
+    @classmethod
+    def controller_listen(cls, pointer):
+        cls.lib.controller_listen(pointer)
 
 
 class PipeClosed(Exception):
@@ -1646,9 +1654,12 @@ class MIDIController:
         PolyphonicOperation.CONTROL_BYTE: PolyphonicOperation
     }
 
-    def __init__(self, device_id=1):
+    def __init__(self, channel=0, device_id=0):
+        self.listening = False
         self.pointer = None
-        self.connect(device_id)
+        self.channel = channel
+        self.device_id = device_id
+        self.connect()
         self.hook_map = {}
         self.event_queue = []
 
@@ -1657,16 +1668,16 @@ class MIDIController:
 
     def is_connected(self):
         """Check if pipe is open and ready to be read"""
-        pass
+        return self.pointer is not None
 
-    def connect(self, device_id):
-        self.pointer = MIDIFactory.controller_new_pointer(device_id)
+    def connect(self):
+        self.pointer = MIDIFactory.controller_new_pointer(self.channel, self.device_id)
 
     def close(self):
         """Tear down this midi controller"""
         self.listening = False
         MIDIFactory.controller_kill(self.pointer)
-
+        self.pointer = None
 
     def listen(self):
         """Listen to the midi device for incoming bits. Process them and call their hooks."""
@@ -1676,6 +1687,8 @@ class MIDIController:
         self.listening = True
         pq_thread = threading.Thread(target=self._process_queue)
         pq_thread.start()
+
+        MIDIFactory.controller_listen(self.pointer)
         while self.listening:
             try:
                 event = self.get_next_event()
@@ -1700,7 +1713,18 @@ class MIDIController:
                 time.sleep(.01)
 
     def get_next_byte(self):
-        return MIDIFactory.controller_get_next_byte(self.pointer)
+        next_byte = None
+        while self.listening:
+            next_byte = self.poll_next_byte()
+            if next_byte is not None:
+                break
+        if next_byte is None:
+            raise PipeClosed()
+
+        return next_byte
+
+    def poll_next_byte(self):
+        return MIDIFactory.controller_poll_next_byte(self.pointer)
 
     def get_next_event(self):
         """Read Midi Input Device until relevant event is found"""
