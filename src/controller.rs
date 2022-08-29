@@ -6,6 +6,8 @@ use std::mem;
 use std::ptr;
 use std::boxed::Box;
 
+use std::sync::{Mutex, Arc};
+
 pub struct Controller {
     file_descriptor: libc::c_int,
     cached_buffer: Vec<u8>,
@@ -31,16 +33,12 @@ impl Controller {
         })
     }
 
-    pub fn is_listening(&mut self) -> bool {
-        self.listening
-    }
-
     pub fn listen<T>(&mut self, context: &mut T, callback: Callback<T>) -> Result<(), ApresError> {
-        self.listening = true;
+        self.force_listening();
 
         //let start_time = Instant::now();
         //let ignore_time = Duration::new(0, 100_000_000);
-        while self.listening {
+        while self.is_listening() {
             match self.get_next() {
                 Ok(event) => {
                     // Fixme: Kludge to prevent pre-existing events from firing
@@ -49,7 +47,7 @@ impl Controller {
                     //}
                 }
                 Err(e) => {
-                    self.listening = false;
+                    self.stop_listening();
                     Err(e)?;
                 }
             }
@@ -58,56 +56,71 @@ impl Controller {
         Ok(())
     }
 
+    pub fn is_listening(&mut self) -> bool {
+        self.listening
+    }
+
     pub fn force_listening(&mut self) {
         self.listening = true;
     }
-    pub fn kill(&mut self) {
+
+    pub fn stop_listening(&mut self) {
         self.listening = false;
     }
 
-    pub fn get_next_byte(&mut self) -> Result<u8, ApresError> {
-        while self.listening {
-            if self.cached_buffer.len() == 0 {
-                unsafe {
-                    let mut fds = [libc::pollfd {
-                        fd: self.file_descriptor,
-                        events: 1 as libc::c_short,
-                        revents: 0 as libc::c_short
-                    };1];
+    pub fn kill(&mut self) {
+        self.stop_listening();
+    }
 
-                    let ready = libc::poll(
-                        fds.as_mut_ptr(),
-                        1,
-                        0
-                    );
+    pub fn poll_next_byte(&mut self) -> Option<u8> {
+        let mut output = None;
+        unsafe {
+            let mut fds = [libc::pollfd {
+                fd: self.file_descriptor,
+                events: 1 as libc::c_short,
+                revents: 0 as libc::c_short
+            };1];
 
-                    if ready > 0 {
-                        let mut buffer = std::mem::transmute::<&mut u8, &mut libc::c_void>(&mut 0u8);
+            let ready = libc::poll(
+                fds.as_mut_ptr(),
+                1,
+                0
+            );
 
-                        let count = 1;
-                        let bytes_read = libc::read(
-                            self.file_descriptor,
-                            buffer,
-                            count
-                        );
+            if ready > 0 {
+                let buffer = std::mem::transmute::<&mut u8, &mut libc::c_void>(&mut 0u8);
 
-                        let value = std::mem::transmute::<&mut libc::c_void, &u8>(buffer);
-                        if bytes_read > -1 {
-                            self.cached_buffer.push(*value);
-                            break;
-                        }
-                    }
+                let count = 1;
+                let bytes_read = libc::read(
+                    self.file_descriptor,
+                    buffer,
+                    count
+                );
+
+                let value = std::mem::transmute::<&mut libc::c_void, &u8>(buffer);
+                if bytes_read > -1 {
+                    output = Some(*value);
                 }
             }
         }
 
-        if self.listening && self.cached_buffer.len() > 0 {
-            let output = self.cached_buffer[0];
-            self.cached_buffer.drain(0..1);
-            Ok(output)
-        } else {
-            Err(ApresError::Killed)
+        output
+    }
+
+    pub fn get_next_byte(&mut self) -> Result<u8, ApresError> {
+        let mut output: Result<u8, ApresError> = Err(ApresError::Killed);
+        while self.is_listening() {
+            match self.poll_next_byte() {
+                Some(byte) => {
+                    output = Ok(byte);
+                    break;
+                }
+                None => {
+                }
+            }
         }
+
+        output
     }
 
     pub fn get_next(&mut self) -> Result<MIDIEvent, ApresError> {
