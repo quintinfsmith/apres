@@ -13,6 +13,10 @@ pub struct Controller {
 }
 
 impl Controller {
+    pub fn event_callback(hmidin: Audio::HMIDII, wMsg: u32, dwInstance: *mut DWORD, dwParam1: *mut DWORD, dwParam3: *mut DWORD) {
+        println!("DO SOMETHING");
+    }
+
     pub fn new(channel:u8, dev_id: u8) -> Result<Controller, ApresError> {
         let mut phmi: *mut Audio::HMIDIIN;
 
@@ -23,13 +27,13 @@ impl Controller {
         // NOTE: there is a  CALLBACK_THREAD flag here.
         // In the future it may be beneficial to use that.
         // But for now, for consistency's sake, we use no callback.
-        let fdwopen: u32 = Audio::CALLBACK_NULL;
+        let fdwopen: u32 = Audio::CALLBACK_FUNCTION;
 
         unsafe {
             let errmsg = Audio::midiInOpen(
                 phmi,
                 udeviceid,
-                dwcallback,
+                *mut self.event_callback,
                 dwinstance,
                 fdwopen
             );
