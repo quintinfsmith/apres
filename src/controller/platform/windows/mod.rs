@@ -7,54 +7,67 @@ use windows::Win32::Media::{
     Audio
 };
 
+pub struct InstanceData {
+
+}
+
 pub struct Controller {
     pub listening: bool,
     header: Audio::HMIDIIN
 }
+type Callback = fn(hmidin: Audio::HMIDIIN, wMsg: u32, dwInstance: *mut u32, dwParam1: *mut u32, dwParam3: *mut u32);
 
+fn event_callback(hmidin: Audio::HMIDIIN, wMsg: u32, dwInstance: *mut u32, dwParam1: *mut u32, dwParam3: *mut u32) {
+    println!("DO SOMETHING");
+}
 impl Controller {
-    pub fn event_callback(hmidin: Audio::HMIDII, wMsg: u32, dwInstance: *mut DWORD, dwParam1: *mut DWORD, dwParam3: *mut DWORD) {
-        println!("DO SOMETHING");
-    }
 
     pub fn new(channel:u8, dev_id: u8) -> Result<Controller, ApresError> {
-        let mut phmi: *mut Audio::HMIDIIN;
-
-        let mut udeviceid = devi_id as u32;
-        let dwcallback = 0;
-        let dwinstance = 0;
-
-        // NOTE: there is a  CALLBACK_THREAD flag here.
-        // In the future it may be beneficial to use that.
-        // But for now, for consistency's sake, we use no callback.
-        let fdwopen: u32 = Audio::CALLBACK_FUNCTION;
-
         unsafe {
+            let phmi = &mut Audio::HMIDIIN{
+                0: 1
+            };
+            let mut udeviceid = dev_id as u32;
+            let mut dwinstance = InstanceData {};
+
+            let mut ec = Box::into_raw(Box::new(&event_callback));
+            let mut dwi = Box::into_raw(Box::new(&dwinstance));
+
             let errmsg = Audio::midiInOpen(
                 phmi,
                 udeviceid,
-                *mut self.event_callback,
-                dwinstance,
-                fdwopen
+                ec as usize,
+                dwi as usize,
+                Audio::CALLBACK_FUNCTION
             );
 
             match errmsg {
                 MMSYSERR_NOERROR => {
+                    println!("A");
+                    Ok(Controller {
+                        header: *phmi,
+                        listening: false,
+                    })
                 }
                 MMSYSERR_BADDEVICEID => {
+                    println!("B");
+                    Err(ApresError::BadDevice(dev_id))
                 }
                 MMSYSERR_INVALPARAM => {
+                    println!("C");
+                    Err(ApresError::UnknownError)
                 }
                 MMSYSERR_NOMEM => {
+                    println!("D");
+                    Err(ApresError::OutOfMemory)
                 }
-                _ => {}
+                _ => {
+                    println!("E");
+                    Err(ApresError::UnknownError)
+                }
             }
-        }
 
-        Ok(Controller (
-            header: phmi,
-            listening: false,
-        ))
+        }
     }
 
     pub fn kill(&mut self) {

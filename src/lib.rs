@@ -18,7 +18,10 @@ pub enum ApresError {
     PipeBroken,
     TrackOutOfBounds,
     Killed,
-    MissingHeader
+    MissingHeader,
+    BadDevice(u8),
+    OutOfMemory,
+    UnknownError
 }
 
 
