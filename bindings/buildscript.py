@@ -44,7 +44,7 @@ setuptools.setup(%s
     return output
 
 file_path = os.path.realpath(__file__)
-os.chdir(file_path)
+os.chdir(file_path[0:file_path.rfind("/") + 1])
 
 
 manifest = toml.load("Cargo.toml")
