@@ -7,7 +7,7 @@ description = "External bindings for apres MIDI library"
 license-file = "LICENSE"
 
 [dependencies]
-apres = { path = "../rust/" }
+apres = { path = "../" }
 
 [lib]
 name = "apres_bindings"
