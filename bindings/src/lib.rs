@@ -248,6 +248,19 @@ pub extern fn set_event_position(midi_ptr: *mut MIDI, event_id: u64, track: u8, 
 }
 
 #[no_mangle]
+pub extern fn device_exists(channel: u8, device_id:u8) -> u8 {
+    match Controller::new(channel, device_id) {
+        Ok(mut controller) => {
+            controller.kill();
+            1
+        }
+        Err(_e) => {
+            0
+        }
+    }
+}
+
+#[no_mangle]
 pub extern fn new_controller(channel: u8, device_id: u8) -> *mut ControllerWrapper {
     // TODO: device verification
     let controller = Controller::new(channel, device_id).ok().unwrap();
