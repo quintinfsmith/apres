@@ -28,16 +28,12 @@ impl Controller {
                 0: 1
             };
             let mut udeviceid = dev_id as u32;
-            let mut dwinstance = InstanceData {};
-
-            let mut ec = Box::into_raw(Box::new(&event_callback));
-            let mut dwi = Box::into_raw(Box::new(&dwinstance));
 
             let errmsg = Audio::midiInOpen(
                 phmi,
                 udeviceid,
-                ec as usize,
-                dwi as usize,
+                std::mem::transmute::<&Callback, usize>(&event_callback),
+                std::mem::transmute::<&InstanceData, usize>(&dwinstance),
                 Audio::CALLBACK_FUNCTION
             );
 
