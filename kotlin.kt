@@ -1,18 +1,407 @@
+package com.qfs.apres
+
 import java.io.File
 import java.lang.Math.max
+import kotlin.experimental.and
 
 interface MIDIEvent {
     abstract fun as_bytes(): ByteArray
 }
 
+fun event_from_bytes(bytes: MutableList<Byte>, default: Byte): MIDIEvent? {
+    var output: MIDIEvent? = null
+    var varlength: Int
+    var leadbyte = bytes.removeFirst()
+    var realtimes = listOf(0xF1, 0xF, 0xF8, 0xFC, 0xFE, 0xF7)
+    var undefineds = listOf(0xF4, 0xF5, 0xF9, 0xFD)
+
+    if (leadbyte >= 0 && leadbyte <= 0x80) {
+        bytes.add(0, leadbyte)
+        bytes.add(0, default)
+        output = event_from_bytes(bytes, default)
+    } else if (leadbyte >= 0x80 && leadbyte <= 0xF0) {
+        var leadnibble: Int = (leadbyte as Int) shr 4
+        when (leadnibble) {
+            0x8 -> {
+                var channel = (leadbyte and 0x0F) as Int
+                var note = bytes.removeFirst() as Int
+                var velocity = bytes.removeFirst() as Int
+                output = NoteOff(channel, note, velocity)
+            }
+            0x9 -> {
+                var channel = (leadbyte and 0x0F) as Int
+                var note = bytes.removeFirst() as Int
+                var velocity = bytes.removeFirst() as Int
+                output = if (velocity == 0) {
+                    NoteOff(channel, note, velocity)
+                } else {
+                    NoteOn(channel, note, velocity)
+                }
+            }
+            0xA -> {
+                var channel = (leadbyte and 0x0F) as Int
+                var note = bytes.removeFirst()
+                var velocity = bytes.removeFirst()
+                output = PolyphonicKeyPressure(channel, note, velocity)
+            }
+            0xB -> {
+                var channel = (leadbyte and 0x0F) as Int
+                var controller = bytes.removeFirst() as Int
+                var value = bytes.removeFirst() as Int
+                output = when (controller) {
+                    0x00 -> {
+                        BankSelect(channel, value)
+                    }
+                    0x20 -> {
+                        BankSelectLSB(channel, value)
+                    }
+                    0x01 -> {
+                        ModulationWheel(channel, value)
+                    }
+                    0x21 -> {
+                        ModulationWheelLSB(channel, value)
+                    }
+                    0x02 -> {
+                        BreathController(channel, value)
+                    }
+                    0x22 -> {
+                        BreathControllerLSB(channel, value)
+                    }
+                    0x04 -> {
+                        FootPedal(channel, value)
+                    }
+                    0x24 -> {
+                        FootPedalLSB(channel, value)
+                    }
+                    0x05 -> {
+                        PortamentoTime(channel, value)
+                    }
+                    0x25 -> {
+                        PortamentoTimeLSB(channel, value)
+                    }
+                    0x06 -> {
+                        DataEntry(channel, value)
+                    }
+                    0x26 -> {
+                        DataEntryLSB(channel, value)
+                    }
+                    0x07 -> {
+                        Volume(channel, value)
+                    }
+                    0x27 -> {
+                        VolumeLSB(channel, value)
+                    }
+                    0x08 -> {
+                        Balance(channel, value)
+                    }
+                    0x28 -> {
+                        BalanceLSB(channel, value)
+                    }
+                    0x0A -> {
+                        Pan(channel, value)
+                    }
+                    0x2A -> {
+                        PanLSB(channel, value)
+                    }
+                    0x0B -> {
+                        Expression(channel, value)
+                    }
+                    0x2B -> {
+                        ExpressionLSB(channel, value)
+                    }
+                    0x0C -> {
+                        EffectControl1(channel, value)
+                    }
+                    0x2C -> {
+                        EffectControl1LSB(channel, value)
+                    }
+                    0x0D -> {
+                        EffectControl2(channel, value)
+                    }
+                    0x2D -> {
+                        EffectControl2LSB(channel, value)
+                    }
+                    0x10 -> {
+                        GeneralPurpose1(channel, value)
+                    }
+                    0x30 -> {
+                        GeneralPurpose1LSB(channel, value)
+                    }
+                    0x11 -> {
+                        GeneralPurpose2(channel, value)
+                    }
+                    0x31 -> {
+                        GeneralPurpose2LSB(channel, value)
+                    }
+                    0x12 -> {
+                        GeneralPurpose3(channel, value)
+                    }
+                    0x32 -> {
+                        GeneralPurpose3LSB(channel, value)
+                    }
+                    0x13 -> {
+                        GeneralPurpose4(channel, value)
+                    }
+                    0x33 -> {
+                        GeneralPurpose4LSB(channel, value)
+                    }
+                    0x40 -> {
+                        HoldPedal(channel, value)
+                    }
+                    0x41 -> {
+                        Portamento(channel, value)
+                    }
+                    0x42 -> {
+                        Sustenuto(channel, value)
+                    }
+                    0x43 -> {
+                        SoftPedal(channel, value)
+                    }
+                    0x44 -> {
+                        Legato(channel, value)
+                    }
+                    0x45 -> {
+                        Hold2Pedal(channel, value)
+                    }
+                    0x46 -> {
+                        SoundVariation(channel, value)
+                    }
+                    0x47 -> {
+                        SoundTimbre(channel, value)
+                    }
+                    0x48 -> {
+                        SoundReleaseTime(channel, value)
+                    }
+                    0x49 -> {
+                        SoundAttack(channel, value)
+                    }
+                    0x4A -> {
+                        SoundBrightness(channel, value)
+                    }
+                    0x4B -> {
+                        SoundControl1(channel, value)
+                    }
+                    0x4C -> {
+                        SoundControl2(channel, value)
+                    }
+                    0x4D -> {
+                        SoundControl3(channel, value)
+                    }
+                    0x4E -> {
+                        SoundControl4(channel, value)
+                    }
+                    0x4F -> {
+                        SoundControl5(channel, value)
+                    }
+                    0x50 -> {
+                        GeneralPurpose5(channel, value)
+                    }
+                    0x51 -> {
+                        GeneralPurpose6(channel, value)
+                    }
+                    0x52 -> {
+                        GeneralPurpose7(channel, value)
+                    }
+                    0x53 -> {
+                        GeneralPurpose8(channel, value)
+                    }
+                    0x5B -> {
+                        EffectsLevel(channel, value)
+                    }
+                    0x5C -> {
+                        TremuloLevel(channel, value)
+                    }
+                    0x5D -> {
+                        ChorusLevel(channel, value)
+                    }
+                    0x5E -> {
+                        CelesteLevel(channel, value)
+                    }
+                    0x5F -> {
+                        PhaserLevel(channel, value)
+                    }
+                    0x60 -> {
+                        DataIncrement(channel)
+                    }
+                    0x61 -> {
+                        DataDecrement(channel)
+                    }
+                    0x62 -> {
+                        NonRegisteredParameterNumberLSB(channel, value)
+                    }
+                    0x63 -> {
+                        NonRegisteredParameterNumber(channel, value)
+                    }
+                    0x64 -> {
+                        RegisteredParameterNumberLSB(channel, value)
+                    }
+                    0x65 -> {
+                        RegisteredParameterNumber(channel, value)
+                    }
+                    0x78 -> {
+                        AllSoundOff(channel)
+                    }
+                    0x79 -> {
+                        AllControllersOff(channel)
+                    }
+                    0x7A -> {
+                        LocalControl(channel, value)
+                    }
+                    0x7B -> {
+                        AllNotesOff(channel)
+                    }
+                    0x7C -> {
+                        OmniOff(channel)
+                    }
+                    0x7D -> {
+                        OmniOn(channel)
+                    }
+                    0xFE -> {
+                        MonophonicOperation(channel, value)
+                    }
+                    0xFF -> {
+                        PolyphonicOperation(channel)
+                    }
+                    else -> {
+                        ControlChange(channel, controller, value)
+                    }
+                }
+            }
+            0xC -> {
+                output = ProgramChange(
+                    leadbyte and 0x0F,
+                    bytes.removeFirst() as Int
+                )
+            }
+            0xD -> {
+                output = ChannelPressure(
+                    leadbyte and 0x0F,
+                    bytes.removeFirst() as Int
+                )
+            }
+            0xE -> {
+                output = build_pitch_wheel_change(
+                    leadbyte and 0x0F.toByte(),
+                    bytes.removeFirst(),
+                    bytes.removeFirst()
+                )
+            }
+            else -> {
+            }
+
+        }
+    } else if (leadbyte == 0xF0.toByte()) {
+        var bytedump: MutableList<Byte> = mutableListOf()
+        while (true) {
+            var byte = bytes.removeFirst()
+            if (byte as Int == 0xF7) {
+                break
+            } else {
+                bytedump.add(byte)
+            }
+        }
+        output = SystemExclusive(bytedump.toByteArray())
+    } else if (leadbyte == 0xF2.toByte()) {
+        var lsb = bytes.removeFirst() as Int
+        var msb = bytes.removeFirst() as Int
+        var beat: Int = (msb shl 8) + lsb
+        output = SongPositionPointer(beat)
+    } else if (leadbyte == 0xF3.toByte()) {
+        output = SongSelect((bytes.removeFirst() as Int) and 0x7F)
+    } else if (leadbyte == 0xFF.toByte()) {
+        var meta_byte = bytes.removeFirst() as Int
+        var varlength = get_variable_length_number(bytes)
+        if (meta_byte == 51) {
+            output = SetTempo(dequeue_n(bytes, varlength))
+        } else {
+            var bytedump_list: MutableList<Byte> = mutableListOf()
+            for (i in 0 until varlength) {
+                bytedump_list.add(bytes.removeFirst())
+            }
+            var bytedump: ByteArray = bytedump_list.toByteArray()
+
+            when (meta_byte) {
+                0x00 -> {
+                    output = SequenceNumber(
+                        ((bytedump[0] as Int) * 256) + bytedump[1] as Int
+                    )
+                }
+                0x01 -> {
+                    output = Text(String(bytedump))
+                }
+                0x02 -> {
+                    output = CopyRightNotice(String(bytedump))
+                }
+                0x03 -> {
+                    output = TrackName(String(bytedump))
+                }
+                0x04 -> {
+                    output = InstrumentName(String(bytedump))
+                }
+                0x05 -> {
+                    output = Lyric(String(bytedump))
+                }
+                0x06 -> {
+                    output = Marker(String(bytedump))
+                }
+                0x07 -> {
+                    output = CuePoint(String(bytedump))
+                }
+                0x20 -> {
+                    output = ChannelPrefix(bytedump[0] as Int)
+                }
+                0x2F -> {
+                    output = EndOfTrack()
+                }
+                0x51 -> {}
+                0x54 -> {
+                    output = SMPTEOffset(
+                        bytedump[0] as Int,
+                        bytedump[1] as Int,
+                        bytedump[2] as Int,
+                        bytedump[3] as Int,
+                        bytedump[4] as Int
+                    )
+                }
+                0x58 -> {
+                    output = TimeSignature(
+                        bytedump[0] as Int,
+                        bytedump[1] as Int,
+                        bytedump[2] as Int,
+                        bytedump[3] as Int
+                    )
+                }
+                0x59 -> {
+                    output = build_key_signature(bytedump[1], bytedump[0])
+                }
+                0x7F -> {
+                    for (i in 0 until 3) {
+                        bytedump_list.removeFirst()
+                    }
+                    output = SequencerSpecific(bytedump_list.toByteArray())
+                }
+                else -> {
+                    throw Exception("UnknownEvent")
+                }
+            }
+        }
+    } else if (realtimes.contains(leadbyte as Int)) {
+        // pass. realtime events should be in file
+    } else if (undefineds.contains(leadbyte as Int)) {
+        // specifically undefined behaviour
+    }
+
+    return output
+}
+
 class SequenceNumber(var sequence: Int): MIDIEvent {
     override fun as_bytes(): ByteArray {
         return byteArrayOf(
-            0xFF as Byte,
-            0x00 as Byte,
-            0x02 as Byte,
-            ((this.sequence shr 8) and 0xFF) as Byte,
-            (this.sequence and 0xFF) as Byte
+            0xFF.toByte(),
+            0x00.toByte(),
+            0x02.toByte(),
+            ((this.sequence shr 8) and 0xFF).toByte(),
+            (this.sequence and 0xFF).toByte()
         )
     }
 
@@ -28,7 +417,7 @@ class SequenceNumber(var sequence: Int): MIDIEvent {
 class Text(var text: String): MIDIEvent {
     override fun as_bytes(): ByteArray {
         var text_bytes = this.text.toByteArray()
-        return byteArrayOf(0xFF as Byte, 0x01 as Byte) + to_variable_length_bytes(text_bytes.size) + text_bytes
+        return byteArrayOf(0xFF.toByte(), 0x01.toByte()) + to_variable_length_bytes(text_bytes.size) + text_bytes
     }
 
     fun get_text(): String {
@@ -43,7 +432,7 @@ class Text(var text: String): MIDIEvent {
 class CopyRightNotice(var text: String): MIDIEvent {
     override fun as_bytes(): ByteArray {
         var text_bytes = this.text.toByteArray()
-        return byteArrayOf(0xFF as Byte, 0x02 as Byte) + to_variable_length_bytes(text_bytes.size) + text_bytes
+        return byteArrayOf(0xFF.toByte(), 0x02.toByte()) + to_variable_length_bytes(text_bytes.size) + text_bytes
     }
     fun get_text(): String {
         return this.text
@@ -57,7 +446,7 @@ class CopyRightNotice(var text: String): MIDIEvent {
 class TrackName(var name: String): MIDIEvent {
     override fun as_bytes(): ByteArray {
         var name_bytes = this.name.toByteArray()
-        return byteArrayOf(0xFF as Byte, 0x03 as Byte) + to_variable_length_bytes(name_bytes.size) + name_bytes
+        return byteArrayOf(0xFF.toByte(), 0x03.toByte()) + to_variable_length_bytes(name_bytes.size) + name_bytes
     }
 
     fun get_name(): String {
@@ -72,7 +461,7 @@ class TrackName(var name: String): MIDIEvent {
 class InstrumentName(var name: String): MIDIEvent {
     override fun as_bytes(): ByteArray {
         var name_bytes = this.name.toByteArray()
-        return byteArrayOf(0xFF as Byte, 0x04 as Byte) + to_variable_length_bytes(name_bytes.size) + name_bytes
+        return byteArrayOf(0xFF.toByte(), 0x04.toByte()) + to_variable_length_bytes(name_bytes.size) + name_bytes
     }
 
     fun get_name(): String {
@@ -87,7 +476,7 @@ class InstrumentName(var name: String): MIDIEvent {
 class Lyric(var text: String): MIDIEvent {
     override fun as_bytes(): ByteArray {
         var text_bytes = this.text.toByteArray()
-        return byteArrayOf(0xFF as Byte, 0x05 as Byte) + to_variable_length_bytes(text_bytes.size) + text_bytes
+        return byteArrayOf(0xFF.toByte(), 0x05.toByte()) + to_variable_length_bytes(text_bytes.size) + text_bytes
     }
 
     fun get_text(): String {
@@ -102,7 +491,7 @@ class Lyric(var text: String): MIDIEvent {
 class Marker(var text: String): MIDIEvent {
     override fun as_bytes(): ByteArray {
         var text_bytes = this.text.toByteArray()
-        return byteArrayOf(0xFF as Byte, 0x06 as Byte) + to_variable_length_bytes(text_bytes.size) + text_bytes
+        return byteArrayOf(0xFF.toByte(), 0x06.toByte()) + to_variable_length_bytes(text_bytes.size) + text_bytes
     }
 
     fun get_text(): String {
@@ -117,7 +506,7 @@ class Marker(var text: String): MIDIEvent {
 class CuePoint(var text: String): MIDIEvent {
     override fun as_bytes(): ByteArray {
         var text_bytes = this.text.toByteArray()
-        return byteArrayOf(0xFF as Byte, 0x07 as Byte) + to_variable_length_bytes(text_bytes.size) + text_bytes
+        return byteArrayOf(0xFF.toByte(), 0x07.toByte()) + to_variable_length_bytes(text_bytes.size) + text_bytes
     }
 
     fun get_text(): String {
@@ -131,17 +520,17 @@ class CuePoint(var text: String): MIDIEvent {
 
 class EndOfTrack: MIDIEvent {
     override fun as_bytes(): ByteArray {
-        return byteArrayOf(0xFF as Byte, 0x2F as Byte, 0x00 as Byte)
+        return byteArrayOf(0xFF.toByte(), 0x2F.toByte(), 0x00.toByte())
     }
 }
 
 class ChannelPrefix(var channel: Int): MIDIEvent {
     override fun as_bytes(): ByteArray {
         return byteArrayOf(
-            0xFF as Byte,
-            0x20 as Byte,
-            0x01 as Byte,
-            this.channel as Byte
+            0xFF.toByte(),
+            0x20.toByte(),
+            0x01.toByte(),
+            this.channel.toByte()
         )
     }
 
@@ -156,12 +545,12 @@ class ChannelPrefix(var channel: Int): MIDIEvent {
 class SetTempo(var mspqn: Int): MIDIEvent {
     override fun as_bytes(): ByteArray {
         return byteArrayOf(
-            0xFF as Byte,
-            0x51 as Byte,
-            0x03 as Byte,
-            ((this.mspqn shr 16) and 0xFF) as Byte,
-            ((this.mspqn shr 8) and 0xFF) as Byte,
-            (this.mspqn and 0xFF) as Byte
+            0xFF.toByte(),
+            0x51.toByte(),
+            0x03.toByte(),
+            ((this.mspqn shr 16) and 0xFF).toByte(),
+            ((this.mspqn shr 8) and 0xFF).toByte(),
+            (this.mspqn and 0xFF).toByte()
         )
     }
     companion object {
@@ -173,9 +562,9 @@ class SetTempo(var mspqn: Int): MIDIEvent {
     fun get_bpm(): Double {
         var mspqn = this.get_mspqn()
         return if (mspqn > 0) {
-            60000000.toDouble() / msqpn
+            60000000.toDouble() / mspqn
         } else {
-            0
+            0.toDouble()
         }
     }
 
@@ -199,14 +588,14 @@ class SetTempo(var mspqn: Int): MIDIEvent {
 class SMPTEOffset(var hour: Int, var minute: Int, var second: Int, var ff: Int, var fr: Int): MIDIEvent {
     override fun as_bytes(): ByteArray {
         return byteArrayOf(
-            0xFF as Byte,
-            0x54 as Byte,
-            0x05 as Byte,
-            this.hour as Byte,
-            this.minute as Byte,
-            this.second as Byte,
-            this.ff as Byte,
-            this.fr as Byte
+            0xFF.toByte(),
+            0x54.toByte(),
+            0x05.toByte(),
+            this.hour.toByte(),
+            this.minute.toByte(),
+            this.second.toByte(),
+            this.ff.toByte(),
+            this.fr.toByte()
         )
     }
 
@@ -245,13 +634,13 @@ class SMPTEOffset(var hour: Int, var minute: Int, var second: Int, var ff: Int, 
 class TimeSignature(var numerator: Int, var denominator: Int, var clocks_per_metronome: Int, var thirtysecondths_per_quarter: Int): MIDIEvent {
     override fun as_bytes(): ByteArray {
         return byteArrayOf(
-            0xFF as Byte,
-            0x58 as Byte,
-            0x04 as Byte,
-            this.numerator as Byte,
-            this.denominator as Byte,
-            this.clocks_per_metronome as Byte,
-            this.thirtysecondths_per_quarter as Byte
+            0xFF.toByte(),
+            0x58.toByte(),
+            0x04.toByte(),
+            this.numerator.toByte(),
+            this.denominator.toByte(),
+            this.clocks_per_metronome.toByte(),
+            this.thirtysecondths_per_quarter.toByte()
         )
     }
     fun get_numerator(): Int {
@@ -288,9 +677,9 @@ class KeySignature(var key: String): MIDIEvent {
     override fun as_bytes(): ByteArray {
         var misf = get_mi_sf(this.key)
         return byteArrayOf(
-            0xFF as Byte,
-            0x59 as Byte,
-            0x02 as Byte,
+            0xFF.toByte(),
+            0x59.toByte(),
+            0x02.toByte(),
             misf.first,
             misf.second
         )
@@ -312,9 +701,9 @@ class KeySignature(var key: String): MIDIEvent {
     }
 }
 
-class Sequencer(var data: ByteArray): MIDIEvent {
+class SequencerSpecific(var data: ByteArray): MIDIEvent {
     override fun as_bytes(): ByteArray {
-        return byteArrayOf(0xFF as Byte, 0x7F as Byte) + to_variable_length_bytes(this.data.size).toByteArray() + this.data
+        return byteArrayOf(0xFF.toByte(), 0x7F.toByte()) + to_variable_length_bytes(this.data.size).toByteArray() + this.data
     }
     fun get_data(): ByteArray {
         return this.data
@@ -327,9 +716,9 @@ class Sequencer(var data: ByteArray): MIDIEvent {
 class NoteOn(var channel: Int, var note: Int, var velocity: Int): MIDIEvent {
     override fun as_bytes(): ByteArray {
         return byteArrayOf(
-            (0x90 or this.channel) as Byte,
-            this.note as Byte,
-            this.velocity as Byte
+            (0x90 or this.channel).toByte(),
+            this.note.toByte(),
+            this.velocity.toByte()
         )
     }
 
@@ -361,9 +750,9 @@ class NoteOn(var channel: Int, var note: Int, var velocity: Int): MIDIEvent {
 class NoteOff(var channel: Int, var note: Int, var velocity: Int): MIDIEvent {
     override fun as_bytes(): ByteArray {
         return byteArrayOf(
-            (0x80 or this.channel) as Byte,
-            this.note as Byte,
-            this.velocity as Byte
+            (0x80 or this.channel).toByte(),
+            this.note.toByte(),
+            this.velocity.toByte()
         )
     }
 
@@ -396,9 +785,9 @@ class NoteOff(var channel: Int, var note: Int, var velocity: Int): MIDIEvent {
 class PolyphonicKeyPressure(var channel: Int, var note: Int, var velocity: Int): MIDIEvent {
     override fun as_bytes(): ByteArray {
         return byteArrayOf(
-            (0xA0 or this.channel) as Byte,
-            this.note as Byte,
-            this.velocity as Byte
+            (0xA0 or this.channel).toByte(),
+            this.note.toByte(),
+            this.velocity.toByte()
         )
     }
 
@@ -430,9 +819,9 @@ class PolyphonicKeyPressure(var channel: Int, var note: Int, var velocity: Int):
 open class ControlChange(var channel: Int, var controller: Int, open var value: Int): MIDIEvent {
     override fun as_bytes(): ByteArray {
         return byteArrayOf(
-            (0xB0 or this.get_channel()) as Byte,
-            this.get_controller() as Byte,
-            this.get_value() as Byte
+            (0xB0 or this.get_channel()).toByte(),
+            this.get_controller().toByte(),
+            this.get_value().toByte()
         )
     }
     fun get_controller(): Int {
@@ -459,9 +848,9 @@ abstract class VariableControlChange(var channel: Int, var value: Int): MIDIEven
     abstract val controller: Int
     override fun as_bytes(): ByteArray {
         return byteArrayOf(
-            (0xB0 or this.get_channel()) as Byte,
-            this.get_controller() as Byte,
-            this.get_value() as Byte
+            (0xB0 or this.get_channel()).toByte(),
+            this.get_controller().toByte(),
+            this.get_value().toByte()
         )
     }
     fun get_controller(): Int {
@@ -702,8 +1091,8 @@ class PolyphonicOperation(channel: Int): VariableControlChange(channel, 0) {
 class ProgramChange(var channel: Int, var program: Int): MIDIEvent {
     override fun as_bytes(): ByteArray {
         return byteArrayOf(
-            (0xC0 or this.channel) as Byte,
-            this.program as Byte
+            (0xC0 or this.channel).toByte(),
+            this.program.toByte()
         )
     }
 
@@ -725,8 +1114,8 @@ class ProgramChange(var channel: Int, var program: Int): MIDIEvent {
 class ChannelPressure(var channel: Int, var pressure: Int): MIDIEvent {
     override fun as_bytes(): ByteArray {
         return byteArrayOf(
-            (0xD0 or this.channel) as Byte,
-            this.pressure as Byte
+            (0xD0 or this.channel).toByte(),
+            this.pressure.toByte()
         )
     }
 
@@ -751,9 +1140,9 @@ class PitchWheelChange(var channel: Int, var value: Int): MIDIEvent {
         var least = unsigned_value and 0x007F
         var most = (unsigned_value shr 8) and 0x007F
         return byteArrayOf(
-            (0xE0 or this.channel) as Byte,
-            least as Byte,
-            most as Byte
+            (0xE0 or this.channel).toByte(),
+            least.toByte(),
+            most.toByte()
         )
     }
 
@@ -781,7 +1170,7 @@ class PitchWheelChange(var channel: Int, var value: Int): MIDIEvent {
 
 class SystemExclusive(var data: ByteArray): MIDIEvent {
     override fun as_bytes(): ByteArray {
-        return byteArrayOf(0xF0 as Byte) + this.data + byteArrayOf(0xF7 as Byte)
+        return byteArrayOf(0xF0.toByte()) + this.data + byteArrayOf(0xF7.toByte())
     }
 
     fun get_data(): ByteArray {
@@ -795,7 +1184,7 @@ class SystemExclusive(var data: ByteArray): MIDIEvent {
 
 class MTCQuarterFrame(var time_code: Int): MIDIEvent {
     override fun as_bytes(): ByteArray {
-        return byteArrayOf(0xF1 as Byte, this.time_code as Byte)
+        return byteArrayOf(0xF1.toByte(), this.time_code.toByte())
     }
 
     fun set_time_code(new_value: Int) {
@@ -812,9 +1201,9 @@ class SongPositionPointer(var beat: Int): MIDIEvent {
         var most = (this.beat shr 8) and 0x007F
 
         return byteArrayOf(
-            0xF2 as Byte,
-            least as Byte,
-            most as Byte
+            0xF2.toByte(),
+            least.toByte(),
+            most.toByte()
         )
     }
 
@@ -829,8 +1218,8 @@ class SongPositionPointer(var beat: Int): MIDIEvent {
 class SongSelect(var song: Int): MIDIEvent {
     override fun as_bytes(): ByteArray {
         return byteArrayOf(
-            0xF3 as Byte,
-            (this.song and 0xFF) as Byte
+            0xF3.toByte(),
+            (this.song and 0xFF).toByte()
         )
     }
 
@@ -844,47 +1233,47 @@ class SongSelect(var song: Int): MIDIEvent {
 
 class TuneRequest: MIDIEvent {
     override fun as_bytes(): ByteArray {
-        return byteArrayOf(0xF6 as Byte)
+        return byteArrayOf(0xF6.toByte())
     }
 }
 class MIDIClock: MIDIEvent {
     override fun as_bytes(): ByteArray {
-        return byteArrayOf(0xF8 as Byte)
+        return byteArrayOf(0xF8.toByte())
     }
 }
 class MIDIStart: MIDIEvent {
     override fun as_bytes(): ByteArray {
-        return byteArrayOf(0xFA as Byte)
+        return byteArrayOf(0xFA.toByte())
     }
 }
 class MIDIContinue: MIDIEvent {
     override fun as_bytes(): ByteArray {
-        return byteArrayOf(0xFB as Byte)
+        return byteArrayOf(0xFB.toByte())
     }
 }
 class MIDIStop: MIDIEvent {
     override fun as_bytes(): ByteArray {
-        return byteArrayOf(0xFC as Byte)
+        return byteArrayOf(0xFC.toByte())
     }
 }
 class ActiveSense: MIDIEvent {
     override fun as_bytes(): ByteArray {
-        return byteArrayOf(0xFE as Byte)
+        return byteArrayOf(0xFE.toByte())
     }
 }
 class Reset: MIDIEvent {
     override fun as_bytes(): ByteArray {
-        return byteArrayOf(0xFF as Byte)
+        return byteArrayOf(0xFF.toByte())
     }
 }
 
 class TimeCode(var rate: Int, var hour: Int, var minute: Int, var second: Int, var frame: Int): MIDIEvent {
     override fun as_bytes(): ByteArray {
         return byteArrayOf(
-            ((this.rate shl 5) + this.hour) as Byte,
-            (this.minute and 0x3F) as Byte,
-            (this.second and 0x3F) as Byte,
-            (this.frame and 0x1F) as Byte
+            ((this.rate shl 5) + this.hour).toByte(),
+            (this.minute and 0x3F).toByte(),
+            (this.second and 0x3F).toByte(),
+            (this.frame and 0x1F).toByte()
         )
     }
 }
@@ -960,8 +1349,7 @@ class MIDI {
                     }
                     while (sub_bytes.isNotEmpty()) {
                         current_deltatime += get_variable_length_number(sub_bytes)
-                        var pair = mlo.process_mtrk_event(sub_bytes, current_deltatime, current_track)
-                        current_deltatime += pair.first
+                        var eid = mlo.process_mtrk_event(sub_bytes, current_deltatime, current_track)
                     }
                     current_track += 1
                 } else {
@@ -977,62 +1365,64 @@ class MIDI {
             this._active_byte = bytes.first()!!
         }
 
-        var event = MIDIEvent.from_bytes(bytes, this._active_byte)
-        return this.insert_event(track, current_deltatime, event)
+        var event: MIDIEvent? = event_from_bytes(bytes, this._active_byte!!) ?: throw Exception("Invalid Bytes")
+
+        return this.insert_event(track, current_deltatime, event!!)
     }
     fun as_bytes(): ByteArray {
         var output: MutableList<Byte> = mutableListOf(
-            'M' as Byte,
-            'T' as Byte,
-            'h' as Byte,
-            'd' as Byte
+            'M'.toByte(),
+            'T'.toByte(),
+            'h'.toByte(),
+            'd'.toByte()
         )
 
         var format = this.get_format()
-        output.add((format / 256) as Byte)
-        output.add((format % 256) as Byte)
+        output.add((format / 256).toByte())
+        output.add((format % 256).toByte())
 
         var track_count = this.count_tracks()
-        output.add((track_count / 256) as Byte)
-        output.add((track_count % 256) as Byte)
+        output.add((track_count / 256).toByte())
+        output.add((track_count % 256).toByte())
 
         var ppqn = this.get_ppqn()
-        output.add((ppqn / 256) as Byte)
-        output.add((ppqn % 256) as Byte)
+        output.add((ppqn / 256).toByte())
+        output.add((ppqn % 256).toByte())
 
         var track_event_bytes: MutableList<Byte>
         var track_byte_length: Int = 0
         var tracks = this.get_tracks()
 
         for (ticks in tracks) {
-            output.add('M' as Byte)
-            output.add('T' as Byte)
-            output.add('r' as Byte)
-            output.add('k' as Byte)
+            output.add('M'.toByte())
+            output.add('T'.toByte())
+            output.add('r'.toByte())
+            output.add('k'.toByte())
 
             track_event_bytes = mutableListOf()
             for (pair in ticks) {
                 var tick_delay = pair.first
                 var eid = pair.second
                 var working_event = this.get_event(eid)
-                track_event_bytes += to_variable_length_bytes(tick_delay)
-                track_event_bytes += working_event.as_bytes()
+                if (working_event != null) {
+                    track_event_bytes += to_variable_length_bytes(tick_delay)
+                    track_event_bytes += working_event.as_bytes().toMutableList()
+                }
             }
             // Automatically handle EndOfTrackEvent Here instead of requiring it to be in the MIDITrack object
             track_event_bytes.add(0x00)
-            track_event_bytes += EndOfTrack.as_bytes()
+            track_event_bytes += EndOfTrack().as_bytes().toMutableList()
 
             // track length in bytes
-
             track_byte_length = track_event_bytes.size
-            output.add((track_byte_length shr 24) as Byte)
-            output.add(((track_byte_length shr 16) and 0xFF) as Byte)
-            output.add(((track_byte_length shr 8) and 0xFF) as Byte)
-            output.add((track_byte_length and 0xFF) as Byte)
+            output.add((track_byte_length shr 24).toByte())
+            output.add(((track_byte_length shr 16) and 0xFF).toByte())
+            output.add(((track_byte_length shr 8) and 0xFF).toByte())
+            output.add((track_byte_length and 0xFF).toByte())
             output += track_event_bytes.toList()
         }
 
-        return output
+        return output.toByteArray()
     }
 
     // Save the midi object to a file
@@ -1193,7 +1583,7 @@ fun to_variable_length_bytes(number: Int): List<Byte> {
             tmp = tmp or 0x80
         }
 
-        output.add(tmp as Byte)
+        output.add(tmp.toByte())
         first_pass = false
     }
     return output.reversed()
@@ -1201,7 +1591,7 @@ fun to_variable_length_bytes(number: Int): List<Byte> {
 
 fun get_pitchwheel_value(n: Float): Int {
     var output = if (n < 0) {
-        ((1 + n) * (0x2000)) as Int
+        ((1 + n) * (0x2000)).toInt()
     } else if (n > 0) {
         ((n * 0x1FFF) as Int) + 0x2000
     } else {
@@ -1216,9 +1606,9 @@ fun build_key_signature(mi: Byte, sf: Byte): KeySignature {
 }
 
 fun build_pitch_wheel_change(channel: Byte, lsb: Byte, msb: Byte): PitchWheelChange {
-    var unsigned_value: Float = (msb as Int lsh 8) + (lsb as Int)
-    var new_value: Float = ((unsigned_value * 2) / 0x3FFF) - 1
-    return PitchWheelChange(channel, new_value)
+    var unsigned_value = (msb as Int shl 8) + (lsb as Int)
+    var new_value: Float = ((unsigned_value.toFloat() * 2.toFloat()) / 0x3FFF.toFloat()) - 1
+    return PitchWheelChange(channel as Int, new_value as Int)
 }
 
 fun get_mi_sf(chord_name: String): Pair<Byte, Byte> {
@@ -1246,7 +1636,7 @@ fun get_mi_sf(chord_name: String): Pair<Byte, Byte> {
         Pair(0, 1)
     } else if (chord_name == "Am") {
         Pair(1, 0)
-    } else if (chord_name == "A#m" || chord_name = "Bbm") {
+    } else if (chord_name == "A#m" || chord_name == "Bbm") {
         Pair(1, 7)
     } else if (chord_name == "Bm") {
         Pair(1, 2)
