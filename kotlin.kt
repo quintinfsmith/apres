@@ -40,8 +40,8 @@ fun event_from_bytes(bytes: MutableList<Byte>, default: Byte): MIDIEvent? {
             }
             0xA -> {
                 var channel = (leadbyte and 0x0F) as Int
-                var note = bytes.removeFirst()
-                var velocity = bytes.removeFirst()
+                var note = bytes.removeFirst() as Int
+                var velocity = bytes.removeFirst() as Int
                 output = PolyphonicKeyPressure(channel, note, velocity)
             }
             0xB -> {
