@@ -104,444 +104,385 @@ class ApresUnitTest {
         }
     }
 
+    @Test
+    fun test_sequence_number_event() {
+        var event = SequenceNumber(1)
+        assertEquals(listOf(0xFF.toByte(), 0x00.toByte(), 0x02.toByte(), 0x00.toByte(), 0x01.toByte()), event.as_bytes().toList())
+        event = SequenceNumber(13607)
+        assertEquals(listOf(0xFF.toByte(), 0x00.toByte(), 0x02.toByte(), 0x35.toByte(), 0x27.toByte()), event.as_bytes().toList())
+
+    }
+
+    @Test
+    fun test_text_event() {
+        var some_text = "This is some text"
+        var text_len_bytes = to_variable_length_bytes(some_text.length)
+
+        var event = Text(some_text)
+        var compare_list = mutableListOf(0xFF.toByte(), 0x01.toByte())
+        compare_list += text_len_bytes
+        compare_list += some_text.toByteArray().toList()
+        assertEquals(compare_list, event.as_bytes().toList())
+    }
+    @Test
+    fun test_copyright_notice_event() {
+        var some_text = "This is some text"
+        var text_len_bytes = to_variable_length_bytes(some_text.length)
+
+        var event = CopyRightNotice(some_text)
+        var compare_list = mutableListOf(0xFF.toByte(), 0x02.toByte())
+        compare_list += text_len_bytes
+        compare_list += some_text.toByteArray().toList()
+        assertEquals(compare_list, event.as_bytes().toList())
+    }
+    @Test
+    fun test_track_name_event() {
+        var some_text = "This is some text"
+        var text_len_bytes = to_variable_length_bytes(some_text.length)
+
+        var event = TrackName(some_text)
+        var compare_list = mutableListOf(0xFF.toByte(), 0x03.toByte())
+        compare_list += text_len_bytes
+        compare_list += some_text.toByteArray().toList()
+        assertEquals(compare_list, event.as_bytes().toList())
+    }
+    @Test
+    fun test_instrument_name_event() {
+        var some_text = "This is some text"
+        var text_len_bytes = to_variable_length_bytes(some_text.length)
+
+        var event = InstrumentName(some_text)
+        var compare_list = mutableListOf(0xFF.toByte(), 0x04.toByte())
+        compare_list += text_len_bytes
+        compare_list += some_text.toByteArray().toList()
+        assertEquals(compare_list, event.as_bytes().toList())
+    }
+    @Test
+    fun test_lyric_event() {
+        var some_text = "This is some text"
+        var text_len_bytes = to_variable_length_bytes(some_text.length)
+
+        var event = Lyric(some_text)
+        var compare_list = mutableListOf(0xFF.toByte(), 0x05.toByte())
+        compare_list += text_len_bytes
+        compare_list += some_text.toByteArray().toList()
+        assertEquals(compare_list, event.as_bytes().toList())
+    }
+    @Test
+    fun test_marker_event() {
+        var some_text = "This is some text"
+        var text_len_bytes = to_variable_length_bytes(some_text.length)
+
+        var event = Marker(some_text)
+        var compare_list = mutableListOf(0xFF.toByte(), 0x06.toByte())
+        compare_list += text_len_bytes
+        compare_list += some_text.toByteArray().toList()
+        assertEquals(compare_list, event.as_bytes().toList())
+    }
+
+    @Test
+    fun test_cue_point_event() {
+        var some_text = "This is some text"
+        var text_len_bytes = to_variable_length_bytes(some_text.length)
+
+        var event = CuePoint(some_text)
+        var compare_list = mutableListOf(0xFF.toByte(), 0x07.toByte())
+        compare_list += text_len_bytes
+        compare_list += some_text.toByteArray().toList()
+        assertEquals(compare_list, event.as_bytes().toList())
+    }
+
+    @Test
+    fun test_end_of_track_event() {
+        var event = EndOfTrack()
+        assertEquals(listOf(0xFF.toByte(), 0x2F.toByte(), 0x00.toByte()), event.as_bytes().toList())
+    }
+
+    @Test
+    fun test_channel_prefix_event() {
+        for (i in 0 until 256) {
+            var event = ChannelPrefix(i)
+            assertEquals(listOf(0xFF.toByte(), 0x20.toByte(), 0x01.toByte(), i.toByte()), event.as_bytes().toList())
+        }
+    }
+    @Test
+    fun test_set_tempo_event() {
+        var test_cases_bpm = listOf(
+            Pair(120, 500000),
+            Pair(280, 214285),
+            Pair(1, 0x00FFFFFF),
+            Pair(60000000, 1)
+        )
+        for ((_, expected_uspqn) in test_cases_bpm) {
+            var event = SetTempo(expected_uspqn)
+            assertEquals(
+                listOf(
+                    0xFF.toByte(), 0x51.toByte(), 0x03.toByte(),
+                    ((expected_uspqn / (256 * 256)) % 256).toByte(),
+                    ((expected_uspqn / 256) % 256).toByte(),
+                    (expected_uspqn % 256).toByte()
+                ),
+                event.as_bytes().toList()
+            )
+        }
+
+    }
+    @Test
+    fun test_smpte_offset_event() {
+        var event = SMPTEOffset(1,2,3,4,5)
+        assertEquals(
+            listOf(
+                0xFF.toByte(),
+                0x54.toByte(),
+                0x05.toByte(),
+                0x01.toByte(),
+                0x02.toByte(),
+                0x03.toByte(),
+                0x04.toByte(),
+                0x05.toByte()
+            ),
+            event.as_bytes().toList()
+        )
+    }
+    @Test
+    fun test_time_signature_event() {
+        var event = TimeSignature(4,4,32,3)
+        assertEquals(
+            listOf(
+                0xFF.toByte(),
+                0x58.toByte(),
+                0x04.toByte(),
+                0x04.toByte(),
+                0x04.toByte(),
+                0x20.toByte(),
+                0x03.toByte()
+            ),
+            event.as_bytes().toList()
+        )
+    }
+
+    @Test
+    fun test_key_signature_event() {
+        var event = KeySignature("A")
+        assertEquals(
+            listOf(
+                0xFF.toByte(),
+                0x59.toByte(),
+                0x02.toByte(),
+                0x03.toByte(),
+                0x00.toByte()
+            ),
+            event.as_bytes().toList()
+        )
+    }
+
+    @Test
+    fun test_squence_specific_event() {
+        var event = SystemExclusive(byteArrayOf(0x00.toByte()))
+        assertEquals(
+            listOf(
+                0xF0.toByte(),
+                0x00.toByte(),
+                0xF7.toByte()
+            ),
+            event.as_bytes().toList()
+        )
+    }
+    @Test
+    fun test_note_on_event() {
+        var event = NoteOn(14,23,33)
+        assertEquals(
+            listOf(
+                0x9E.toByte(),
+                0x17.toByte(),
+                0x21.toByte()
+            ),
+            event.as_bytes().toList()
+        )
+    }
+    @Test
+    fun test_note_off_event() {
+        var event = NoteOff(14,23,33)
+        assertEquals(
+            listOf(
+                0x8E.toByte(),
+                0x17.toByte(),
+                0x21.toByte()
+            ),
+            event.as_bytes().toList()
+        )
+    }
+
+    @Test
+    fun test_aftertouch_event() {
+        var event = PolyphonicKeyPressure(14,23,33)
+        assertEquals(
+            listOf(
+                0xAE.toByte(),
+                0x17.toByte(),
+                0x21.toByte()
+            ),
+            event.as_bytes().toList()
+        )
+    }
+
+    @Test
+    fun test_program_change_event() {
+        var event = ProgramChange(14,35)
+        assertEquals(
+            listOf( 0xCE.toByte(), 0x23.toByte() ),
+            event.as_bytes().toList()
+        )
+    }
+
+    @Test
+    fun test_channel_pressure_event() {
+        var event = ChannelPressure(14, 23)
+        assertEquals(
+            listOf(0xDE.toByte(), 0x17.toByte()),
+            event.as_bytes().toList()
+        )
+    }
+
+    @Test
+    fun test_pitchwheel_change_event() {
+        var test_cases = listOf(
+            Triple(-1.0, 0, 0),
+            Triple(-0.5, 0x10,0x00),
+            Triple(0.0, 0x20, 0x00),
+            Triple(0.5, 0x2F, 0x7F),
+            Triple(1.0, 0x3F, 0x7F)
+        )
+
+        for ((input, msb, lsb) in test_cases) {
+            var event = PitchWheelChange(14, input.toFloat())
+            assertEquals(
+                input.toFloat(),
+                event.value
+            )
+            assertEquals(
+                listOf(0xEE.toByte(), lsb.toByte(), msb.toByte()),
+                event.as_bytes().toList()
+            )
+        }
+    }
+
+    @Test
+    fun test_system_exclusive_event() {
+        var event = SystemExclusive(byteArrayOf(0,0,1,0))
+        assertEquals(
+            listOf(0xF0.toByte(), 0x00, 0x00, 0x01, 0x00, 0xF7.toByte()),
+            event.as_bytes().toList()
+        )
+    }
+
+    @Test
+    fun test_control_change_events() {
+        var general_event = ControlChange(0x0E, 0x17, 0x21)
+        assertEquals(listOf(0xBE.toByte(), 0x17.toByte(), 0x21.toByte()), general_event.as_bytes().toList())
+
+        var channel = 1
+        var value = 25
+        var compare_variable_controls = listOf(
+            Pair(BankSelect(channel, value), 0x00),
+            Pair(BankSelectLSB(channel, value), 0x20),
+            Pair(ModulationWheel(channel, value), 0x01),
+            Pair(ModulationWheelLSB(channel, value), 0x21),
+            Pair(BreathController(channel, value), 0x02),
+            Pair(BreathControllerLSB(channel, value), 0x22),
+            Pair(FootPedal(channel, value), 0x04),
+            Pair(FootPedalLSB(channel, value), 0x24),
+            Pair(PortamentoTime(channel, value), 0x05),
+            Pair(PortamentoTimeLSB(channel, value), 0x25),
+            Pair(DataEntry(channel, value), 0x06),
+            Pair(DataEntryLSB(channel, value), 0x26),
+            Pair(Volume(channel, value), 0x07),
+            Pair(VolumeLSB(channel, value), 0x27),
+            Pair(Balance(channel, value), 0x08),
+            Pair(BalanceLSB(channel, value), 0x28),
+            Pair(Pan(channel, value), 0x0A),
+            Pair(PanLSB(channel, value), 0x2A),
+            Pair(Expression(channel, value), 0x0B),
+            Pair(ExpressionLSB(channel, value), 0x2B),
+            Pair(EffectControl1(channel, value), 0x0C),
+            Pair(EffectControl1LSB(channel, value), 0x2C),
+            Pair(EffectControl2(channel, value), 0x0D),
+            Pair(EffectControl2LSB(channel, value), 0x2D),
+            Pair(GeneralPurpose1(channel, value), 0x10),
+            Pair(GeneralPurpose1LSB(channel, value), 0x30),
+            Pair(GeneralPurpose2(channel, value), 0x11),
+            Pair(GeneralPurpose2LSB(channel, value), 0x31),
+            Pair(GeneralPurpose3(channel, value), 0x12),
+            Pair(GeneralPurpose3LSB(channel, value), 0x32),
+            Pair(GeneralPurpose4(channel, value), 0x13),
+            Pair(GeneralPurpose4LSB(channel, value), 0x33),
+            Pair(HoldPedal(channel, value), 0x40),
+            Pair(Portamento(channel, value), 0x41),
+            Pair(Sustenuto(channel, value), 0x42),
+            Pair(SoftPedal(channel, value), 0x43),
+            Pair(Legato(channel, value), 0x44),
+            Pair(Hold2Pedal(channel, value), 0x45),
+            Pair(SoundVariation(channel, value), 0x46),
+            Pair(SoundTimbre(channel, value), 0x47),
+            Pair(SoundReleaseTime(channel, value), 0x48),
+            Pair(SoundAttack(channel, value), 0x49),
+            Pair(SoundBrightness(channel, value), 0x4A),
+            Pair(SoundControl1(channel, value), 0x4B),
+            Pair(SoundControl2(channel, value), 0x4C),
+            Pair(SoundControl3(channel, value), 0x4D),
+            Pair(SoundControl4(channel, value), 0x4E),
+            Pair(SoundControl5(channel, value), 0x4F),
+            Pair(GeneralPurpose5(channel, value), 0x50),
+            Pair(GeneralPurpose6(channel, value), 0x51),
+            Pair(GeneralPurpose7(channel, value), 0x52),
+            Pair(GeneralPurpose8(channel, value), 0x53),
+            Pair(EffectsLevel(channel, value), 0x5B),
+            Pair(TremuloLevel(channel, value), 0x5C),
+            Pair(ChorusLevel(channel, value), 0x5D),
+            Pair(CelesteLevel(channel, value), 0x5E),
+            Pair(PhaserLevel(channel, value), 0x5F),
+            Pair(RegisteredParameterNumber(channel, value), 0x65),
+            Pair(RegisteredParameterNumberLSB(channel, value), 0x64),
+            Pair(NonRegisteredParameterNumber(channel, value), 0x63),
+            Pair(NonRegisteredParameterNumberLSB(channel, value), 0x62),
+            Pair(LocalControl(channel, value), 0x7A),
+            Pair(MonophonicOperation(channel, value), 0xFE)
+        )
+        var compare_constant_controls = listOf(
+            Pair(DataIncrement(channel), 0x60),
+            Pair(DataDecrement(channel), 0x61),
+            Pair(PolyphonicOperation(channel), 0xFF),
+            Pair(AllSoundOff(channel), 0x78),
+            Pair(AllControllersOff(channel), 0x79),
+            Pair(AllNotesOff(channel), 0x7B),
+            Pair(OmniOff(channel), 0x7C ),
+            Pair(OmniOn(channel), 0x7D)
+        )
+
+
+        for ((event, controller_value) in compare_variable_controls) {
+            assertEquals(
+                listOf((0xB0 or channel).toByte(), controller_value.toByte(), value.toByte()),
+                event.as_bytes().toList()
+            )
+        }
+
+        for ((event, controller_value) in compare_constant_controls) {
+            assertEquals(
+                listOf((0xB0 or channel).toByte(), controller_value.toByte(), 0.toByte()),
+                event.as_bytes().toList()
+            )
+        }
+    }
+    @Test
+    fun test_chords() {
+        assertEquals(
+            "Eb",
+            get_chord_name_from_mi_sf(0.toByte(), 253.toByte())
+        )
+        assertEquals(
+            "A#m",
+            get_chord_name_from_mi_sf(1.toByte(), 7.toByte())
+        )
+    }
 }
-//#[test]
-//fn test_sequence_number_event() {
-//    let mut event = SequenceNumber(1);
-//    assert_eq!(event.as_bytes().as_slice(), &[0xFF, 0x00, 0x02, 0x00, 0x01]);
-//    event = SequenceNumber(13607);
-//    assert_eq!(event.as_bytes().as_slice(), &[0xFF, 0x00, 0x02, 0x35, 0x27]);
-//
-//}
-//
-//#[test]
-//fn test_text_event() {
-//    let some_text = "This is some text".to_string();
-//    let text_len_bytes = to_variable_length_bytes(some_text.len());
-//
-//    let event = Text(some_text.clone());
-//    let mut compare_vec = vec![ 0xFF, 0x01 ];
-//    compare_vec.extend(text_len_bytes.iter().copied());
-//    compare_vec.extend(some_text.as_bytes().iter().copied());
-//    assert_eq!(
-//        event.as_bytes().as_slice(),
-//        compare_vec.as_slice()
-//    );
-//
-//}
-//
-//#[test]
-//fn test_copyright_notice_event() {
-//    let some_text = "This is some text".to_string();
-//    let text_len_bytes = to_variable_length_bytes(some_text.len());
-//
-//    let event = CopyRightNotice(some_text.clone());
-//    let mut compare_vec = vec![ 0xFF, 0x02 ];
-//    compare_vec.extend(text_len_bytes.iter().copied());
-//    compare_vec.extend(some_text.as_bytes().iter().copied());
-//    assert_eq!(
-//        event.as_bytes().as_slice(),
-//        compare_vec.as_slice()
-//    );
-//}
-//
-//#[test]
-//fn test_track_name_event() {
-//    let some_text = "Some Track Name".to_string();
-//    let text_len_bytes = to_variable_length_bytes(some_text.len());
-//
-//    let event = TrackName(some_text.clone());
-//    let mut compare_vec = vec![ 0xFF, 0x03 ];
-//    compare_vec.extend(text_len_bytes.iter().copied());
-//    compare_vec.extend(some_text.as_bytes().iter().copied());
-//    assert_eq!(
-//        event.as_bytes().as_slice(),
-//        compare_vec.as_slice()
-//    );
-//
-//}
-//
-//#[test]
-//fn test_instrument_name_event() {
-//    let some_text = "Some Instrument Name".to_string();
-//    let text_len_bytes = to_variable_length_bytes(some_text.len());
-//
-//    let event = InstrumentName(some_text.clone());
-//    let mut compare_vec = vec![ 0xFF, 0x04 ];
-//    compare_vec.extend(text_len_bytes.iter().copied());
-//    compare_vec.extend(some_text.as_bytes().iter().copied());
-//    assert_eq!(
-//        event.as_bytes().as_slice(),
-//        compare_vec.as_slice()
-//    );
-//}
-//
-//#[test]
-//fn test_lyric_event() {
-//    let some_text = "Here are some Lyrics.".to_string();
-//    let text_len_bytes = to_variable_length_bytes(some_text.len());
-//
-//    let event = Lyric(some_text.clone());
-//    let mut compare_vec = vec![ 0xFF, 0x05 ];
-//    compare_vec.extend(text_len_bytes.iter().copied());
-//    compare_vec.extend(some_text.as_bytes().iter().copied());
-//    assert_eq!(
-//        event.as_bytes().as_slice(),
-//        compare_vec.as_slice()
-//    );
-//}
-//
-//#[test]
-//fn test_marker_event() {
-//    let some_text = "marker text".to_string();
-//    let text_len_bytes = to_variable_length_bytes(some_text.len());
-//
-//    let event = Marker(some_text.clone());
-//    let mut compare_vec = vec![ 0xFF, 0x06 ];
-//    compare_vec.extend(text_len_bytes.iter().copied());
-//    compare_vec.extend(some_text.as_bytes().iter().copied());
-//    assert_eq!(
-//        event.as_bytes().as_slice(),
-//        compare_vec.as_slice()
-//    );
-//}
-//
-//#[test]
-//fn test_cue_point_event() {
-//    let some_text = "cue point text".to_string();
-//    let text_len_bytes = to_variable_length_bytes(some_text.len());
-//
-//    let event = CuePoint(some_text.clone());
-//    let mut compare_vec = vec![ 0xFF, 0x07 ];
-//    compare_vec.extend(text_len_bytes.iter().copied());
-//    compare_vec.extend(some_text.as_bytes().iter().copied());
-//    assert_eq!(
-//        event.as_bytes().as_slice(),
-//        compare_vec.as_slice()
-//    );
-//}
-//
-//#[test]
-//fn test_end_of_track_event() {
-//    let event = EndOfTrack;
-//    assert_eq!(
-//        event.as_bytes().as_slice(),
-//        [0xFF, 0x2F, 0x00]
-//    );
-//}
-//
-//#[test]
-//fn test_channel_prefix_event() {
-//    for i in std::u8::MIN .. std::u8::MAX {
-//        let mut event = ChannelPrefix(i as u8);
-//        assert_eq!(
-//            event.as_bytes().as_slice(),
-//            [0xFF, 0x20, 0x01, i]
-//        );
-//    }
-//}
-//
-//#[test]
-//fn test_set_tempo_event() {
-//    let test_cases_bpm = vec![
-//        (120, 500000),
-//        (280, 214285),
-//        (1, 0x00FFFFFF),// Minimum bpm is 3.576278762788
-//        (60_000_000, 1)
-//    ];
-//    for (bpm, expected_uspqn) in test_cases_bpm.iter() {
-//        let mut event = SetTempo(*expected_uspqn);
-//        assert_eq!(
-//            event.as_bytes().as_slice(),
-//            [
-//                0xFF, 0x51, 0x03,
-//                ((*expected_uspqn / 256u32.pow(2)) % 256) as u8,
-//                ((*expected_uspqn / 256u32.pow(1)) % 256) as u8,
-//                (*expected_uspqn % 256) as u8
-//            ]
-//        );
-//    }
-//}
-//
-//#[test]
-//fn test_smpte_offset_event() {
-//    let event = SMPTEOffset(1,2,3,4,5);
-//    assert_eq!(
-//        event.as_bytes().as_slice(),
-//        [0xFF, 0x54, 0x05, 0x01, 0x02, 0x03, 0x04, 0x05]
-//    );
-//}
-//
-//#[test]
-//fn test_time_signature_event() {
-//    let event = TimeSignature(4, 4, 32, 3);
-//    assert_eq!(
-//        event.as_bytes().as_slice(),
-//        [0xFF, 0x58, 0x04, 0x04, 0x04, 0x20, 0x03]
-//    );
-//}
-//
-//#[test]
-//fn test_key_signature_event() {
-//    let event = KeySignature("A".to_string());
-//    assert_eq!(
-//        event.as_bytes().as_slice(),
-//        [0xFF, 0x59, 0x02, 0x03, 0x00]
-//    );
-//}
-//
-//#[test]
-//fn test_sequence_specific_event() {
-//    let event = SystemExclusive(vec![0x00]);
-//    assert_eq!(
-//        event.as_bytes().as_slice(),
-//        [0xF0, 0x00, 0xF7]
-//    );
-//}
-//
-//#[test]
-//fn test_note_on_event() {
-//    let event = NoteOn(14, 23, 33);
-//    assert_eq!(
-//        event.as_bytes().as_slice(),
-//        [0x9E, 0x17, 0x21]
-//    );
-//}
-//
-//#[test]
-//fn test_note_off_event() {
-//    let event = NoteOff(14, 23, 33);
-//    assert_eq!(
-//        event.as_bytes().as_slice(),
-//        [0x8E, 0x17, 0x21]
-//    );
-//}
-//
-//#[test]
-//fn test_aftertouch_event() {
-//    let event = AfterTouch(14, 23, 33);
-//    assert_eq!(
-//        event.as_bytes().as_slice(),
-//        [0xAE, 0x17, 0x21]
-//    );
-//}
-//
-//#[test]
-//fn test_program_change_event() {
-//    let event = ProgramChange(14, 23);
-//    assert_eq!(
-//        event.as_bytes().as_slice(),
-//        [0xCE, 0x17]
-//    );
-//}
-//
-//#[test]
-//fn test_channel_pressure_event() {
-//    let event = ChannelPressure(14, 23);
-//    assert_eq!(
-//        event.as_bytes().as_slice(),
-//        [0xDE, 0x17]
-//    );
-//}
-//
-//#[test]
-//fn test_pitchwheel_change_event() {
-//    let test_cases: Vec<(f64, (u8, u8))> = vec![
-//        (-1.0, (0, 0)),
-//        (-0.5, (0x10, 0x00)),
-//        (0.0, (0x20, 0x00)),
-//        (0.5, (0x2F, 0x7F)),
-//        (1.0, (0x3F, 0x7F))
-//    ];
-//    for (input_value, (msb, lsb)) in test_cases.iter() {
-//        let event = PitchWheelChange(14, *input_value);
-//        match event {
-//            PitchWheelChange(_, v) => {
-//                assert_eq!(v, *input_value);
-//                assert_eq!(
-//                    event.as_bytes().as_slice(),
-//                    [0xEE, *lsb, *msb]
-//                );
-//            }
-//            _ => {
-//                assert!(false);
-//            }
-//        }
-//    }
-//}
-//
-//#[test]
-//fn test_system_exclusive_event() {
-//    let event = SystemExclusive(vec![0,0,1,0]);
-//    assert_eq!(
-//        event.as_bytes().as_slice(),
-//        [0xF0, 0x00, 0x00, 0x01, 0x00, 0xF7]
-//    );
-//}
-//
-//
-//#[test]
-//fn test_control_change_events() {
-//    let mut event: MIDIEvent;
-//    let channel = 1;
-//    let value = 25;
-//
-//    event = ControlChange(0x0E, 0x17, 0x21);
-//    assert_eq!( event.as_bytes().as_slice(), [0xBE, 0x17, 0x21]);
-//    event = BankSelect(channel, value);
-//    assert_eq!(event.as_bytes().as_slice(), [0xB0 | channel, 0x00, value]);
-//    event = BankSelectLSB(channel, value);
-//    assert_eq!(event.as_bytes().as_slice(), [0xB0 | channel, 0x20, value]);
-//    event = ModulationWheel(channel, value);
-//    assert_eq!(event.as_bytes().as_slice(), [0xB0 | channel, 0x01, value]);
-//    event = ModulationWheelLSB(channel, value);
-//    assert_eq!(event.as_bytes().as_slice(), [0xB0 | channel, 0x21, value]);
-//    event = BreathController(channel, value);
-//    assert_eq!(event.as_bytes().as_slice(), [0xB0 | channel, 0x02, value]);
-//    event = BreathControllerLSB(channel, value);
-//    assert_eq!(event.as_bytes().as_slice(), [0xB0 | channel, 0x22, value]);
-//    event = FootPedal(channel, value);
-//    assert_eq!(event.as_bytes().as_slice(), [0xB0 | channel, 0x04, value]);
-//    event = FootPedalLSB(channel, value);
-//    assert_eq!(event.as_bytes().as_slice(), [0xB0 | channel, 0x24, value]);
-//    event = PortamentoTime(channel, value);
-//    assert_eq!(event.as_bytes().as_slice(), [0xB0 | channel, 0x05, value]);
-//    event = PortamentoTimeLSB(channel, value);
-//    assert_eq!(event.as_bytes().as_slice(), [0xB0 | channel, 0x25, value]);
-//    event = DataEntry(channel, value);
-//    assert_eq!(event.as_bytes().as_slice(), [0xB0 | channel, 0x06, value]);
-//    event = DataEntryLSB(channel, value);
-//    assert_eq!(event.as_bytes().as_slice(), [0xB0 | channel, 0x26, value]);
-//    event = Volume(channel, value);
-//    assert_eq!(event.as_bytes().as_slice(), [0xB0 | channel, 0x07, value]);
-//    event = VolumeLSB(channel, value);
-//    assert_eq!(event.as_bytes().as_slice(), [0xB0 | channel, 0x27, value]);
-//    event = Balance(channel, value);
-//    assert_eq!(event.as_bytes().as_slice(), [0xB0 | channel, 0x08, value]);
-//    event = BalanceLSB(channel, value);
-//    assert_eq!(event.as_bytes().as_slice(), [0xB0 | channel, 0x28, value]);
-//    event = Pan(channel, value);
-//    assert_eq!(event.as_bytes().as_slice(), [0xB0 | channel, 0x0A, value]);
-//    event = PanLSB(channel, value);
-//    assert_eq!(event.as_bytes().as_slice(), [0xB0 | channel, 0x2A, value]);
-//    event = Expression(channel, value);
-//    assert_eq!(event.as_bytes().as_slice(), [0xB0 | channel, 0x0B, value]);
-//    event = ExpressionLSB(channel, value);
-//    assert_eq!(event.as_bytes().as_slice(), [0xB0 | channel, 0x2B, value]);
-//    event = EffectControl1(channel, value);
-//    assert_eq!(event.as_bytes().as_slice(), [0xB0 | channel, 0x0C, value]);
-//    event = EffectControl1LSB(channel, value);
-//    assert_eq!(event.as_bytes().as_slice(), [0xB0 | channel, 0x2C, value]);
-//    event = EffectControl2(channel, value);
-//    assert_eq!(event.as_bytes().as_slice(), [0xB0 | channel, 0x0D, value]);
-//    event = EffectControl2LSB(channel, value);
-//    assert_eq!(event.as_bytes().as_slice(), [0xB0 | channel, 0x2D, value]);
-//    event = GeneralPurpose1(channel, value);
-//    assert_eq!(event.as_bytes().as_slice(), [0xB0 | channel, 0x10, value]);
-//    event = GeneralPurpose1LSB(channel, value);
-//    assert_eq!(event.as_bytes().as_slice(), [0xB0 | channel, 0x30, value]);
-//    event = GeneralPurpose2(channel, value);
-//    assert_eq!(event.as_bytes().as_slice(), [0xB0 | channel, 0x11, value]);
-//    event = GeneralPurpose2LSB(channel, value);
-//    assert_eq!(event.as_bytes().as_slice(), [0xB0 | channel, 0x31, value]);
-//    event = GeneralPurpose3(channel, value);
-//    assert_eq!(event.as_bytes().as_slice(), [0xB0 | channel, 0x12, value]);
-//    event = GeneralPurpose3LSB(channel, value);
-//    assert_eq!(event.as_bytes().as_slice(), [0xB0 | channel, 0x32, value]);
-//    event = GeneralPurpose4(channel, value);
-//    assert_eq!(event.as_bytes().as_slice(), [0xB0 | channel, 0x13, value]);
-//    event = GeneralPurpose4LSB(channel, value);
-//    assert_eq!(event.as_bytes().as_slice(), [0xB0 | channel, 0x33, value]);
-//    event = HoldPedal(channel, value);
-//    assert_eq!(event.as_bytes().as_slice(), [0xB0 | channel, 0x40, value]);
-//    event = Portamento(channel, value);
-//    assert_eq!(event.as_bytes().as_slice(), [0xB0 | channel, 0x41, value]);
-//    event = Sustenuto(channel, value);
-//    assert_eq!(event.as_bytes().as_slice(), [0xB0 | channel, 0x42, value]);
-//    event = SoftPedal(channel, value);
-//    assert_eq!(event.as_bytes().as_slice(), [0xB0 | channel, 0x43, value]);
-//    event = Legato(channel, value);
-//    assert_eq!(event.as_bytes().as_slice(), [0xB0 | channel, 0x44, value]);
-//    event = Hold2Pedal(channel, value);
-//    assert_eq!(event.as_bytes().as_slice(), [0xB0 | channel, 0x45, value]);
-//    event = SoundVariation(channel, value);
-//    assert_eq!(event.as_bytes().as_slice(), [0xB0 | channel, 0x46, value]);
-//    event = SoundTimbre(channel, value);
-//    assert_eq!(event.as_bytes().as_slice(), [0xB0 | channel, 0x47, value]);
-//    event = SoundReleaseTime(channel, value);
-//    assert_eq!(event.as_bytes().as_slice(), [0xB0 | channel, 0x48, value]);
-//    event = SoundAttack(channel, value);
-//    assert_eq!(event.as_bytes().as_slice(), [0xB0 | channel, 0x49, value]);
-//    event = SoundBrightness(channel, value);
-//    assert_eq!(event.as_bytes().as_slice(), [0xB0 | channel, 0x4A, value]);
-//    event = SoundControl1(channel, value);
-//    assert_eq!(event.as_bytes().as_slice(), [0xB0 | channel, 0x4B, value]);
-//    event = SoundControl2(channel, value);
-//    assert_eq!(event.as_bytes().as_slice(), [0xB0 | channel, 0x4C, value]);
-//    event = SoundControl3(channel, value);
-//    assert_eq!(event.as_bytes().as_slice(), [0xB0 | channel, 0x4D, value]);
-//    event = SoundControl4(channel, value);
-//    assert_eq!(event.as_bytes().as_slice(), [0xB0 | channel, 0x4E, value]);
-//    event = SoundControl5(channel, value);
-//    assert_eq!(event.as_bytes().as_slice(), [0xB0 | channel, 0x4F, value]);
-//    event = GeneralPurpose5(channel, value);
-//    assert_eq!(event.as_bytes().as_slice(), [0xB0 | channel, 0x50, value]);
-//    event = GeneralPurpose6(channel, value);
-//    assert_eq!(event.as_bytes().as_slice(), [0xB0 | channel, 0x51, value]);
-//    event = GeneralPurpose7(channel, value);
-//    assert_eq!(event.as_bytes().as_slice(), [0xB0 | channel, 0x52, value]);
-//    event = GeneralPurpose8(channel, value);
-//    assert_eq!(event.as_bytes().as_slice(), [0xB0 | channel, 0x53, value]);
-//    event = EffectsLevel(channel, value);
-//    assert_eq!(event.as_bytes().as_slice(), [0xB0 | channel, 0x5B, value]);
-//    event = TremuloLevel(channel, value);
-//    assert_eq!(event.as_bytes().as_slice(), [0xB0 | channel, 0x5C, value]);
-//    event = ChorusLevel(channel, value);
-//    assert_eq!(event.as_bytes().as_slice(), [0xB0 | channel, 0x5D, value]);
-//    event = CelesteLevel(channel, value);
-//    assert_eq!(event.as_bytes().as_slice(), [0xB0 | channel, 0x5E, value]);
-//    event = PhaserLevel(channel, value);
-//    assert_eq!(event.as_bytes().as_slice(), [0xB0 | channel, 0x5F, value]);
-//    event = RegisteredParameterNumber(channel, value);
-//    assert_eq!(event.as_bytes().as_slice(), [0xB0 | channel, 0x65, value]);
-//    event = RegisteredParameterNumberLSB(channel, value);
-//    assert_eq!(event.as_bytes().as_slice(), [0xB0 | channel, 0x64, value]);
-//    event = NonRegisteredParameterNumber(channel, value);
-//    assert_eq!(event.as_bytes().as_slice(), [0xB0 | channel, 0x63, value]);
-//    event = NonRegisteredParameterNumberLSB(channel, value);
-//    assert_eq!(event.as_bytes().as_slice(), [0xB0 | channel, 0x62, value]);
-//    event = LocalControl(channel, value);
-//    assert_eq!(event.as_bytes().as_slice(), [0xB0 | channel, 0x7A, value]);
-//    event = MonophonicOperation(channel, value);
-//    assert_eq!(event.as_bytes().as_slice(), [0xB0 | channel, 0xFE, value]);
-//
-//    event = DataIncrement(channel);
-//    assert_eq!(event.as_bytes().as_slice(), [0xB0 | channel, 0x60, 0]);
-//    event = DataDecrement(channel);
-//    assert_eq!(event.as_bytes().as_slice(), [0xB0 | channel, 0x61, 0]);
-//    event = PolyphonicOperation(channel);
-//    assert_eq!(event.as_bytes().as_slice(), [0xB0 | channel, 0xFF, 0]);
-//    event = AllSoundOff(channel);
-//    assert_eq!(event.as_bytes().as_slice(), [0xB0 | channel, 0x78, 0]);
-//    event = AllControllersOff(channel);
-//    assert_eq!(event.as_bytes().as_slice(), [0xB0 | channel, 0x79, 0]);
-//    event = AllNotesOff(channel);
-//    assert_eq!(event.as_bytes().as_slice(), [0xB0 | channel, 0x7B, 0]);
-//    event = OmniOff(channel);
-//    assert_eq!(event.as_bytes().as_slice(), [0xB0 | channel, 0x7C, 0]);
-//    event = OmniOn(channel);
-//    assert_eq!(event.as_bytes().as_slice(), [0xB0 | channel, 0x7D, 0]);
-//}
-//
-//#[test]
-//fn test_chords() {
-//    assert_eq!(
-//        get_chord_name_from_mi_sf(0, 253),
-//        "Eb"
-//    );
-//    assert_eq!(
-//        get_chord_name_from_mi_sf(1, 7),
-//        "A#m"
-//    );
-//}
-//

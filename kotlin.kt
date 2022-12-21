@@ -678,8 +678,8 @@ class KeySignature(var key: String): MIDIEvent {
             0xFF.toByte(),
             0x59.toByte(),
             0x02.toByte(),
-            misf.first,
-            misf.second
+            misf.second,
+            misf.first
         )
     }
 
@@ -1132,7 +1132,7 @@ class ChannelPressure(var channel: Int, var pressure: Int): MIDIEvent {
     }
 }
 
-class PitchWheelChange(var channel: Int, var value: Int): MIDIEvent {
+class PitchWheelChange(var channel: Int, var value: Float): MIDIEvent {
     override fun as_bytes(): ByteArray {
         var unsigned_value = this.get_unsigned_value()
         var least = unsigned_value and 0x007F
@@ -1150,18 +1150,20 @@ class PitchWheelChange(var channel: Int, var value: Int): MIDIEvent {
     fun set_channel(channel: Int) {
         this.channel = channel
     }
-    fun get_value(): Int {
+    fun get_value(): Float {
         return this.value
     }
-    fun set_value(value: Int) {
+    fun set_value(value: Float) {
         this.value = value
     }
 
     fun get_unsigned_value(): Int {
-        return if (this.value == 0) {
+        return if (this.value == 0.toFloat()) {
             0x2000
+        } else if (this.value < 0) {
+            ((1.toFloat() + this.value) * 0x2000.toFloat()).toInt()
         } else {
-            ((this.value + 1) * 0x3FFF) / 2
+            (this.value * 0x1FFF.toFloat()).toInt() + 0x2000
         }
     }
 }
@@ -1627,7 +1629,7 @@ fun build_key_signature(mi: Byte, sf: Byte): KeySignature {
 fun build_pitch_wheel_change(channel: Byte, lsb: Byte, msb: Byte): PitchWheelChange {
     var unsigned_value = ((msb.toInt() and 0xFF) shl 8) + (lsb.toInt() and 0xFF)
     var new_value: Float = ((unsigned_value.toFloat() * 2.toFloat()) / 0x3FFF.toFloat()) - 1
-    return PitchWheelChange(channel.toInt(), new_value.toInt())
+    return PitchWheelChange(channel.toInt(), new_value)
 }
 
 fun get_mi_sf(chord_name: String): Pair<Byte, Byte> {
@@ -1706,6 +1708,13 @@ fun get_mi_sf(chord_name: String): Pair<Byte, Byte> {
 }
 
 fun get_chord_name_from_mi_sf(mi: Byte, sf: Byte): String {
+    var mi_int = mi.toInt()
+    var sf_int: Int = if (sf < 0) {
+        (sf and 0xFF.toByte()).toInt()
+    } else {
+        sf.toInt()
+    }
+
     var map: List<List<String>> = listOf(
         listOf(
             "Cb", "Gb", "Db", "Ab",
@@ -1721,6 +1730,6 @@ fun get_chord_name_from_mi_sf(mi: Byte, sf: Byte): String {
         )
     )
 
-    return map[mi as Int][(sf as Int) + 7]
+    return map[mi_int][sf_int + 7]
 }
 
