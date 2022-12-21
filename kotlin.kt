@@ -1372,6 +1372,7 @@ class MIDI {
         for (b in bytes) {
             str = "$str ${java.lang.Integer.toHexString(b.toInt() and 0xFF)}"
         }
+
         var event: MIDIEvent? = event_from_bytes(bytes, this._active_byte) ?: throw Exception("Invalid Bytes\n$str")
 
         return this.insert_event(track, current_deltatime, event!!)
@@ -1412,18 +1413,23 @@ class MIDI {
             output.add('k'.toByte())
 
             track_event_bytes = mutableListOf()
+            var has_eot = false
             for (pair in ticks) {
                 var tick_delay = pair.first
                 var eid = pair.second
                 var working_event = this.get_event(eid)
                 if (working_event != null) {
+                    has_eot = has_eot || (working_event is EndOfTrack)
                     track_event_bytes += to_variable_length_bytes(tick_delay)
                     track_event_bytes += working_event.as_bytes().toMutableList()
                 }
             }
+
             // Automatically handle EndOfTrackEvent Here instead of requiring it to be in the MIDITrack object
-            track_event_bytes.add(0x00)
-            track_event_bytes += EndOfTrack().as_bytes().toMutableList()
+            if (!has_eot) {
+                track_event_bytes.add(0x00)
+                track_event_bytes += EndOfTrack().as_bytes().toMutableList()
+            }
 
             // track length in bytes
             track_byte_length = track_event_bytes.size
