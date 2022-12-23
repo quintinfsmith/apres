@@ -71,6 +71,8 @@ class ApresUnitTest {
         assertEquals(midi.get_track_length(0), 121)
         assertEquals(midi.events.size, 16)
         assertEquals(midi.event_positions.size, 16)
+        //assertEquals(midi_bytes, midi.as_bytes().toList())
+        assertEquals(midi_bytes.size, midi.as_bytes().toList().size)
     }
 
     @Test
@@ -448,6 +450,7 @@ class ApresUnitTest {
             Pair(LocalControl(channel, value), 0x7A),
             Pair(MonophonicOperation(channel, value), 0xFE)
         )
+
         var compare_constant_controls = listOf(
             Pair(DataIncrement(channel), 0x60),
             Pair(DataDecrement(channel), 0x61),
