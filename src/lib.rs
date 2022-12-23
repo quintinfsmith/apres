@@ -1345,7 +1345,7 @@ impl MIDI {
             if chunk_type == ('M' as u8, 'T' as u8, 'h' as u8, 'd' as u8) {
                 dequeue_n(bytes, 4); // Get Size
                 midi_format = dequeue_n(bytes, 2) as u16; // Midi Format
-                dequeue_n(bytes, 2); // Get Number of tracks
+                dequeue_n(bytes, 4); // Get Number of tracks
                 divword = dequeue_n(bytes, 2);
 
                 // TODO: handle divword > 0x8000

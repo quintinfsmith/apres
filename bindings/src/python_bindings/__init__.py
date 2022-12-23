@@ -1307,8 +1307,8 @@ class MIDI:
         else:
             track_length = self.track_get_length(active_track)
             active_tick = kwargs.get('wait', 0) + track_length
-            if track_length > 0:
-                active_tick -= 1
+            #if track_length > 0:
+            #    active_tick -= 1
 
         self.place_event(event, active_track, active_tick)
 
@@ -1351,6 +1351,7 @@ class MIDIFactory:
         typedef void* Controller;
 
         Controller new_controller(uint8_t, uint8_t);
+        uint8_t device_exists(uint8_t, uint8_t);
         void controller_listen(Controller);
         uint8_t* controller_poll_next_byte(Controller);
         void controller_kill(Controller);
@@ -1550,6 +1551,10 @@ class MIDIFactory:
         return midi
 
     @classmethod
+    def can_connect(cls, channel=0, device_id=0):
+        return bool(cls.lib.device_exists(channel, device_id))
+
+    @classmethod
     def controller_new_pointer(cls, channel=0, device_id=0):
         return cls.lib.new_controller(channel, device_id)
 
@@ -1660,23 +1665,21 @@ class MIDIController:
         self.channel = channel
         self.device_id = device_id
         self.connect()
-        self.hook_map = {}
         self.event_queue = []
-
-    def set_hook(self, event_type, hook):
-        self.hook_map[event_type] = hook
 
     def is_connected(self):
         """Check if pipe is open and ready to be read"""
         return self.pointer is not None
 
     def connect(self):
-        self.pointer = MIDIFactory.controller_new_pointer(self.channel, self.device_id)
+        if MIDIFactory.can_connect(self.channel, self.device_id):
+            self.pointer = MIDIFactory.controller_new_pointer(self.channel, self.device_id)
 
     def close(self):
         """Tear down this midi controller"""
         self.listening = False
-        MIDIFactory.controller_kill(self.pointer)
+        if self.pointer is not None:
+            MIDIFactory.controller_kill(self.pointer)
         self.pointer = None
 
     def listen(self):

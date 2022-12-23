@@ -67,8 +67,8 @@ fn test_initialize_load() {
         }
         Err(_) => ()
     }
-
 }
+
 
 #[test]
 fn test_add_event() {
