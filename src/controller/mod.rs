@@ -26,7 +26,6 @@ impl Controller {
                 }
             }
         }
-
         Ok(())
     }
 
@@ -59,8 +58,10 @@ impl Controller {
     }
 
     pub fn get_next(&mut self) -> Result<MIDIEvent, ApresError> {
-        let lead_byte = self.get_next_byte()?;
-        match lead_byte {
+        let in_callback_mode = self.listening
+        self.force_listening()
+        let lead_byte = self.get_next_byte()?
+        let output = match lead_byte {
             0..=0x7F => {
                 Err(ApresError::InvalidBytes(vec![lead_byte]))
             }
@@ -388,6 +389,7 @@ impl Controller {
 
                 Ok(MIDIEvent::TimeCode(rate, hour, minute, second, frame))
             }
+
             0xF2 => {
                 let least_significant_byte = self.get_next_byte()?;
                 let most_significant_byte = self.get_next_byte()?;
@@ -446,6 +448,12 @@ impl Controller {
                 Err(ApresError::InvalidBytes(vec![lead_byte]))
             }
         }
+
+        if ! in_callback_mode {
+            self.stop_listening()
+        }
+
+        output
     }
 }
 
