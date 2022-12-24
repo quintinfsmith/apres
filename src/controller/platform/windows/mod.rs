@@ -1,3 +1,7 @@
+// I'm only willing to put so much effort into developing for windows.
+// So this is as far as I got before I hit the smallest snag.
+// I'm not aware of how to get Audio::midiInOpen callbacks to work.
+
 use crate::ApresError;
 use windows::Win32::Media::{
     MMSYSERR_NOERROR,
