@@ -1327,13 +1327,17 @@ class MIDI:
         del self.events[event_id]
         return event
 
-    def place_event(self, event: MIDIEvent, track: int, tick: int) -> None:
+    def insert_event(self, event: MIDIEvent, track: int, tick: int) -> None:
         """Put a MIDIEvent at a specific position in the piece"""
         if track > 15:
             raise TrackOutOfBounds()
 
         self.events[event.get_uuid()] = event
         self.event_positions[event.get_uuid()] = (track, tick)
+
+    def place_event(self, event: MIDIEvent, track: int, tick: int):
+        """ Deprecated. use insert_event() instead """
+        self.insert_event(event, track, tick)
 
     def get_ppqn(self):
         return self.ppqn

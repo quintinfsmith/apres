@@ -1086,7 +1086,6 @@ impl MIDIBytes for MIDIEvent {
                             let event = MIDIEvent::SequenceNumber((bytedump[0] as u16 * 256) + bytedump[1] as u16);
                             output = Ok(event);
                         }
-
                         0x01 => {
                             match std::str::from_utf8(bytedump.as_slice()) {
                                 Ok(textdump) => {
@@ -1171,8 +1170,7 @@ impl MIDIBytes for MIDIEvent {
                         0x2F => {
                             output = Ok(MIDIEvent::EndOfTrack);
                         }
-                        0x51 => {
-                        }
+                        0x51 => { }
                         0x54 => {
                             let event = MIDIEvent::SMPTEOffset(bytedump[0], bytedump[1], bytedump[2], bytedump[3], bytedump[4]);
                             output = Ok(event);
