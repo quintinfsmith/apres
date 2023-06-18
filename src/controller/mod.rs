@@ -58,9 +58,9 @@ impl Controller {
     }
 
     pub fn get_next(&mut self) -> Result<MIDIEvent, ApresError> {
-        let in_callback_mode = self.listening
-        self.force_listening()
-        let lead_byte = self.get_next_byte()?
+        let in_callback_mode = self.listening;
+        self.force_listening();
+        let lead_byte = self.get_next_byte()?;
         let output = match lead_byte {
             0..=0x7F => {
                 Err(ApresError::InvalidBytes(vec![lead_byte]))
@@ -447,7 +447,7 @@ impl Controller {
             0xF4 | 0xF5 | 0xF9 | 0xFD => {
                 Err(ApresError::InvalidBytes(vec![lead_byte]))
             }
-        }
+        };
 
         if ! in_callback_mode {
             self.stop_listening()
