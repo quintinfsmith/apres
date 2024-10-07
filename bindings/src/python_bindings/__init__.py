@@ -11,6 +11,7 @@ from ctypes.util import find_library
 from typing import Tuple, Optional, List, Dict
 from abc import ABC, abstractmethod
 from cffi import FFI
+import asyncio
 
 class EventNotFound(Exception):
     """Raised when an event id is given that doesn't belong to any known event"""
@@ -1710,6 +1711,39 @@ class MIDIController:
             hookname = "hook_" + str(type(event).__name__)
             if hookname in dir(self):
                 self.event_queue.append((self.__getattribute__(hookname), event))
+
+    async def async_listen(self):
+        """Listen to the midi device for incoming bits. Process them and call their hooks."""
+        if self.pointer is None:
+            return
+
+        self.listening = True
+
+        process_queue_task = asyncio.create_task(self._async_process_queue())
+
+        MIDIFactory.controller_listen(self.pointer)
+        while self.listening:
+            try:
+                event = self.get_next_event()
+            except PipeClosed:
+                self.listening = False
+                event = None
+
+            if not event:
+                continue
+
+            #FIXME: Massive kludge so I don't have to put in a shit tonne of bioler-plate, empty functions.
+            hookname = "hook_" + str(type(event).__name__)
+            if hookname in dir(self):
+                self.event_queue.append((self.__getattribute__(hookname), event))
+
+    async def _async_process_queue(self):
+        while self.listening:
+            try:
+                hook, event = self.event_queue.pop(0)
+                hook(event)
+            except IndexError:
+                await asyncio.sleep(.01)
 
     def _process_queue(self):
         while self.listening:
