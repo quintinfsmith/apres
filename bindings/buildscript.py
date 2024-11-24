@@ -83,7 +83,7 @@ elif "--publish" in sys.argv:
     os.system("python3 -m twine upload dist/*.gz")
     os.chdir("../")
 elif "--local" in sys.argv:
-    os.system("python3 setup.py install --prefix ~/.local/")
+    os.system("python3 setup.py install --prefix $VIRTUAL_ENV/")
     os.chdir("../")
     #os.system("cp target/%s/release/libapres_bindings.so ~/.local/lib/libapres.so" % target_name)
 else:

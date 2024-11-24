@@ -1405,6 +1405,9 @@ class MIDIFactory:
         13: KeySignature,
         14: Sequencer,
         23: SystemExclusive,
+        24: MTCQuarterFrame,
+        25: SongPositionPointer,
+        26: SongSelect,
 
         15: NoteOn,
         16: NoteOff,
