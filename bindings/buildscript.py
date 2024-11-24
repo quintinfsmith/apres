@@ -80,7 +80,7 @@ os.system("python3 setup.py sdist bdist_wheel")
 if "--zip" in sys.argv:
     os.chdir("../")
 elif "--publish" in sys.argv:
-    os.system("python3 -m twine upload dist/*.gz")
+    os.system("python3 -m twine upload dist/*")
     os.chdir("../")
 elif "--local" in sys.argv:
     os.system("python3 setup.py install --prefix $VIRTUAL_ENV/")
